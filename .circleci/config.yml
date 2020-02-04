@@ -1,0 +1,52 @@
+version: 2.1
+
+defaults:
+  rust_image: &rust_image quay.io/tarilabs/rust_tari-build-with-deps:nightly-2020-01-08
+
+jobs:
+  test-tari-debug:
+    docker:
+      - image: *rust_image
+    resource_class: medium
+    steps:
+      - checkout
+      - run:
+          name: tari_crypto tests (debug)
+          command: |
+            cargo test --workspace --all-features
+  test-tari-release:
+    docker:
+      - image: *rust_image
+    resource_class: medium
+    steps:
+      - checkout
+      - run:
+          name: tari_crypto tests (release)
+          command: |
+            cargo test --workspace --all-features --release
+  rustfmt:
+    docker:
+      - image: *rust_image
+    resource_class: medium
+    steps:
+      - checkout
+      - run:
+          name: tari_crypto lint checks
+          command: |
+            TOOLCHAIN=$(cat rust-toolchain)
+            rustup component add --toolchain $TOOLCHAIN rustfmt
+            cargo fmt --all -- --check
+
+workflows:
+  version: 2
+  workflow:
+    jobs:
+      - rustfmt
+      - test-tari-debug:
+          - requires:
+              - rustfmt
+      - test-tari-release:
+          - requires:
+              - rustfmt
+
+
