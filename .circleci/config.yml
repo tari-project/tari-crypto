@@ -3,6 +3,54 @@ version: 2.1
 defaults:
   rust_image: &rust_image quay.io/tarilabs/rust_tari-build-with-deps:nightly-2020-01-08
 
+commands:
+  lint:
+    description: Run cargo fmt
+    steps:
+      - run:
+          name: Calculate dependencies
+          command: |
+            rustc --version >rust-version
+            test -e Cargo.lock || cargo generate-lockfile
+      - restore_cache:
+          keys:
+            - v6-cargo-cache-{{arch}}-{{checksum "rust-version"}}-n-{{checksum "Cargo.lock"}}
+      - run:
+          name: Tari Crypto tests
+          command: |
+             TOOLCHAIN=$(cat rust-toolchain)
+             rustup component add --toolchain $TOOLCHAIN rustfmt
+             cargo fmt --all -- --check
+      - save_cache:
+          paths:
+            - /usr/local/cargo/registry
+            - target
+          key: v6-cargo-cache-{{arch}}-{{checksum "rust-version"}}-n-{{checksum "Cargo.lock"}}
+  test:
+    description: Run the tests
+    parameters:
+      release:
+        description: Set this to true to compile in release mode.
+        type: boolean
+        default: false
+    steps:
+      - run:
+          name: Calculate dependencies
+          command: |
+            rustc --version >rust-version
+            test -e Cargo.lock || cargo generate-lockfile
+      - restore_cache:
+          keys:
+            - v6-cargo-cache-{{arch}}-{{checksum "rust-version"}}-<<parameters.release>>-{{checksum "Cargo.lock"}}
+      - run:
+          name: Tari Crypto tests
+          command: cargo test --all <<# parameters.release >>--release<</ parameters.release >>
+      - save_cache:
+          paths:
+            - /usr/local/cargo/registry
+            - target
+          key: v6-cargo-cache-{{arch}}-{{checksum "rust-version"}}-<<parameters.release>>-{{checksum "Cargo.lock"}}
+
 jobs:
   test-tari-debug:
     docker:
@@ -10,43 +58,30 @@ jobs:
     resource_class: medium
     steps:
       - checkout
-      - run:
-          name: tari_crypto tests (debug)
-          command: |
-            cargo test --workspace --all-features
+      - test:
+          release: false
+
   test-tari-release:
     docker:
       - image: *rust_image
     resource_class: medium
     steps:
       - checkout
-      - run:
-          name: tari_crypto tests (release)
-          command: |
-            cargo test --workspace --all-features --release
+      - test:
+          release: true
+
   rustfmt:
     docker:
       - image: *rust_image
     resource_class: medium
     steps:
       - checkout
-      - run:
-          name: tari_crypto lint checks
-          command: |
-            TOOLCHAIN=$(cat rust-toolchain)
-            rustup component add --toolchain $TOOLCHAIN rustfmt
-            cargo fmt --all -- --check
+      - lint
 
 workflows:
   version: 2
   workflow:
     jobs:
       - rustfmt
-      - test-tari-debug:
-          - requires:
-              - rustfmt
-      - test-tari-release:
-          - requires:
-              - rustfmt
-
-
+      - test-tari-debug
+      - test-tari-release
