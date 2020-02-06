@@ -37,8 +37,25 @@ use wasm_bindgen::prelude::*;
 
 #[derive(Serialize, Deserialize)]
 pub struct SignatureVerifyResult {
-    result: bool,
-    error: String,
+    pub result: bool,
+    pub error: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct SignResult {
+    pub public_nonce: Option<String>,
+    pub signature: Option<String>,
+    pub error: String,
+}
+
+impl Default for SignResult {
+    fn default() -> Self {
+        SignResult {
+            public_nonce: None,
+            signature: None,
+            error: "".into(),
+        }
+    }
 }
 
 /// Create an return a new private- public key pair
@@ -59,7 +76,36 @@ pub fn pubkey_from_secret(k: &str) -> Option<String> {
     }
 }
 
-/// Checks
+/// Generate a Schnorr signature of the message using the given private key
+#[wasm_bindgen]
+pub fn sign(private_key: &str, msg: &str) -> JsValue {
+    let mut result = SignResult::default();
+    let k = match RistrettoSecretKey::from_hex(private_key) {
+        Ok(k) => k,
+        _ => {
+            result.error = "Invalid private key".to_string();
+            return JsValue::from_serde(&result).unwrap();
+        },
+    };
+    sign_with_key(&k, msg, &mut result);
+    JsValue::from_serde(&result).unwrap()
+}
+
+#[allow(non_snake_case)]
+pub(crate) fn sign_with_key(k: &RistrettoSecretKey, msg: &str, result: &mut SignResult) {
+    let (r, R) = RistrettoPublicKey::random_keypair(&mut OsRng);
+    let e = Blake256::digest(msg.as_bytes());
+    let sig = RistrettoSchnorr::sign(k.clone(), r, e.as_slice());
+    if sig.is_err() {
+        result.error = format!("Could not create signature. {}", sig.unwrap_err().to_string());
+        return;
+    }
+    let sig = sig.unwrap();
+    result.public_nonce = Some(R.to_hex());
+    result.signature = Some(sig.get_signature().to_hex());
+}
+
+/// Checks the validity of a Schnorr signature
 #[allow(non_snake_case)]
 #[wasm_bindgen]
 pub fn check_signature(pub_nonce: &str, signature: &str, pub_key: &str, msg: &str) -> JsValue {

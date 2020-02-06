@@ -46,3 +46,15 @@ The benchmarks use Criterion and will produce nice graphs (if you have gnuplot i
 To run the benchmarks with SIMD instructions:
 
     $ cargo bench --features "avx2"
+
+# Change log
+
+## v0.2.0
+
+### General
+* WASM and crate version now match. Eliminate that confusion.
+
+### WASM module
+* Breaking change: `KeyRing.sign` doesn't take a nonce any more. It's not needed, and why risk someone re-using it?
+* New method: `key_utils.sign` to sign keys not in the key ring
+* New module: Commitments
