@@ -23,71 +23,23 @@
 
 // If you get a "module not found" error, see README.md for details on how to generate the node package
 let tari_crypto = require('./pkg');
-let assert = require('assert');
-
 
 console.log(`Tari crypto. Version ${tari_crypto.version()}`);
+const [k, P] = tari_crypto.generate_keypair();
 
-// The WASM module holds the keys in a vector (keyring), which means that we can get at all the cryptoey goodness
-// without having to expose tons of functions with unsafe pointers, or continuously do de- and serialisation to hex
-// or base64.
-let KeyRing = tari_crypto.KeyRing;
-const keys = KeyRing.new();
-
-console.log("Creating new keypair");
-keys.new_key("Alice");
-let n = keys.new_key("Bob");
-console.log(`${n} keys in ring`);
-console.log("kA = ", keys.private_key("Alice"));
-console.log("PB = ", keys.public_key("Bob"));
-
-console.log("Signing message");
-let sig = keys.sign("Alice", "Hello Tari");
+console.log(`POST /free_tari/allocate/${P}`);
+let msg = `Hello Tari from ${P}`;
+console.log(`Message: |${msg}|`);
+const sig = tari_crypto.sign(k, msg);
 if (sig.error) {
     console.log(`Error getting signature ${sig.error}`);
 } else {
-    console.log('Signature:', sig);
-    console.log("Verifying signature..");
-    let pubkey = keys.public_key("Alice");
-    console.log(`Pubkey: ${pubkey}`);
-    let check = tari_crypto.check_signature(sig.public_nonce, sig.signature, pubkey, "Hello Tari");
+    let body = { public_nonce: sig.public_nonce, signature: sig.signature };
+    console.log(JSON.stringify(body));
+    let check = tari_crypto.check_signature(sig.public_nonce, sig.signature, P, msg);
     if (check.result === true) {
         console.log("Signature is valid!");
     } else {
         console.log(`Invalid signature: ${check.error}`);
     }
 }
-
-// Commitments
-const v = BigInt(10200300);
-const k = keys.private_key("Bob");
-let commitment = tari_crypto.commit(k, v);
-if (commitment.error === true) {
-    console.log(`Commitment error: ${commitment.error}`);
-} else {
-    assert(tari_crypto.opens(k, v, commitment.commitment));
-    assert(!tari_crypto.opens(keys.private_key("Alice"), v, commitment.commitment));
-    console.log(`${commitment.commitment} commits to:\n (${k}, ${v})`)
-}
-let c2 = keys.commit("Bob", v);
-assert(c2.commitment, commitment.commitment);
-
-
-// Range proofs
-const rp = tari_crypto.RangeProofFactory.new();
-
-const proof = rp.create_proof(k, v);
-
-if (proof.error) {
-    console.log(`Range proof error: ${proof.error}`);
-} else {
-    console.log(`Range proof: ${proof.proof}`);
-    // let is_valid = rp.verify(k, v, proof.proof);
-    // console.log("Should be valid:", is_valid);
-    //
-    // is_valid = rp.verify(k, BigInt(46), proof.proof);
-    // console.log("Should not be valid:", is_valid);
-
-}
-rp.free();
-keys.free();
