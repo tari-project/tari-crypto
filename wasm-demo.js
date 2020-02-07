@@ -41,10 +41,7 @@ console.log("kA = ", keys.private_key("Alice"));
 console.log("PB = ", keys.public_key("Bob"));
 
 console.log("Signing message");
-let [r, R] = tari_crypto.generate_keypair();
-let sig = keys.sign("Alice", r, "Hello Tari");
-// The public nonce is returned in the signature. It should match R above
-assert.equal(R, sig.public_nonce);
+let sig = keys.sign("Alice", "Hello Tari");
 if (sig.error) {
     console.log(`Error getting signature ${sig.error}`);
 } else {
@@ -52,11 +49,27 @@ if (sig.error) {
     console.log("Verifying signature..");
     let pubkey = keys.public_key("Alice");
     console.log(`Pubkey: ${pubkey}`);
-    let check = tari_crypto.check_signature(R, sig.signature, pubkey, "Hello Tari");
-    if (check.result == true) {
+    let check = tari_crypto.check_signature(sig.public_nonce, sig.signature, pubkey, "Hello Tari");
+    if (check.result === true) {
         console.log("Signature is valid!");
     } else {
         console.log(`Invalid signature: ${check.error}`);
     }
 }
+
+// Commitments
+const v = BigInt(10200300);
+const k = keys.private_key("Bob");
+let commitment = tari_crypto.commit(k, v);
+if (commitment.error === true) {
+    console.log(`Commitment error: ${commitment.error}`);
+} else {
+    assert(tari_crypto.opens(k, v, commitment.commitment));
+    assert(!tari_crypto.opens(keys.private_key("Alice"), v, commitment.commitment));
+    console.log(`${commitment.commitment} commits to:\n (${k}, ${v})`)
+}
+let c2 = keys.commit("Bob", v);
+assert(c2.commitment, commitment.commitment);
 keys.free();
+
+

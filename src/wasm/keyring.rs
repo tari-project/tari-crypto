@@ -23,33 +23,36 @@
 use wasm_bindgen::prelude::*;
 
 use crate::{
-    common::Blake256,
+    commitment::HomomorphicCommitmentFactory,
     keys::PublicKey,
-    ristretto::{RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
+    ristretto::{
+        pedersen::{PedersenCommitment, PedersenCommitmentFactory},
+        RistrettoPublicKey,
+        RistrettoSecretKey,
+    },
+    wasm::{
+        commitments::CommitmentResult,
+        key_utils::{sign_with_key, SignResult},
+    },
 };
-use blake2::Digest;
 use rand::rngs::OsRng;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tari_utilities::hex::Hex;
 
 #[wasm_bindgen]
 pub struct KeyRing {
+    factory: PedersenCommitmentFactory,
     keys: HashMap<String, (RistrettoSecretKey, RistrettoPublicKey)>,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct SignResult {
-    public_nonce: Option<String>,
-    signature: Option<String>,
-    error: String,
 }
 
 #[wasm_bindgen]
 impl KeyRing {
     /// Create new keyring
     pub fn new() -> Self {
-        KeyRing { keys: HashMap::new() }
+        KeyRing {
+            keys: HashMap::new(),
+            factory: PedersenCommitmentFactory::default(),
+        }
     }
 
     /// Create a new random keypair and associate it with 'id'. The number of keys in the keyring is returned
@@ -81,41 +84,46 @@ impl KeyRing {
     /// Use can use a key in the keyring to generate a digital signature. To create the signature, the caller must
     /// provide the `id` associated with the key, the message to sign, and a `nonce`.
     ///
-    /// It is _incredibly important_ to choose the nonce completely randomly, and to never re-use nonces (use
-    /// `keys::generate_keypair` for this). If you don't heed this warning, you will give away the private key that
-    /// you used to create the signature.
-    ///
     /// The return type is pretty unRust-like, but is structured to more closely model a JSON object.
     ///
     /// `keys::check_signature` is used to verify signatures.
-    pub fn sign(&self, id: &str, nonce: &str, msg: &str) -> JsValue {
-        let mut result = SignResult {
-            public_nonce: None,
-            signature: None,
-            error: "".into(),
-        };
+    pub fn sign(&self, id: &str, msg: &str) -> JsValue {
+        let mut result = SignResult::default();
         let k = self.keys.get(id);
         if k.is_none() {
             result.error = format!("Private key for '{}' does not exist", id);
             return JsValue::from_serde(&result).unwrap();
         }
-        let r = RistrettoSecretKey::from_hex(nonce);
-        if r.is_err() {
-            result.error = format!("{} is not a valid nonce", nonce);
-            return JsValue::from_serde(&result).unwrap();
-        }
-        let r = r.unwrap();
         let k = k.unwrap();
-        let r_pub = RistrettoPublicKey::from_secret_key(&r);
-        let e = Blake256::digest(msg.as_bytes());
-        let sig = RistrettoSchnorr::sign(k.0.clone(), r, e.as_slice());
-        if sig.is_err() {
-            result.error = format!("Could not create signature. {}", sig.unwrap_err().to_string());
-            return JsValue::from_serde(&result).unwrap();
-        }
-        let sig = sig.unwrap();
-        result.public_nonce = Some(r_pub.to_hex());
-        result.signature = Some(sig.get_signature().to_hex());
+        sign_with_key(&k.0, msg, &mut result);
         JsValue::from_serde(&result).unwrap()
+    }
+
+    /// Commits a value and private key for the given id using a Pedersen commitment.
+    pub fn commit(&self, id: &str, value: u64) -> JsValue {
+        let mut result = CommitmentResult::default();
+        let k = match self.keys.get(id) {
+            Some(k) => &k.0,
+            None => {
+                result.error = format!("Private key for '{}' does not exist", id);
+                return JsValue::from_serde(&result).unwrap();
+            },
+        };
+        let commitment = self.factory.commit_value(k, value);
+        result.commitment = Some(commitment.to_hex());
+        JsValue::from_serde(&result).unwrap()
+    }
+
+    /// Checks whether the key for the given id and value opens the commitment
+    pub fn opens(&self, id: &str, value: u64, commitment: &str) -> bool {
+        let k = match self.keys.get(id) {
+            Some(k) => &k.0,
+            None => return false,
+        };
+        let commitment = match RistrettoPublicKey::from_hex(commitment) {
+            Ok(p) => PedersenCommitment::from_public_key(&p),
+            _ => return false,
+        };
+        self.factory.open_value(k, value, &commitment)
     }
 }

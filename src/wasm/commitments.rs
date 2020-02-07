@@ -20,16 +20,51 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+use crate::{
+    commitment::HomomorphicCommitmentFactory,
+    ristretto::{
+        pedersen::{PedersenCommitment, PedersenCommitmentFactory},
+        RistrettoPublicKey,
+        RistrettoSecretKey,
+    },
+};
+use serde::{Deserialize, Serialize};
+use tari_utilities::hex::Hex;
 use wasm_bindgen::prelude::*;
-const VERSION: &str = "0.2.0";
 
-mod keyring;
+#[derive(Default, Serialize, Deserialize)]
+pub struct CommitmentResult {
+    pub commitment: Option<String>,
+    pub error: String,
+}
 
-pub mod commitments;
-pub mod key_utils;
-pub use keyring::KeyRing;
-
+/// Commits a value and blinding factor (private key) using a Pedersen commitment.
 #[wasm_bindgen]
-pub fn version() -> String {
-    VERSION.into()
+pub fn commit(key: &str, value: u64) -> JsValue {
+    let mut result = CommitmentResult::default();
+    let k = RistrettoSecretKey::from_hex(key);
+    if k.is_err() {
+        result.error = "Invalid private key".to_string();
+        return JsValue::from_serde(&result).unwrap();
+    }
+    let factory = PedersenCommitmentFactory::default();
+    let commitment = factory.commit_value(&k.unwrap(), value);
+    result.commitment = Some(commitment.to_hex());
+    JsValue::from_serde(&result).unwrap()
+}
+
+/// Checks whether the given key and value opens the commitment
+#[wasm_bindgen]
+pub fn opens(key: &str, value: u64, commitment: &str) -> bool {
+    let k = RistrettoSecretKey::from_hex(key);
+    if k.is_err() {
+        return false;
+    }
+    let c = RistrettoPublicKey::from_hex(commitment);
+    if c.is_err() {
+        return false;
+    }
+    let factory = PedersenCommitmentFactory::default();
+    let c = PedersenCommitment::from_public_key(&c.unwrap());
+    factory.open_value(&k.unwrap(), value, &c)
 }
