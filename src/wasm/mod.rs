@@ -27,6 +27,7 @@ mod keyring;
 
 pub mod commitments;
 pub mod key_utils;
+pub mod range_proofs;
 pub use keyring::KeyRing;
 
 #[wasm_bindgen]
