@@ -68,12 +68,10 @@ use crate::{
 /// }
 ///
 /// #[allow(non_snake_case)]
-/// fn main() {
-///     let (k, P) = get_keypair();
-///     let (r, R) = get_keypair();
-///     let e = Blake256::digest(b"Small Gods");
-///     let sig = RistrettoSchnorr::sign(k, r, &e);
-/// }
+/// let (k, P) = get_keypair();
+/// let (r, R) = get_keypair();
+/// let e = Blake256::digest(b"Small Gods");
+/// let sig = RistrettoSchnorr::sign(k, r, &e);
 /// ```
 ///
 /// # Verifying signatures
@@ -91,14 +89,12 @@ use crate::{
 /// # use digest::Digest;
 ///
 /// # #[allow(non_snake_case)]
-/// # fn main() {
 /// let P = RistrettoPublicKey::from_hex("74896a30c89186b8194e25f8c1382f8d3081c5a182fb8f8a6d34f27fbefbfc70").unwrap();
 /// let R = RistrettoPublicKey::from_hex("fa14cb581ce5717248444721242e6b195a482d503a853dea4acb513074d8d803").unwrap();
 /// let s = RistrettoSecretKey::from_hex("bd0b253a619310340a4fa2de54cdd212eac7d088ee1dc47e305c3f6cbd020908").unwrap();
 /// let sig = RistrettoSchnorr::new(R, s);
 /// let e = Blake256::digest(b"Maskerade");
 /// assert!(sig.verify_challenge(&P, &e));
-/// # }
 /// ```
 pub type RistrettoSchnorr = SchnorrSignature<RistrettoPublicKey, RistrettoSecretKey>;
 

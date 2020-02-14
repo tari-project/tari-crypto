@@ -95,12 +95,13 @@ pub fn sign(private_key: &str, msg: &str) -> JsValue {
 pub(crate) fn sign_with_key(k: &RistrettoSecretKey, msg: &str, result: &mut SignResult) {
     let (r, R) = RistrettoPublicKey::random_keypair(&mut OsRng);
     let e = Blake256::digest(msg.as_bytes());
-    let sig = RistrettoSchnorr::sign(k.clone(), r, e.as_slice());
-    if sig.is_err() {
-        result.error = format!("Could not create signature. {}", sig.unwrap_err().to_string());
-        return;
-    }
-    let sig = sig.unwrap();
+    let sig = match RistrettoSchnorr::sign(k.clone(), r, e.as_slice()) {
+        Ok(s) => s,
+        Err(e) => {
+            result.error = format!("Could not create signature. {}", e.to_string());
+            return;
+        },
+    };
     result.public_nonce = Some(R.to_hex());
     result.signature = Some(sig.get_signature().to_hex());
 }
@@ -114,12 +115,13 @@ pub fn check_signature(pub_nonce: &str, signature: &str, pub_key: &str, msg: &st
         error: "".into(),
     };
 
-    let R = RistrettoPublicKey::from_hex(pub_nonce);
-    if R.is_err() {
-        result.error = format!("{} is not a valid public nonce", pub_nonce);
-        return JsValue::from_serde(&result).unwrap();
-    }
-    let R = R.unwrap();
+    let R = match RistrettoPublicKey::from_hex(pub_nonce) {
+        Ok(n) => n,
+        Err(_) => {
+            result.error = format!("{} is not a valid public nonce", pub_nonce);
+            return JsValue::from_serde(&result).unwrap();
+        },
+    };
 
     let P = RistrettoPublicKey::from_hex(pub_key);
     if P.is_err() {

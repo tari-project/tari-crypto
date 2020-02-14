@@ -43,7 +43,7 @@ pub struct VerificationResult {
 #[wasm_bindgen]
 pub struct RangeProofFactory {
     rpf: DalekRangeProofService,
-    cf: PedersenCommitmentFactory,
+    //    cf: PedersenCommitmentFactory,
 }
 
 #[wasm_bindgen]
@@ -51,7 +51,7 @@ impl RangeProofFactory {
     pub fn new() -> Self {
         let cf = PedersenCommitmentFactory::default();
         let rpf = DalekRangeProofService::new(64, &cf).unwrap();
-        RangeProofFactory { rpf, cf }
+        RangeProofFactory { rpf }
     }
 
     /// Creates a new range proof for the given key-value pair.
