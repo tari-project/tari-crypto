@@ -45,7 +45,7 @@ use tari_utilities::{ByteArray, ByteArrayError};
 ///   C_2 &= v_2.G + k_2.H \\\\
 ///   \therefore C_1 + C_2 &= (v_1 + v_2)G + (k_1 + k_2)H
 /// \end{aligned} $$
-#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Eq, Clone, Serialize, Deserialize)]
 #[serde(bound(deserialize = "P: PublicKey"))]
 pub struct HomomorphicCommitment<P>(pub(crate) P)
 where P: PublicKey;
@@ -120,6 +120,12 @@ where
 impl<P: PublicKey> Hash for HomomorphicCommitment<P> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         state.write(self.as_bytes())
+    }
+}
+
+impl<P: PublicKey> PartialEq for HomomorphicCommitment<P> {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_public_key().eq(&other.as_public_key())
     }
 }
 

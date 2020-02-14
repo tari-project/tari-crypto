@@ -331,7 +331,7 @@ impl<D: Digest> RistrettoMuSig<D> {
             },
             // Nonce Hash collection
             MuSigState::NonceHashCollection(s) => match event {
-                MuSigEvent::AddNonceHash(p, h) => s.add_nonce_hash::<D>(p, h.clone()),
+                MuSigEvent::AddNonceHash(p, h) => s.add_nonce_hash::<D>(p, h),
                 MuSigEvent::SetMessage(m) => s.set_message(m),
                 _ => RistrettoMuSig::<D>::invalid_transition(),
             },

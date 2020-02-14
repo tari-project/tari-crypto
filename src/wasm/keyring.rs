@@ -40,6 +40,7 @@ use std::collections::HashMap;
 use tari_utilities::hex::Hex;
 
 #[wasm_bindgen]
+#[derive(Default)]
 pub struct KeyRing {
     factory: PedersenCommitmentFactory,
     keys: HashMap<String, (RistrettoSecretKey, RistrettoPublicKey)>,
@@ -67,16 +68,21 @@ impl KeyRing {
         self.keys.len()
     }
 
+    /// Returns true if there are no keys in the key ring, false otherwise.
+    pub fn is_empty(&self) -> bool {
+        self.keys.is_empty()
+    }
+
     /// Return the private key associated with 'id' as a hex string. If there is no key associated with the `id`,
     /// `None` is returned.
     pub fn private_key(&self, id: &str) -> Option<String> {
-        self.keys.get(id).and_then(|p| Some(p.0.to_hex()))
+        self.keys.get(id).map(|p| p.0.to_hex())
     }
 
     /// Return the public key associated with 'id' as a hex string. If there is no key associated with the `id`,
     /// `None` is returned.
     pub fn public_key(&self, id: &str) -> Option<String> {
-        self.keys.get(id).and_then(|p| Some(p.1.to_hex()))
+        self.keys.get(id).map(|p| p.1.to_hex())
     }
 
     /// Sign a message using a private key
