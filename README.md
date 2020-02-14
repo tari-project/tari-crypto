@@ -1,5 +1,8 @@
 # Tari Crypto
 
+![](https://github.com/tari-project/tari-crypto/workflows/Security%20audit/badge.svg)
+![](https://github.com/tari-project/tari-crypto/workflows/Clippy/badge.svg)
+
 This crate is part of the [Tari Cryptocurrency](https://tari.com) project.
 
 Major features of this library include:
