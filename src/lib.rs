@@ -20,5 +20,5 @@ pub mod ristretto;
 #[cfg(feature = "wasm")]
 pub mod wasm;
 
-// Re-export traits from tari_utils
-pub use tari_utilities::{hash::Hashable, hex::*, ByteArray, ByteArrayError};
+// Re-export tari_utils
+pub use tari_utilities;
