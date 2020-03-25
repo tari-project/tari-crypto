@@ -35,6 +35,7 @@ use rand::{CryptoRng, Rng};
 use std::{
     cmp::Ordering,
     fmt,
+    fmt::Debug,
     hash::{Hash, Hasher},
     ops::{Add, Mul, Sub},
 };
@@ -206,7 +207,7 @@ impl From<u64> for RistrettoSecretKey {
 /// let sk = RistrettoSecretKey::random(&mut rng);
 /// let _p3 = RistrettoPublicKey::from_secret_key(&sk);
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct RistrettoPublicKey {
     pub(crate) point: RistrettoPoint,
     pub(crate) compressed: CompressedRistretto,
@@ -287,6 +288,12 @@ impl Default for RistrettoPublicKey {
 //------------------------------------ PublicKey Display impl ---------------------------------------------//
 
 impl fmt::Display for RistrettoPublicKey {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.to_hex())
+    }
+}
+
+impl fmt::Debug for RistrettoPublicKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.to_hex())
     }
@@ -675,9 +682,10 @@ mod test {
     }
 
     #[test]
-    fn display() {
+    fn display_and_debug() {
         let hex = "e2f2ae0a6abc4e71a884a961c500515f58e30b6aa582dd8db6a65945e08d2d76";
         let pk = RistrettoPublicKey::from_hex(hex).unwrap();
         assert_eq!(format!("{}", pk), hex);
+        assert_eq!(format!("{:?}", pk), hex);
     }
 }
