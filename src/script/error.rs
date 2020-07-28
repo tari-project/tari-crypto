@@ -1,17 +1,12 @@
-// Copyright 2019 The Tari Project
-//
+// Copyright 2020. The Tari Project
 // Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
 // following conditions are met:
-//
 // 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following
 // disclaimer.
-//
 // 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
 // following disclaimer in the documentation and/or other materials provided with the distribution.
-//
 // 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote
 // products derived from this software without specific prior written permission.
-//
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
 // INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 // DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
@@ -19,22 +14,33 @@
 // SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+use crate::ristretto::pedersen::PedersenCommitment;
+use thiserror::Error;
 
-pub mod constants;
-pub mod dalek_range_proof;
-pub mod musig;
-pub mod pedersen;
-pub mod ristretto_keys;
-pub mod ristretto_sig;
-pub mod serialize;
-pub mod utils;
-
-// Re-export
-pub use self::{
-    ristretto_keys::{RistrettoPublicKey, RistrettoSecretKey},
-    ristretto_sig::RistrettoSchnorr,
-};
-
-// test modules
-#[cfg(test)]
-mod test_common;
+#[derive(Debug, Clone, Error, PartialEq, Eq)]
+pub enum ScriptError {
+    #[error("The script failed with an explicit Return")]
+    Return,
+    #[error("The stack cannot exceed MAX_STACK_SIZE items")]
+    StackOverflow,
+    #[error("The script completed execution with a stack size other than one")]
+    NonUnitLengthStack,
+    #[error("The script completed execution with a non-zero value: {0}")]
+    NonZeroValue(i64),
+    #[error("Tried to pop an element off an empty stack")]
+    StackUnderflow,
+    #[error("An operand was applied to incompatible types")]
+    IncompatibleTypes,
+    #[error("A script opcode resulted in a value that exceeded the maximum or minimum value")]
+    ValueExceedsBounds,
+    #[error("The script result is not a zero commitment")]
+    NonZeroCommitment(PedersenCommitment),
+    #[error("The script encountered an invalid opcode")]
+    InvalidOpcode,
+    #[error("The script ended without there being a single zero-valued item on the stack")]
+    IncorrectFinalState,
+    #[error("The script contained an invalid signature")]
+    InvalidSignature,
+    #[error("A verification opcode failed, aborting the script immediately")]
+    VerifyFailed,
+}
