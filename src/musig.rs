@@ -21,9 +21,9 @@
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use crate::keys::{PublicKey, SecretKey};
-use derive_error::Error;
 use digest::Digest;
 use std::{ops::Mul, prelude::v1::Vec};
+use thiserror::Error;
 
 //----------------------------------------------   Constants       ------------------------------------------------//
 pub const MAX_SIGNATURES: usize = 32768; // If you need more, call customer support
@@ -31,50 +31,35 @@ pub const MAX_SIGNATURES: usize = 32768; // If you need more, call customer supp
 //----------------------------------------------   Error Codes     ------------------------------------------------//
 #[derive(Clone, Debug, Error, PartialEq, Eq)]
 pub enum MuSigError {
-    /// The number of public nonces must match the number of public keys in the joint key
-    #[error(no_from, non_std)]
+    #[error("The number of public nonces must match the number of public keys in the joint key")]
     MismatchedNonces,
-    /// The number of partial signatures must match the number of public keys in the joint key
-    #[error(no_from, non_std)]
+    #[error("The number of partial signatures must match the number of public keys in the joint key")]
     MismatchedSignatures,
-    /// The aggregate signature did not verify
-    #[error(no_from, non_std)]
+    #[error("The aggregate signature did not verify")]
     InvalidAggregateSignature,
-    /// A partial signature did not validate
-    #[error(no_from, non_std)]
+    #[error("A partial signature did not validate: {0}")]
     InvalidPartialSignature(usize),
-    /// The participant list must be sorted before making this call
-    #[error(no_from, non_std)]
+    #[error("The participant list must be sorted before making this call")]
     NotSorted,
-    /// The participant key is not in the list
-    #[error(no_from, non_std)]
+    #[error("The participant key is not in the list")]
     ParticipantNotFound,
-    /// An attempt was made to perform an invalid MuSig state transition
-    #[error(no_from, non_std)]
+    #[error("An attempt was made to perform an invalid MuSig state transition")]
     InvalidStateTransition,
-    /// An attempt was made to add a duplicate public key to a MuSig signature
-    #[error(no_from, non_std)]
+    #[error("An attempt was made to add a duplicate public key to a MuSig signature")]
     DuplicatePubKey,
-    /// There are too many parties in the MuSig signature
-    #[error(no_from, non_std)]
+    #[error("There are too many parties in the MuSig signature")]
     TooManyParticipants,
-    /// There are too few parties in the MuSig signature
-    #[error(no_from, non_std)]
+    #[error("There are too few parties in the MuSig signature")]
     NotEnoughParticipants,
-    /// A nonce hash is missing
-    #[error(no_from, non_std)]
+    #[error("A nonce hash is missing")]
     MissingHash,
-    /// The message to be signed can only be set once
-    #[error(no_from, non_std)]
+    #[error("The message to be signed can only be set once")]
     MessageAlreadySet,
-    /// The message to be signed MUST be set before the final nonce is added to the MuSig ceremony
-    #[error(no_from, non_std)]
+    #[error("The message to be signed MUST be set before the final nonce is added to the MuSig ceremony")]
     MissingMessage,
-    /// The message to sign is invalid. have you hashed it?
-    #[error(no_from, non_std)]
+    #[error("The message to sign is invalid. have you hashed it?")]
     InvalidMessage,
-    /// MuSig requires a hash function with a 32 byte digest
-    #[error(no_from, non_std)]
+    #[error("MuSig requires a hash function with a 32 byte digest")]
     IncompatibleHashFunction,
 }
 

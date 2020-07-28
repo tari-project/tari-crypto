@@ -24,16 +24,16 @@ use crate::{
     commitment::HomomorphicCommitment,
     keys::{PublicKey, SecretKey},
 };
-use derive_error::Error;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 #[derive(Debug, Clone, Error, PartialEq, Deserialize, Serialize)]
 pub enum RangeProofError {
-    /// Could not construct range proof
+    #[error("Could not construct range proof")]
     ProofConstructionError,
-    /// The deserialization of the range proof failed
+    #[error("The deserialization of the range proof failed")]
     InvalidProof,
-    /// Invalid input was provided to the RangeProofService constructor
+    #[error("Invalid input was provided to the RangeProofService constructor")]
     InitializationError,
 }
 

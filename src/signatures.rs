@@ -3,17 +3,17 @@
 //! of the underlying elliptic curve implementation
 
 use crate::keys::{PublicKey, SecretKey};
-use derive_error::Error;
 use serde::{Deserialize, Serialize};
 use std::{
     cmp::Ordering,
     ops::{Add, Mul},
 };
 use tari_utilities::{hex::Hex, ByteArray};
+use thiserror::Error;
 
 #[derive(Clone, Debug, Error, PartialEq, Eq, Deserialize, Serialize)]
 pub enum SchnorrSignatureError {
-    // An invalid challenge was provided
+    #[error("An invalid challenge was provided")]
     InvalidChallenge,
 }
 
