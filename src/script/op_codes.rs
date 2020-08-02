@@ -115,60 +115,26 @@ impl Opcode {
     /// that matches the opcode as a convenience
     pub fn to_bytes<'a>(&self, array: &'a mut Vec<u8>) -> &'a [u8] {
         let n = array.len();
-        let len = match self {
+        match self {
             // Simple matches
-            Opcode::Return => {
-                array.push(OP_RETURN);
-                1usize
-            },
-            Opcode::Drop => {
-                array.push(OP_DROP);
-                1
-            },
-            Opcode::Dup => {
-                array.push(OP_DUP);
-                1
-            },
-            Opcode::Equal => {
-                array.push(OP_EQUAL);
-                1
-            },
-            Opcode::EqualVerify => {
-                array.push(OP_EQUAL_VERIFY);
-                1
-            },
-            Opcode::Add => {
-                array.push(OP_ADD);
-                1
-            },
-            Opcode::Sub => {
-                array.push(OP_SUB);
-                1
-            },
-            Opcode::CheckSig => {
-                array.push(OP_CHECK_SIG);
-                1
-            },
-            Opcode::CheckSigVerify => {
-                array.push(OP_CHECK_SIG_VERIFY);
-                1
-            },
-            Opcode::RevRot => {
-                array.push(OP_REV_ROT);
-                1
-            },
-            Opcode::HashBlake256 => {
-                array.push(OP_HASH_BLAKE256);
-                1
-            },
+            Opcode::Return => array.push(OP_RETURN),
+            Opcode::Drop => array.push(OP_DROP),
+            Opcode::Dup => array.push(OP_DUP),
+            Opcode::Equal => array.push(OP_EQUAL),
+            Opcode::EqualVerify => array.push(OP_EQUAL_VERIFY),
+            Opcode::Add => array.push(OP_ADD),
+            Opcode::Sub => array.push(OP_SUB),
+            Opcode::CheckSig => array.push(OP_CHECK_SIG),
+            Opcode::CheckSigVerify => array.push(OP_CHECK_SIG_VERIFY),
+            Opcode::RevRot => array.push(OP_REV_ROT),
+            Opcode::HashBlake256 => array.push(OP_HASH_BLAKE256),
             // Complex matches
             Opcode::PushHash(h) => {
                 array.push(OP_PUSH_HASH);
                 array.extend_from_slice(h.deref());
-                0x21
             },
         };
-        &array[n..n + len]
+        &array[n..]
     }
 }
 

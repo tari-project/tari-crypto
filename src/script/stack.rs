@@ -19,6 +19,8 @@ use crate::{
     ristretto::{pedersen::PedersenCommitment, RistrettoPublicKey, RistrettoSchnorr},
     script::{error::ScriptError, op_codes::HashValue},
 };
+use tari_utilities::ByteArray;
+use crate::ristretto::RistrettoSecretKey;
 
 pub const MAX_STACK_SIZE: usize = 256;
 
@@ -42,6 +44,12 @@ macro_rules! stack_item_from {
     };
 }
 
+pub const TYPE_NUMBER: u8 = 1;
+pub const TYPE_HASH: u8 = 2;
+pub const TYPE_COMMITMENT: u8 = 3;
+pub const TYPE_PUBKEY: u8 = 4;
+pub const TYPE_SIG: u8 = 5;
+
 #[derive(Debug, Clone)]
 pub enum StackItem {
     Number(i64),
@@ -49,6 +57,94 @@ pub enum StackItem {
     Commitment(PedersenCommitment),
     PublicKey(RistrettoPublicKey),
     Signature(RistrettoSchnorr),
+}
+
+impl StackItem {
+    pub fn to_bytes<'a>(&self, array: &'a mut Vec<u8>) -> &'a [u8] {
+        let n = array.len();
+        match self {
+            StackItem::Number(v) => {
+                array.push(TYPE_NUMBER);
+                array.extend_from_slice(&v.to_le_bytes());
+            }
+            StackItem::Hash(h) => {
+                array.push(TYPE_HASH);
+                array.extend_from_slice(&h[..]);
+            }
+            StackItem::Commitment(c) => {
+                array.push(TYPE_COMMITMENT);
+                array.extend_from_slice(c.as_bytes());
+            }
+            StackItem::PublicKey(p) => {
+                array.push(TYPE_PUBKEY);
+                array.extend_from_slice(p.as_bytes());
+            }
+            StackItem::Signature(s) => {
+                array.push(TYPE_SIG);
+                array.extend_from_slice(s.get_public_nonce().as_bytes());
+                array.extend_from_slice(s.get_signature().as_bytes());
+            }
+        };
+        &array[n..]
+    }
+
+    /// Take a byte slice an read the next stack item from it, including any associated data. `read_next` returns a
+    /// tuple of the deserialised item, and an updated slice that has the Opcode and data removed.
+    pub fn read_next(bytes: &[u8]) -> Option<(Self, &[u8])> {
+        let code = bytes.get(0)?;
+        match *code {
+            TYPE_NUMBER => StackItem::to_number(&bytes[1..]),
+            TYPE_HASH => StackItem::to_hash(&bytes[1..]),
+            TYPE_COMMITMENT => StackItem::to_commitemnt(&bytes[1..]),
+            TYPE_PUBKEY => StackItem::to_pubkey(&bytes[1..]),
+            TYPE_SIG => StackItem::to_sig(&bytes[1..]),
+            _ => None,
+        }
+    }
+
+    fn to_number(b: &[u8]) -> Option<(Self, &[u8])> {
+        if b.len() < 4 {
+            return None;
+        }
+        let mut arr = [0u8; 4];
+        arr.copy_from_slice(&b[..4]);
+        Some((StackItem::Number(i64::from_le_bytes(arr)), &b[4..]))
+    }
+
+    fn to_hash(b: &[u8]) -> Option<(Self, &[u8])> {
+        if b.len() < 32 {
+            return None;
+        }
+        let mut arr = [0u8; 32];
+        arr.copy_from_slice(&b[..32]);
+        Some((StackItem::Hash(arr), &b[32..]))
+    }
+
+    fn to_commitment(b: &[u8]) -> Option<(Self, &[u8])> {
+        if b.len() < 32 {
+            return None;
+        }
+        let c = PedersenCommitment::from_bytes(&b[..32])?;
+        Some((StackItem::Commitment(c), &b[32..]))
+    }
+
+    fn to_pubkey(b: &[u8]) -> Option<(Self, &[u8])> {
+        if b.len() < 32 {
+            return None;
+        }
+        let p = RistrettoPublicKey::from_bytes(&b[..32])?;
+        Some((StackItem::PublicKey(c), &b[32..]))
+    }
+
+    fn to_sig(b: &[u8]) -> Option<(Self, &[u8])> {
+        if b.len() < 64 {
+            return None;
+        }
+        let r = RistrettoPublicKey::from_bytes(&b[..32])?;
+        let s = RistrettoSecretKey::from_bytes(&b[32..64])?;
+        let sig = RistrettoSchnorr::new(r, s);
+        Some((StackItem::Signature(sig), &b[64..]))
+    }
 }
 
 stack_item_from!(i64 => Number);
@@ -80,6 +176,13 @@ impl ExecutionStack {
 
     pub fn pop(&mut self) -> Option<StackItem> {
         self.items.pop()
+    }
+
+    pub fn as_bytes(&self) -> Vec<u8> {
+        self.items.iter().fold(Vec::with_capacity(512), |mut bytes, item| {
+            item.to_bytes(&mut bytes);
+            bytes
+        })
     }
 
     pub fn push(&mut self, item: StackItem) -> Result<(), ScriptError> {
