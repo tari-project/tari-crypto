@@ -18,7 +18,9 @@
 mod error;
 mod op_codes;
 mod serde;
+mod stack;
 mod tari_script;
 
 pub use op_codes::Opcode;
-pub use tari_script::{Builder, ExecutionStack, StackItem, TariScript};
+pub use stack::{ExecutionStack, StackItem};
+pub use tari_script::{Builder, TariScript};

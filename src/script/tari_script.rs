@@ -17,11 +17,8 @@
 
 use crate::{
     common::Blake256,
-    ristretto::{pedersen::PedersenCommitment, RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
-    script::{
-        error::ScriptError,
-        op_codes::{HashValue, Opcode},
-    },
+    ristretto::{RistrettoPublicKey, RistrettoSecretKey},
+    script::{error::ScriptError, op_codes::Opcode, ExecutionStack, StackItem},
 };
 use blake2::Digest;
 use std::fmt;
@@ -38,90 +35,6 @@ macro_rules! script {
         let script = vec![$(Opcode::$opcode $(($var))?),+];
         TariScript::new(script)
     }}
-}
-
-#[macro_export]
-macro_rules! inputs {
-    ($($input:expr),+) => {{
-        use crate::script::ExecutionStack;
-
-        let items = vec![$(crate::script::StackItem::from($input)),+];
-        ExecutionStack { items }
-    }}
-}
-
-macro_rules! stack_item_from {
-    ($from_type:ty => $variant:ident) => {
-        impl From<$from_type> for StackItem {
-            fn from(item: $from_type) -> Self {
-                StackItem::$variant(item)
-            }
-        }
-    };
-}
-
-pub const MAX_STACK_SIZE: usize = 256;
-
-#[derive(Debug, Clone)]
-pub enum StackItem {
-    Number(i64),
-    Hash(HashValue),
-    Commitment(PedersenCommitment),
-    PublicKey(RistrettoPublicKey),
-    Signature(RistrettoSchnorr),
-}
-
-stack_item_from!(PedersenCommitment => Commitment);
-stack_item_from!(RistrettoPublicKey => PublicKey);
-stack_item_from!(RistrettoSchnorr => Signature);
-
-#[derive(Debug, Default, Clone)]
-pub struct ExecutionStack {
-    items: Vec<StackItem>,
-}
-
-impl ExecutionStack {
-    pub fn new() -> Self {
-        ExecutionStack::default()
-    }
-
-    pub fn size(&self) -> usize {
-        self.items.len()
-    }
-
-    pub fn peek(&self) -> Option<&StackItem> {
-        self.items.last()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.items.is_empty()
-    }
-
-    pub fn pop(&mut self) -> Option<StackItem> {
-        self.items.pop()
-    }
-
-    pub fn push(&mut self, item: StackItem) -> Result<(), ScriptError> {
-        if self.size() >= MAX_STACK_SIZE {
-            return Err(ScriptError::StackOverflow);
-        }
-        self.items.push(item);
-        Ok(())
-    }
-
-    /// Pushes the top stack element down `depth` positions
-    fn push_down(&mut self, depth: usize) -> Result<(), ScriptError> {
-        let n = self.size();
-        if n < depth + 1 {
-            return Err(ScriptError::StackUnderflow);
-        }
-        if depth == 0 {
-            return Ok(());
-        }
-        let top = self.pop().unwrap();
-        self.items.insert(n - depth - 1, top);
-        Ok(())
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -203,7 +116,7 @@ impl TariScript {
                 false => Err(ScriptError::InvalidSignature),
             },
             Opcode::RevRot => stack.push_down(2),
-            Opcode::PushHash(h) => stack.push(StackItem::Hash(*h.clone())),
+            Opcode::PushHash(h) => stack.push(Hash(*h.clone())),
             Opcode::HashBlake256 => TariScript::handle_hash::<Blake256>(stack),
         }
     }
@@ -230,7 +143,7 @@ impl TariScript {
     }
 
     fn handle_dup(stack: &mut ExecutionStack) -> Result<(), ScriptError> {
-        let last = if let Some(last) = stack.items.last() {
+        let last = if let Some(last) = stack.peek() {
             last.clone()
         } else {
             return Err(ScriptError::StackUnderflow);
@@ -343,14 +256,10 @@ impl Builder {
 mod test {
     use crate::{
         common::Blake256,
+        inputs,
         keys::{PublicKey, SecretKey},
         ristretto::{pedersen::PedersenCommitment, RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
-        script::{
-            error::ScriptError,
-            op_codes::to_hash,
-            tari_script::{ExecutionStack, StackItem::*},
-            TariScript,
-        },
+        script::{error::ScriptError, op_codes::to_hash, ExecutionStack, TariScript},
     };
     use blake2::Digest;
     use tari_utilities::{hex::Hex, ByteArray};
@@ -358,20 +267,20 @@ mod test {
     #[test]
     fn op_return() {
         let script = script!(Return);
-        let inputs = ExecutionStack::new();
+        let inputs = ExecutionStack::default();
         assert_eq!(script.execute(&inputs), Err(ScriptError::Return));
     }
 
     #[test]
     fn op_add() {
         let script = script!(Add);
-        let inputs = inputs!(Number(3), Number(2));
+        let inputs = inputs!(3, 2);
         assert_eq!(script.execute(&inputs), Err(ScriptError::NonZeroValue(5)));
-        let inputs = inputs!(Number(3), Number(-3));
+        let inputs = inputs!(3, -3);
         assert!(script.execute(&inputs).is_ok());
-        let inputs = inputs!(Number(i64::MAX), Number(1));
+        let inputs = inputs!(i64::MAX, 1);
         assert_eq!(script.execute(&inputs), Err(ScriptError::ValueExceedsBounds));
-        let inputs = inputs!(Number(1));
+        let inputs = inputs!(1);
         assert_eq!(script.execute(&inputs), Err(ScriptError::StackUnderflow));
     }
 
@@ -384,8 +293,8 @@ mod test {
         let c3 = &c1 + &c2;
         let c3 = PedersenCommitment::from_public_key(&c3);
         let inputs = inputs!(
-            Commitment(PedersenCommitment::from_public_key(&c1)),
-            Commitment(PedersenCommitment::from_public_key(&c2))
+            PedersenCommitment::from_public_key(&c1),
+            PedersenCommitment::from_public_key(&c2)
         );
         assert_eq!(script.execute(&inputs), Err(ScriptError::NonZeroCommitment(c3)));
     }
@@ -393,12 +302,12 @@ mod test {
     #[test]
     fn op_sub() {
         let script = script!(Add Sub);
-        let inputs = inputs!(Number(5), Number(3), Number(2));
+        let inputs = inputs!(5, 3, 2);
         assert!(script.execute(&inputs).is_ok());
-        let inputs = inputs!(Number(i64::MAX), Number(1));
+        let inputs = inputs!(i64::MAX, 1);
         assert_eq!(script.execute(&inputs), Err(ScriptError::ValueExceedsBounds));
         let script = script!(Sub);
-        let inputs = inputs!(Number(5), Number(3));
+        let inputs = inputs!(5, 3);
         assert_eq!(script.execute(&inputs), Err(ScriptError::NonZeroValue(2)));
     }
 
