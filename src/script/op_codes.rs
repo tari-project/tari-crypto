@@ -84,7 +84,7 @@ pub enum Opcode {
 }
 
 impl Opcode {
-    /// Take a byte slice an read the next opcode from it, including any associated data. `read_next` returns a tuple
+    /// Take a byte slice and read the next opcode from it, including any associated data. `read_next` returns a tuple
     /// of the deserialised opcode, and an updated slice that has the Opcode and data removed.
     pub fn read_next(bytes: &[u8]) -> Option<(Opcode, &[u8])> {
         let code = bytes.get(0)?;

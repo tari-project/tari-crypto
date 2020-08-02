@@ -16,11 +16,13 @@
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use crate::{
-    ristretto::{pedersen::PedersenCommitment, RistrettoPublicKey, RistrettoSchnorr},
+    ristretto::{pedersen::PedersenCommitment, RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
     script::{error::ScriptError, op_codes::HashValue},
 };
-use tari_utilities::ByteArray;
-use crate::ristretto::RistrettoSecretKey;
+use tari_utilities::{
+    hex::{from_hex, to_hex, Hex, HexError},
+    ByteArray,
+};
 
 pub const MAX_STACK_SIZE: usize = 256;
 
@@ -50,7 +52,7 @@ pub const TYPE_COMMITMENT: u8 = 3;
 pub const TYPE_PUBKEY: u8 = 4;
 pub const TYPE_SIG: u8 = 5;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StackItem {
     Number(i64),
     Hash(HashValue),
@@ -60,58 +62,60 @@ pub enum StackItem {
 }
 
 impl StackItem {
+    /// Convert an input item into its binary representation and append it to the array. The function returns the byte
+    /// slice that matches the item as a convenience
     pub fn to_bytes<'a>(&self, array: &'a mut Vec<u8>) -> &'a [u8] {
         let n = array.len();
         match self {
             StackItem::Number(v) => {
                 array.push(TYPE_NUMBER);
                 array.extend_from_slice(&v.to_le_bytes());
-            }
+            },
             StackItem::Hash(h) => {
                 array.push(TYPE_HASH);
                 array.extend_from_slice(&h[..]);
-            }
+            },
             StackItem::Commitment(c) => {
                 array.push(TYPE_COMMITMENT);
                 array.extend_from_slice(c.as_bytes());
-            }
+            },
             StackItem::PublicKey(p) => {
                 array.push(TYPE_PUBKEY);
                 array.extend_from_slice(p.as_bytes());
-            }
+            },
             StackItem::Signature(s) => {
                 array.push(TYPE_SIG);
                 array.extend_from_slice(s.get_public_nonce().as_bytes());
                 array.extend_from_slice(s.get_signature().as_bytes());
-            }
+            },
         };
         &array[n..]
     }
 
-    /// Take a byte slice an read the next stack item from it, including any associated data. `read_next` returns a
+    /// Take a byte slice and read the next stack item from it, including any associated data. `read_next` returns a
     /// tuple of the deserialised item, and an updated slice that has the Opcode and data removed.
     pub fn read_next(bytes: &[u8]) -> Option<(Self, &[u8])> {
         let code = bytes.get(0)?;
         match *code {
-            TYPE_NUMBER => StackItem::to_number(&bytes[1..]),
-            TYPE_HASH => StackItem::to_hash(&bytes[1..]),
-            TYPE_COMMITMENT => StackItem::to_commitemnt(&bytes[1..]),
-            TYPE_PUBKEY => StackItem::to_pubkey(&bytes[1..]),
-            TYPE_SIG => StackItem::to_sig(&bytes[1..]),
+            TYPE_NUMBER => StackItem::b_to_number(&bytes[1..]),
+            TYPE_HASH => StackItem::b_to_hash(&bytes[1..]),
+            TYPE_COMMITMENT => StackItem::b_to_commitment(&bytes[1..]),
+            TYPE_PUBKEY => StackItem::b_to_pubkey(&bytes[1..]),
+            TYPE_SIG => StackItem::b_to_sig(&bytes[1..]),
             _ => None,
         }
     }
 
-    fn to_number(b: &[u8]) -> Option<(Self, &[u8])> {
-        if b.len() < 4 {
+    fn b_to_number(b: &[u8]) -> Option<(Self, &[u8])> {
+        if b.len() < 8 {
             return None;
         }
-        let mut arr = [0u8; 4];
-        arr.copy_from_slice(&b[..4]);
-        Some((StackItem::Number(i64::from_le_bytes(arr)), &b[4..]))
+        let mut arr = [0u8; 8];
+        arr.copy_from_slice(&b[..8]);
+        Some((StackItem::Number(i64::from_le_bytes(arr)), &b[8..]))
     }
 
-    fn to_hash(b: &[u8]) -> Option<(Self, &[u8])> {
+    fn b_to_hash(b: &[u8]) -> Option<(Self, &[u8])> {
         if b.len() < 32 {
             return None;
         }
@@ -120,28 +124,28 @@ impl StackItem {
         Some((StackItem::Hash(arr), &b[32..]))
     }
 
-    fn to_commitment(b: &[u8]) -> Option<(Self, &[u8])> {
+    fn b_to_commitment(b: &[u8]) -> Option<(Self, &[u8])> {
         if b.len() < 32 {
             return None;
         }
-        let c = PedersenCommitment::from_bytes(&b[..32])?;
+        let c = PedersenCommitment::from_bytes(&b[..32]).ok()?;
         Some((StackItem::Commitment(c), &b[32..]))
     }
 
-    fn to_pubkey(b: &[u8]) -> Option<(Self, &[u8])> {
+    fn b_to_pubkey(b: &[u8]) -> Option<(Self, &[u8])> {
         if b.len() < 32 {
             return None;
         }
-        let p = RistrettoPublicKey::from_bytes(&b[..32])?;
-        Some((StackItem::PublicKey(c), &b[32..]))
+        let p = RistrettoPublicKey::from_bytes(&b[..32]).ok()?;
+        Some((StackItem::PublicKey(p), &b[32..]))
     }
 
-    fn to_sig(b: &[u8]) -> Option<(Self, &[u8])> {
+    fn b_to_sig(b: &[u8]) -> Option<(Self, &[u8])> {
         if b.len() < 64 {
             return None;
         }
-        let r = RistrettoPublicKey::from_bytes(&b[..32])?;
-        let s = RistrettoSecretKey::from_bytes(&b[32..64])?;
+        let r = RistrettoPublicKey::from_bytes(&b[..32]).ok()?;
+        let s = RistrettoSecretKey::from_bytes(&b[32..64]).ok()?;
         let sig = RistrettoSchnorr::new(r, s);
         Some((StackItem::Signature(sig), &b[64..]))
     }
@@ -152,32 +156,39 @@ stack_item_from!(PedersenCommitment => Commitment);
 stack_item_from!(RistrettoPublicKey => PublicKey);
 stack_item_from!(RistrettoSchnorr => Signature);
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct ExecutionStack {
     items: Vec<StackItem>,
 }
 
 impl ExecutionStack {
+    /// Return a new `ExecutionStack` using the vector of [StackItem] in `items`
     pub fn new(items: Vec<StackItem>) -> Self {
         ExecutionStack { items }
     }
 
+    /// Returns the number of entries in the execution stack
     pub fn size(&self) -> usize {
         self.items.len()
     }
 
+    /// Returns a reference to the top entry in the stack without affecting the stack
     pub fn peek(&self) -> Option<&StackItem> {
         self.items.last()
     }
 
+    /// Returns true if the stack is empty
     pub fn is_empty(&self) -> bool {
         self.items.is_empty()
     }
 
+    /// Pops the top item in the stack. If the stack is not empty, `pop` returns the item, otherwise return `None` if
+    /// it is empty.
     pub fn pop(&mut self) -> Option<StackItem> {
         self.items.pop()
     }
 
+    /// Return a binary array representation of the input stack
     pub fn as_bytes(&self) -> Vec<u8> {
         self.items.iter().fold(Vec::with_capacity(512), |mut bytes, item| {
             item.to_bytes(&mut bytes);
@@ -185,6 +196,23 @@ impl ExecutionStack {
         })
     }
 
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, ScriptError> {
+        let mut items = Vec::with_capacity(512);
+        let mut byte_str = bytes;
+        while !byte_str.is_empty() {
+            match StackItem::read_next(byte_str) {
+                Some((item, b)) => {
+                    items.push(item);
+                    byte_str = b;
+                },
+                None => return Err(ScriptError::InvalidInput),
+            }
+        }
+        Ok(ExecutionStack { items })
+    }
+
+    /// Pushes the item onto the top of the stack. This function will only error if the new stack size exceeds the
+    /// maximum allowed stack size, given by [MAX_STACK_SIZE]
     pub fn push(&mut self, item: StackItem) -> Result<(), ScriptError> {
         if self.size() >= MAX_STACK_SIZE {
             return Err(ScriptError::StackOverflow);
@@ -205,5 +233,86 @@ impl ExecutionStack {
         let top = self.pop().unwrap();
         self.items.insert(n - depth - 1, top);
         Ok(())
+    }
+}
+
+impl Hex for ExecutionStack {
+    fn from_hex(hex: &str) -> Result<Self, HexError>
+    where Self: Sized {
+        let b = from_hex(hex)?;
+        ExecutionStack::from_bytes(&b).map_err(|_| HexError::HexConversionError)
+    }
+
+    fn to_hex(&self) -> String {
+        to_hex(&self.as_bytes())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        common::Blake256,
+        keys::{PublicKey, SecretKey},
+        ristretto::{utils, utils::SignatureSet, RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
+        script::{ExecutionStack, StackItem},
+    };
+    use blake2::Digest;
+    use tari_utilities::hex::Hex;
+
+    #[test]
+    fn as_bytes_roundtrip() {
+        use crate::script::StackItem::*;
+        let k = RistrettoSecretKey::random(&mut rand::thread_rng());
+        let SignatureSet {
+            signature: s,
+            public_nonce: p,
+            ..
+        } = utils::sign::<Blake256>(&k, b"hi").unwrap();
+        let items = vec![Number(5432), Number(21), Signature(s), PublicKey(p)];
+        let stack = ExecutionStack::new(items);
+        let bytes = stack.as_bytes();
+        let stack2 = ExecutionStack::from_bytes(&bytes).unwrap();
+        assert_eq!(stack, stack2);
+    }
+
+    #[test]
+    fn deserialisation() {
+        let k =
+            RistrettoSecretKey::from_hex("7212ac93ee205cdbbb57c4f0f815fbf8db25b4d04d3532e2262e31907d82c700").unwrap();
+        let r =
+            RistrettoSecretKey::from_hex("193ee873f3de511eda8ae387db6498f3d194d31a130a94cdf13dc5890ec1ad0f").unwrap();
+        let p = RistrettoPublicKey::from_secret_key(&k);
+        let m = Blake256::digest(b"Hello Tari Script");
+        let sig = RistrettoSchnorr::sign(k, r, m.as_slice()).unwrap();
+        let inputs = inputs!(sig, p);
+        assert_eq!(inputs.to_hex(), "0500f7c695528c858cde76dab3076908e01228b6dbdd5f671bed1b03b89e170c316db1023d5c46d78a97da8eb6c5a37e00d5f2fee182dcb38c1b6c65e90a43c1090456c0fa32558d6edc0916baa26b48e745de834571534ca253ea82435f08ebbc7c");
+    }
+
+    #[test]
+    fn serialisation() {
+        let s = "0500f7c695528c858cde76dab3076908e01228b6dbdd5f671bed1b03b89e170c316db1023d5c46d78a97da8eb6c5\
+        a37e00d5f2fee182dcb38c1b6c65e90a43c1090456c0fa32558d6edc0916baa26b48e745de834571534ca253ea82435f08ebbc7c";
+        let mut stack = ExecutionStack::from_hex(s).unwrap();
+        assert_eq!(stack.size(), 2);
+        if let Some(StackItem::PublicKey(p)) = stack.pop() {
+            assert_eq!(
+                &p.to_hex(),
+                "56c0fa32558d6edc0916baa26b48e745de834571534ca253ea82435f08ebbc7c"
+            );
+        } else {
+            panic!("Expected pubkey")
+        }
+        if let Some(StackItem::Signature(s)) = stack.pop() {
+            assert_eq!(
+                &s.get_public_nonce().to_hex(),
+                "00f7c695528c858cde76dab3076908e01228b6dbdd5f671bed1b03b89e170c31"
+            );
+            assert_eq!(
+                &s.get_signature().to_hex(),
+                "6db1023d5c46d78a97da8eb6c5a37e00d5f2fee182dcb38c1b6c65e90a43c109"
+            );
+        } else {
+            panic!("Expected signature")
+        }
     }
 }

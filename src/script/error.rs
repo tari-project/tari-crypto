@@ -41,6 +41,8 @@ pub enum ScriptError {
     IncorrectFinalState,
     #[error("The script contained an invalid signature")]
     InvalidSignature,
+    #[error("The serialised stack contained invalid input")]
+    InvalidInput,
     #[error("A verification opcode failed, aborting the script immediately")]
     VerifyFailed,
 }
