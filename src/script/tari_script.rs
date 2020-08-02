@@ -390,6 +390,11 @@ mod test {
             TariScript::from_hex("71b07aae2337ce44f9ebb6169c863ec168046cb35ab4ef7aa9ed4f5f1f669bb74b09e58170ac")
                 .unwrap();
         assert_eq!(script.execute(&inp), Ok(()));
+        // Try again with invalid sig
+        let inp = ExecutionStack::from_hex("0500b7c695528c858cde76dab3076908e01228b6dbdd5f671bed1b03\
+        b89e170c314c7b413e971dbb85879ba990e851607454da4bdf65839456d7cac19e5a338f060456c0fa32558d6edc0916baa26b48e745de8\
+        34571534ca253ea82435f08ebbc7c").unwrap();
+        assert_eq!(script.execute(&inp), Err(ScriptError::NonZeroValue(1)));
     }
 
     #[test]
