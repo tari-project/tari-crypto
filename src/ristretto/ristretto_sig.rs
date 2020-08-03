@@ -102,26 +102,20 @@ pub type RistrettoSchnorr = SchnorrSignature<RistrettoPublicKey, RistrettoSecret
 mod test {
     use crate::{
         common::Blake256,
-        keys::{PublicKey, SecretKey},
+        keys::PublicKey,
         ristretto::{RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
     };
     use digest::Digest;
     use rand;
     use tari_utilities::ByteArray;
 
-    fn get_keypair() -> (RistrettoSecretKey, RistrettoPublicKey) {
-        let mut rng = rand::thread_rng();
-        let k = RistrettoSecretKey::random(&mut rng);
-        let pk = RistrettoPublicKey::from_secret_key(&k);
-        (k, pk)
-    }
-
     /// Create a signature, and then verify it. Also checks that some invalid signatures fail to verify
     #[test]
     #[allow(non_snake_case)]
     fn sign_and_verify_message() {
-        let (k, P) = get_keypair();
-        let (r, R) = get_keypair();
+        let mut rng = rand::thread_rng();
+        let (k, P) = RistrettoPublicKey::random_keypair(&mut rng);
+        let (r, R) = RistrettoPublicKey::random_keypair(&mut rng);
         let e = Blake256::new()
             .chain(P.as_bytes())
             .chain(R.as_bytes())
@@ -143,11 +137,12 @@ mod test {
     #[test]
     #[allow(non_snake_case)]
     fn test_signature_addition() {
+        let mut rng = rand::thread_rng();
         // Alice and Bob generate some keys and nonces
-        let (k1, P1) = get_keypair();
-        let (r1, R1) = get_keypair();
-        let (k2, P2) = get_keypair();
-        let (r2, R2) = get_keypair();
+        let (k1, P1) = RistrettoPublicKey::random_keypair(&mut rng);
+        let (r1, R1) = RistrettoPublicKey::random_keypair(&mut rng);
+        let (k2, P2) = RistrettoPublicKey::random_keypair(&mut rng);
+        let (r2, R2) = RistrettoPublicKey::random_keypair(&mut rng);
         // Each of them creates the Challenge = H(R1 || R2 || P1 || P2 || m)
         let e = Blake256::new()
             .chain(R1.as_bytes())
