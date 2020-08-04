@@ -15,14 +15,39 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-mod error;
-mod op_codes;
-mod script_context;
-mod serde;
-mod stack;
-mod tari_script;
+use crate::{ristretto::pedersen::PedersenCommitment, script::op_codes::HashValue};
 
-pub use op_codes::Opcode;
-pub use script_context::ScriptContext;
-pub use stack::{ExecutionStack, StackItem};
-pub use tari_script::{Builder, TariScript};
+/// Contextual data for use in Tari scripts. The context will typically be unambiguously and deterministically
+/// populated by nodes that are executing the script.
+#[derive(Debug, Clone, Default)]
+pub struct ScriptContext {
+    /// The height of the chain where the UTXO is being _spent_; not the height the UTXO was created in
+    block_height: u64,
+    /// The hash of the previous block's hash
+    prev_block_hash: HashValue,
+    /// The commitment of the UTXO that is attached to this script
+    commitment: PedersenCommitment,
+}
+
+impl ScriptContext {
+    pub fn new(height: u64, prev_hash: &HashValue, com: &PedersenCommitment) -> Self {
+        ScriptContext {
+            block_height: height,
+            prev_block_hash: prev_hash.clone(),
+            commitment: com.clone(),
+        }
+    }
+
+    #[inline(always)]
+    pub fn block_height(&self) -> u64 {
+        self.block_height
+    }
+
+    pub fn prev_block_hash(&self) -> &HashValue {
+        &self.prev_block_hash
+    }
+
+    pub fn commitment(&self) -> &PedersenCommitment {
+        &self.commitment
+    }
+}
