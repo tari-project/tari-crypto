@@ -18,7 +18,13 @@
 use crate::{
     common::Blake256,
     ristretto::{RistrettoPublicKey, RistrettoSecretKey},
-    script::{error::ScriptError, op_codes::Opcode, ExecutionStack, StackItem},
+    script::{
+        error::ScriptError,
+        op_codes::{to_hash, Opcode},
+        ExecutionStack,
+        HashValue,
+        StackItem,
+    },
 };
 use blake2::Digest;
 use std::fmt;
@@ -61,6 +67,20 @@ impl TariScript {
             op.to_bytes(&mut bytes);
             bytes
         })
+    }
+
+    /// Calculate the hash of the script.
+    ///
+    /// # Panics
+    ///
+    /// `as_hash` will panic if `D` does not generate a digest of at least 32 bytes. If it generates a longer hash, it
+    /// only uses the first 32 bytes.
+    pub fn as_hash<D: Digest>(&self) -> HashValue {
+        if D::output_size() < 32 {
+            panic!("The digest function for TariScript::as_hash must produce to at least 32 bytes of output");
+        }
+        let h = D::digest(&self.as_bytes());
+        to_hash(&h.as_slice()[..32])
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, ScriptError> {
@@ -118,6 +138,7 @@ impl TariScript {
             Opcode::RevRot => stack.push_down(2),
             Opcode::PushHash(h) => stack.push(Hash(*h.clone())),
             Opcode::HashBlake256 => TariScript::handle_hash::<Blake256>(stack),
+            Opcode::PushZero => stack.push(Number(0)),
         }
     }
 
@@ -236,6 +257,13 @@ impl Hex for TariScript {
     }
 }
 
+/// The default Tari script is to push a single zero onto the stack; which will execute successfully with zero inputs.
+impl Default for TariScript {
+    fn default() -> Self {
+        script!(PushZero)
+    }
+}
+
 impl fmt::Display for TariScript {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let s = self.to_opcodes().join(" ");
@@ -259,10 +287,22 @@ mod test {
         inputs,
         keys::{PublicKey, SecretKey},
         ristretto::{pedersen::PedersenCommitment, RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
-        script::{error::ScriptError, op_codes::to_hash, ExecutionStack, TariScript},
+        script::{error::ScriptError, op_codes::to_boxed_hash, ExecutionStack, TariScript},
     };
     use blake2::Digest;
     use tari_utilities::{hex::Hex, ByteArray};
+
+    #[test]
+    fn default_script() {
+        let script = TariScript::default();
+        let inputs = ExecutionStack::default();
+        assert!(script.execute(&inputs).is_ok());
+        assert_eq!(&script.to_hex(), "7b");
+        assert_eq!(
+            script.as_hash::<Blake256>().to_hex(),
+            "c5a1ea6d3e0a6a0d650c99489bcd563e37a06221fd04b8f3a842a982b2813907"
+        );
+    }
 
     #[test]
     fn op_return() {
@@ -367,7 +407,7 @@ mod test {
         let r =
             RistrettoSecretKey::from_hex("193ee873f3de511eda8ae387db6498f3d194d31a130a94cdf13dc5890ec1ad0f").unwrap();
         let hash = Blake256::digest(p.as_bytes());
-        let pkh = to_hash(hash.as_slice()); // ae2337ce44f9ebb6169c863ec168046cb35ab4ef7aa9ed4f5f1f669bb74b09e5
+        let pkh = to_boxed_hash(hash.as_slice()); // ae2337ce44f9ebb6169c863ec168046cb35ab4ef7aa9ed4f5f1f669bb74b09e5
         let script = script!(Dup HashBlake256 PushHash(pkh) EqualVerify Drop CheckSig);
         let hex_script = "71b07aae2337ce44f9ebb6169c863ec168046cb35ab4ef7aa9ed4f5f1f669bb74b09e58170ac";
         // Test serialisation
