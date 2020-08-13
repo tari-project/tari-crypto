@@ -142,7 +142,9 @@ impl ScriptCommitmentFactory {
         }
         let commitment = self.factory.commit_value(key, value);
         let adj_blinding_factor = ScriptCommitmentFactory::adjusted_blinding_factor::<D>(key, &commitment, script)?;
-        let script_hash = script.as_hash::<D>();
+        let script_hash = script
+            .as_hash::<D>()
+            .map_err(|_| ScriptCommitmentError::InvalidDigestLength)?;
         Ok(ScriptCommitment {
             blinding_factor: key.clone(),
             value,
@@ -179,7 +181,10 @@ impl ScriptCommitmentFactory {
         s: &TariScript,
     ) -> Result<RistrettoSecretKey, ScriptCommitmentError>
     {
-        let h = D::new().chain(c.as_bytes()).chain(&s.as_hash::<D>()[..]).result();
+        let script_hash = s
+            .as_hash::<D>()
+            .map_err(|_| ScriptCommitmentError::InvalidDigestLength)?;
+        let h = D::new().chain(c.as_bytes()).chain(&script_hash[..]).result();
         let hash = RistrettoSecretKey::from_bytes(&h[..]).map_err(ScriptCommitmentError::from)?;
         Ok(key + &hash)
     }

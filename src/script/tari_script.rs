@@ -70,19 +70,17 @@ impl TariScript {
     }
 
     /// Calculate the hash of the script.
-    ///
-    /// # Panics
-    ///
-    /// `as_hash` will panic if `D` does not generate a digest of at least 32 bytes. If it generates a longer hash, it
-    /// only uses the first 32 bytes.
-    pub fn as_hash<D: Digest>(&self) -> HashValue {
+    /// `as_hash` returns [ScriptError::InvalidDigest] if the digest function does not produce at least 32 bytes of
+    /// output.
+    pub fn as_hash<D: Digest>(&self) -> Result<HashValue, ScriptError> {
         if D::output_size() < 32 {
-            panic!("The digest function for TariScript::as_hash must produce to at least 32 bytes of output");
+            return Err(ScriptError::InvalidDigest);
         }
         let h = D::digest(&self.as_bytes());
-        to_hash(&h.as_slice()[..32])
+        Ok(to_hash(&h.as_slice()[..32]))
     }
 
+    /// Try to deserialise a byte slice into a valid Tari script
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, ScriptError> {
         let mut script = Vec::with_capacity(512);
         let mut byte_str = bytes;
@@ -98,6 +96,28 @@ impl TariScript {
         Ok(TariScript { script })
     }
 
+    /// Convert the script into an array of opcode strings.
+    ///
+    /// # Example
+    /// ```edition2018
+    /// use tari_crypto::script::TariScript;
+    /// use tari_utilities::hex::Hex;
+    ///
+    /// let hex_script = "71b07aae2337ce44f9ebb6169c863ec168046cb35ab4ef7aa9ed4f5f1f669bb74b09e58170ac";
+    /// let script = TariScript::from_hex(hex_script).unwrap();
+    /// let ops = vec![
+    ///     "Dup",
+    ///     "HashBlake256",
+    ///     "PushHash(ae2337ce44f9ebb6169c863ec168046cb35ab4ef7aa9ed4f5f1f669bb74b09e5)",
+    ///     "EqualVerify",
+    ///     "Drop",
+    ///     "CheckSig",
+    /// ]
+    /// .into_iter()
+    /// .map(String::from)
+    /// .collect::<Vec<String>>();
+    /// assert_eq!(script.to_opcodes(), ops);
+    /// ```
     pub fn to_opcodes(&self) -> Vec<String> {
         self.script.iter().map(|op| op.to_string()).collect()
     }
@@ -299,7 +319,7 @@ mod test {
         assert!(script.execute(&inputs).is_ok());
         assert_eq!(&script.to_hex(), "7b");
         assert_eq!(
-            script.as_hash::<Blake256>().to_hex(),
+            script.as_hash::<Blake256>().unwrap().to_hex(),
             "c5a1ea6d3e0a6a0d650c99489bcd563e37a06221fd04b8f3a842a982b2813907"
         );
     }
