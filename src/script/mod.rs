@@ -21,6 +21,6 @@ mod serde;
 mod stack;
 mod tari_script;
 
-pub use op_codes::Opcode;
+pub use op_codes::{to_boxed_hash, to_hash, HashValue, Opcode};
 pub use stack::{ExecutionStack, StackItem};
 pub use tari_script::{Builder, TariScript};

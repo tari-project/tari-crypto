@@ -45,4 +45,6 @@ pub enum ScriptError {
     InvalidInput,
     #[error("A verification opcode failed, aborting the script immediately")]
     VerifyFailed,
+    #[error("as_hash requires a Digest function that returns at least 32 bytes")]
+    InvalidDigest,
 }

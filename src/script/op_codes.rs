@@ -25,10 +25,15 @@ pub type HashValue = [u8; 32];
 /// # Panics
 ///
 /// The function does not check slice for length at all.  You need to check this / guarantee it yourself.
-pub fn to_hash(slice: &[u8]) -> Box<HashValue> {
+pub fn to_hash(slice: &[u8]) -> HashValue {
     let mut hash = [0u8; 32];
     hash.copy_from_slice(slice);
-    Box::new(hash)
+    hash
+}
+
+/// Convert a slice into a Boxed HashValue
+pub fn to_boxed_hash(slice: &[u8]) -> Box<HashValue> {
+    Box::new(to_hash(slice))
 }
 
 // Opcode constants: Script termination
@@ -39,6 +44,7 @@ pub const OP_DROP: u8 = 0x70;
 pub const OP_DUP: u8 = 0x71;
 pub const OP_REV_ROT: u8 = 0x72;
 pub const OP_PUSH_HASH: u8 = 0x7a;
+pub const OP_PUSH_ZERO: u8 = 0x7b;
 
 // Opcode constants: Comparisons
 pub const OP_EQUAL: u8 = 0x80;
@@ -57,6 +63,8 @@ pub const OP_HASH_BLAKE256: u8 = 0xb0;
 pub enum Opcode {
     /// Push the associated 32-byte value onto the stack
     PushHash(Box<HashValue>),
+    /// Push a zero onto the stack
+    PushZero,
     /// Hash to top stack element with the Blake256 hash function and push the result to the stack
     HashBlake256,
     /// Fail the script immediately. (Must be executed.)
@@ -100,11 +108,12 @@ impl Opcode {
             OP_CHECK_SIG => Some((Opcode::CheckSig, &bytes[1..])),
             OP_CHECK_SIG_VERIFY => Some((Opcode::CheckSigVerify, &bytes[1..])),
             OP_HASH_BLAKE256 => Some((Opcode::HashBlake256, &bytes[1..])),
+            OP_PUSH_ZERO => Some((Opcode::PushZero, &bytes[1..])),
             OP_PUSH_HASH => {
                 if bytes.len() < 33 {
                     return None;
                 }
-                let hash = to_hash(&bytes[1..33]);
+                let hash = to_boxed_hash(&bytes[1..33]);
                 Some((Opcode::PushHash(hash), &bytes[33..]))
             },
             _ => None,
@@ -128,6 +137,7 @@ impl Opcode {
             Opcode::CheckSigVerify => array.push(OP_CHECK_SIG_VERIFY),
             Opcode::RevRot => array.push(OP_REV_ROT),
             Opcode::HashBlake256 => array.push(OP_HASH_BLAKE256),
+            Opcode::PushZero => array.push(OP_PUSH_ZERO),
             // Complex matches
             Opcode::PushHash(h) => {
                 array.push(OP_PUSH_HASH);
@@ -153,6 +163,7 @@ impl fmt::Display for Opcode {
             CheckSigVerify => fmt.write_str("CheckSigVerify"),
             Equal => fmt.write_str("Equal"),
             EqualVerify => fmt.write_str("EqualVerify"),
+            PushZero => fmt.write_str("PushZero"),
             PushHash(h) => fmt.write_str(&format!("PushHash({})", (*h).to_hex())),
         }
     }
