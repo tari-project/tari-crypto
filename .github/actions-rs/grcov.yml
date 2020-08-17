@@ -1,0 +1,10 @@
+branch: true
+ignore-not-existing: true
+llvm: true
+filter: covered
+output-type: lcov
+source-dir: src
+# Ignores dependency source files
+ignore:
+  - "/*"
+  - "../*"
