@@ -7,7 +7,7 @@ extern crate lazy_static;
 #[macro_use]
 pub mod macros;
 pub mod commitment;
-pub mod common;
+pub mod hash;
 pub mod keys;
 pub mod musig;
 pub mod range_proof;
@@ -23,4 +23,5 @@ pub mod wasm;
 pub mod script;
 
 // Re-export tari_utils
+pub use hash::blake2 as common;
 pub use tari_utilities;
