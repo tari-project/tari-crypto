@@ -84,6 +84,10 @@ impl RangeProofService for DalekRangeProofService {
         rp.verify_single(&self.bp_gens, &self.pc_gens, &mut pt, &c.compressed, self.range)
             .is_ok()
     }
+
+    fn range(&self) -> usize {
+        self.range
+    }
 }
 
 #[cfg(test)]

@@ -307,7 +307,7 @@ mod test {
         inputs,
         keys::{PublicKey, SecretKey},
         ristretto::{pedersen::PedersenCommitment, RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
-        script::{error::ScriptError, op_codes::to_boxed_hash, ExecutionStack, TariScript},
+        script::{error::ScriptError, op_codes::to_boxed_hash, ExecutionStack, TariScript, DEFAULT_SCRIPT_HASH},
     };
     use blake2::Digest;
     use tari_utilities::{hex::Hex, ByteArray};
@@ -318,10 +318,7 @@ mod test {
         let inputs = ExecutionStack::default();
         assert!(script.execute(&inputs).is_ok());
         assert_eq!(&script.to_hex(), "7b");
-        assert_eq!(
-            script.as_hash::<Blake256>().unwrap().to_hex(),
-            "c5a1ea6d3e0a6a0d650c99489bcd563e37a06221fd04b8f3a842a982b2813907"
-        );
+        assert_eq!(script.as_hash::<Blake256>().unwrap(), DEFAULT_SCRIPT_HASH);
     }
 
     #[test]
