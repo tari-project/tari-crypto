@@ -102,12 +102,19 @@ pub type RistrettoSchnorr = SchnorrSignature<RistrettoPublicKey, RistrettoSecret
 mod test {
     use crate::{
         common::Blake256,
-        keys::PublicKey,
+        keys::{PublicKey, SecretKey},
         ristretto::{RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
     };
     use digest::Digest;
     use rand;
-    use tari_utilities::ByteArray;
+    use tari_utilities::{hex::from_hex, ByteArray};
+
+    #[test]
+    fn default() {
+        let sig = RistrettoSchnorr::default();
+        assert_eq!(sig.get_signature(), &RistrettoSecretKey::default());
+        assert_eq!(sig.get_public_nonce(), &RistrettoPublicKey::default());
+    }
 
     /// Create a signature, and then verify it. Also checks that some invalid signatures fail to verify
     #[test]
@@ -121,9 +128,12 @@ mod test {
             .chain(R.as_bytes())
             .chain(b"Small Gods")
             .result();
+        let e_key = RistrettoSecretKey::from_bytes(&e).unwrap();
+        let s = &r + &e_key * &k;
         let sig = RistrettoSchnorr::sign(k, r, &e).unwrap();
         let R_calc = sig.get_public_nonce();
         assert_eq!(R, *R_calc);
+        assert_eq!(sig.get_signature(), &s);
         assert!(sig.verify_challenge(&P, &e));
         // Doesn't work for invalid credentials
         assert!(!sig.verify_challenge(&R, &e));
@@ -159,5 +169,16 @@ mod test {
         let s_agg = &s1 + &s2;
         // Check that the multi-sig verifies
         assert!(s_agg.verify_challenge(&(P1 + P2), &e));
+    }
+
+    /// Ristretto scalars have a max value 2^255. This test checks that hashed messages above this value can still be
+    /// signed as a result of applying modulo arithmetic on the challenge value
+    #[test]
+    fn challenge_from_invalid_scalar() {
+        let mut rng = rand::thread_rng();
+        let m = from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap();
+        let k = RistrettoSecretKey::random(&mut rng);
+        let r = RistrettoSecretKey::random(&mut rng);
+        assert!(RistrettoSchnorr::sign(k, r, &m).is_ok());
     }
 }

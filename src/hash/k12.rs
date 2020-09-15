@@ -1,4 +1,4 @@
-// Copyright 2019. The Tari Project
+// Copyright 2020 The Tari Project
 //
 // Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
 // following conditions are met:
@@ -20,38 +20,73 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use crate::{
-    commitment::HomomorphicCommitment,
-    keys::{PublicKey, SecretKey},
+use digest::{
+    generic_array::{typenum::U32, GenericArray},
+    FixedOutput,
+    Input,
+    VariableOutput,
 };
-use serde::{Deserialize, Serialize};
-use thiserror::Error;
+use k12::{
+    digest::{ExtendableOutput, Reset, Update},
+    KangarooTwelve,
+};
 
-#[derive(Debug, Clone, Error, PartialEq, Deserialize, Serialize)]
-pub enum RangeProofError {
-    #[error("Could not construct range proof")]
-    ProofConstructionError,
-    #[error("The deserialization of the range proof failed")]
-    InvalidProof,
-    #[error("Invalid input was provided to the RangeProofService constructor")]
-    InitializationError,
+/// A convenience wrapper produce 256 bit hashes from Kangaroo12
+#[derive(Debug)]
+pub struct K12(KangarooTwelve);
+
+impl K12 {
+    pub fn new() -> Self {
+        let h = KangarooTwelve::new();
+        K12(h)
+    }
+
+    pub fn result(self) -> GenericArray<u8, U32> {
+        self.fixed_result()
+    }
 }
 
-pub trait RangeProofService {
-    type P: Sized;
-    type K: SecretKey;
-    type PK: PublicKey<K = Self::K>;
+impl Default for K12 {
+    fn default() -> Self {
+        let h = KangarooTwelve::new();
+        K12(h)
+    }
+}
 
-    /// Construct a new range proof for the given secret key and value. The resulting proof will be sufficient
-    /// evidence that the prover knows the secret key and value, and that the value lies in the range determined by
-    /// the service.
-    fn construct_proof(&self, key: &Self::K, value: u64) -> Result<Self::P, RangeProofError>;
+impl Input for K12 {
+    fn input<B: AsRef<[u8]>>(&mut self, data: B) {
+        (self.0).update(data.as_ref());
+    }
+}
 
-    /// Verify the range proof against the given commitment. If this function returns true, it attests to the
-    /// commitment having a value in the range [0; 2^64-1] and that the prover knew both the value and private key.
-    fn verify(&self, proof: &Self::P, commitment: &HomomorphicCommitment<Self::PK>) -> bool;
+impl FixedOutput for K12 {
+    type OutputSize = U32;
 
-    /// Return the maximum range of the range proof as a power of 2. i.e. if the maximum range is 2^64, this function
-    /// returns 64.
-    fn range(&self) -> usize;
+    fn fixed_result(self) -> GenericArray<u8, U32> {
+        let v = (self.0).finalize_boxed(32);
+        GenericArray::clone_from_slice(&v)
+    }
+}
+
+impl Reset for K12 {
+    fn reset(&mut self) {
+        (self.0).reset();
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::hash::k12::K12;
+    use digest::Input;
+    use tari_utilities::hex;
+
+    #[test]
+    fn K12_test() {
+        let e = K12::new().chain(b"").result().to_vec();
+        let h = hex::to_hex(&e);
+        assert_eq!(
+            h,
+            "1ac2d450fc3b4205d19da7bfca1b37513c0803577ac7167f06fe2ce1f0ef39e5".to_string()
+        );
+    }
 }

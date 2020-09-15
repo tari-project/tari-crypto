@@ -108,16 +108,38 @@ where T: Borrow<PedersenCommitment>
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::keys::SecretKey;
+    use crate::keys::{PublicKey, SecretKey};
     use rand;
     use std::convert::From;
-    use tari_utilities::message_format::MessageFormat;
+    use tari_utilities::{message_format::MessageFormat, ByteArray};
 
     #[test]
     fn check_default_base() {
         let base = PedersenCommitmentFactory::default();
         assert_eq!(base.G, RISTRETTO_PEDERSEN_G);
         assert_eq!(base.H, *RISTRETTO_PEDERSEN_H)
+    }
+
+    #[test]
+    fn pubkey_roundtrip() {
+        let mut rng = rand::thread_rng();
+        let (_, p) = RistrettoPublicKey::random_keypair(&mut rng);
+        let c = PedersenCommitment::from_public_key(&p);
+        assert_eq!(c.as_public_key(), &p);
+        let c2 = PedersenCommitment::from_bytes(c.as_bytes()).unwrap();
+        assert_eq!(c, c2);
+    }
+
+    #[test]
+    fn commitment_sub() {
+        let mut rng = rand::thread_rng();
+        let (_, a) = RistrettoPublicKey::random_keypair(&mut rng);
+        let (_, b) = RistrettoPublicKey::random_keypair(&mut rng);
+        let c = &a + &b;
+        let a = PedersenCommitment::from_public_key(&a);
+        let b = PedersenCommitment::from_public_key(&b);
+        let c = PedersenCommitment::from_public_key(&c);
+        assert_eq!(b, &c - &a);
     }
 
     #[test]

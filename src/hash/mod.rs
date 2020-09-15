@@ -1,4 +1,4 @@
-// Copyright 2019. The Tari Project
+// Copyright 2020 The Tari Project
 //
 // Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
 // following conditions are met:
@@ -20,38 +20,7 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use crate::{
-    commitment::HomomorphicCommitment,
-    keys::{PublicKey, SecretKey},
-};
-use serde::{Deserialize, Serialize};
-use thiserror::Error;
-
-#[derive(Debug, Clone, Error, PartialEq, Deserialize, Serialize)]
-pub enum RangeProofError {
-    #[error("Could not construct range proof")]
-    ProofConstructionError,
-    #[error("The deserialization of the range proof failed")]
-    InvalidProof,
-    #[error("Invalid input was provided to the RangeProofService constructor")]
-    InitializationError,
-}
-
-pub trait RangeProofService {
-    type P: Sized;
-    type K: SecretKey;
-    type PK: PublicKey<K = Self::K>;
-
-    /// Construct a new range proof for the given secret key and value. The resulting proof will be sufficient
-    /// evidence that the prover knows the secret key and value, and that the value lies in the range determined by
-    /// the service.
-    fn construct_proof(&self, key: &Self::K, value: u64) -> Result<Self::P, RangeProofError>;
-
-    /// Verify the range proof against the given commitment. If this function returns true, it attests to the
-    /// commitment having a value in the range [0; 2^64-1] and that the prover knew both the value and private key.
-    fn verify(&self, proof: &Self::P, commitment: &HomomorphicCommitment<Self::PK>) -> bool;
-
-    /// Return the maximum range of the range proof as a power of 2. i.e. if the maximum range is 2^64, this function
-    /// returns 64.
-    fn range(&self) -> usize;
-}
+pub mod blake2;
+pub mod blake3;
+pub mod k12;
+pub mod sha3;

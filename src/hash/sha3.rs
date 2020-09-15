@@ -1,4 +1,4 @@
-// Copyright 2019. The Tari Project
+// Copyright 2020 The Tari Project
 //
 // Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
 // following conditions are met:
@@ -20,38 +20,71 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use crate::{
-    commitment::HomomorphicCommitment,
-    keys::{PublicKey, SecretKey},
+use digest::{
+    generic_array::{typenum::U32, GenericArray},
+    FixedOutput,
+    Input,
+    Reset,
+    VariableOutput,
 };
-use serde::{Deserialize, Serialize};
-use thiserror::Error;
+use sha3::{Digest, Sha3_256};
 
-#[derive(Debug, Clone, Error, PartialEq, Deserialize, Serialize)]
-pub enum RangeProofError {
-    #[error("Could not construct range proof")]
-    ProofConstructionError,
-    #[error("The deserialization of the range proof failed")]
-    InvalidProof,
-    #[error("Invalid input was provided to the RangeProofService constructor")]
-    InitializationError,
+/// A convenience wrapper produce 256 bit hashes from Blake2b
+#[derive(Clone, Debug)]
+pub struct Sha3(Sha3_256);
+
+impl Sha3 {
+    pub fn new() -> Self {
+        let h = Sha3_256::new();
+        Sha3(h)
+    }
+
+    pub fn result(self) -> GenericArray<u8, U32> {
+        self.fixed_result()
+    }
 }
 
-pub trait RangeProofService {
-    type P: Sized;
-    type K: SecretKey;
-    type PK: PublicKey<K = Self::K>;
+impl Default for Sha3 {
+    fn default() -> Self {
+        let h = Sha3_256::new();
+        Sha3(h)
+    }
+}
 
-    /// Construct a new range proof for the given secret key and value. The resulting proof will be sufficient
-    /// evidence that the prover knows the secret key and value, and that the value lies in the range determined by
-    /// the service.
-    fn construct_proof(&self, key: &Self::K, value: u64) -> Result<Self::P, RangeProofError>;
+impl Input for Sha3 {
+    fn input<B: AsRef<[u8]>>(&mut self, data: B) {
+        (self.0).update(data);
+    }
+}
 
-    /// Verify the range proof against the given commitment. If this function returns true, it attests to the
-    /// commitment having a value in the range [0; 2^64-1] and that the prover knew both the value and private key.
-    fn verify(&self, proof: &Self::P, commitment: &HomomorphicCommitment<Self::PK>) -> bool;
+impl FixedOutput for Sha3 {
+    type OutputSize = U32;
 
-    /// Return the maximum range of the range proof as a power of 2. i.e. if the maximum range is 2^64, this function
-    /// returns 64.
-    fn range(&self) -> usize;
+    fn fixed_result(self) -> GenericArray<u8, U32> {
+        let v = (self.0).finalize();
+        GenericArray::clone_from_slice(&v)
+    }
+}
+
+impl Reset for Sha3 {
+    fn reset(&mut self) {
+        (self.0).reset()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::hash::sha3::Sha3;
+    use digest::Input;
+    use tari_utilities::hex;
+
+    #[test]
+    fn sha_test() {
+        let e = Sha3::new().chain(b"a").chain(b"bc").result().to_vec();
+        let h = hex::to_hex(&e);
+        assert_eq!(
+            h,
+            "3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532".to_string()
+        );
+    }
 }
