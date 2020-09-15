@@ -20,7 +20,71 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-pub mod blake2;
-pub mod blake3;
-pub mod k12;
-pub mod sha3;
+use digest::{
+    generic_array::{typenum::U32, GenericArray},
+    FixedOutput,
+    Input,
+    Reset,
+    VariableOutput,
+};
+use sha3::{Digest, Sha3_256};
+
+/// A convenience wrapper produce 256 bit hashes from Blake2b
+#[derive(Clone, Debug)]
+pub struct Sha3(Sha3_256);
+
+impl Sha3 {
+    pub fn new() -> Self {
+        let h = Sha3_256::new();
+        Sha3(h)
+    }
+
+    pub fn result(self) -> GenericArray<u8, U32> {
+        self.fixed_result()
+    }
+}
+
+impl Default for Sha3 {
+    fn default() -> Self {
+        let h = Sha3_256::new();
+        Sha3(h)
+    }
+}
+
+impl Input for Sha3 {
+    fn input<B: AsRef<[u8]>>(&mut self, data: B) {
+        (self.0).update(data);
+    }
+}
+
+impl FixedOutput for Sha3 {
+    type OutputSize = U32;
+
+    fn fixed_result(self) -> GenericArray<u8, U32> {
+        let v = (self.0).finalize();
+        GenericArray::clone_from_slice(&v)
+    }
+}
+
+impl Reset for Sha3 {
+    fn reset(&mut self) {
+        (self.0).reset()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::hash::sha3::Sha3;
+    use digest::Input;
+    use tari_utilities::hex;
+
+    #[test]
+    fn sha_test() {
+        let e = Sha3::new().chain(b"a").chain(b"bc").result().to_vec();
+        let h = hex::to_hex(&e);
+        assert_eq!(
+            h,
+            "3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532".to_string()
+        );
+    }
+}
