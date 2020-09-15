@@ -50,4 +50,8 @@ pub trait RangeProofService {
     /// Verify the range proof against the given commitment. If this function returns true, it attests to the
     /// commitment having a value in the range [0; 2^64-1] and that the prover knew both the value and private key.
     fn verify(&self, proof: &Self::P, commitment: &HomomorphicCommitment<Self::PK>) -> bool;
+
+    /// Return the maximum range of the range proof as a power of 2. i.e. if the maximum range is 2^64, this function
+    /// returns 64.
+    fn range(&self) -> usize;
 }
