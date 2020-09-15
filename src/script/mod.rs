@@ -17,12 +17,14 @@
 
 mod error;
 mod op_codes;
+mod script_context;
 mod serde;
 mod stack;
 mod tari_script;
 
 pub use error::ScriptError;
 pub use op_codes::{to_boxed_hash, to_hash, HashValue, Opcode};
+pub use script_context::ScriptContext;
 pub use stack::{ExecutionStack, StackItem};
 pub use tari_script::{Builder, TariScript};
 

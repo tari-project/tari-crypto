@@ -36,6 +36,9 @@ pub fn to_boxed_hash(slice: &[u8]) -> Box<HashValue> {
     Box::new(to_hash(slice))
 }
 
+// Opcode constants: Contextual
+pub const OP_PUSH_CHAIN_HEIGHT: u8 = 0x50;
+
 // Opcode constants: Script termination
 pub const OP_RETURN: u8 = 0x60;
 
@@ -61,6 +64,8 @@ pub const OP_HASH_BLAKE256: u8 = 0xb0;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Opcode {
+    /// Push the current chain height onto the stack
+    PushHeight,
     /// Push the associated 32-byte value onto the stack
     PushHash(Box<HashValue>),
     /// Push a zero onto the stack
@@ -97,6 +102,7 @@ impl Opcode {
     pub fn read_next(bytes: &[u8]) -> Option<(Opcode, &[u8])> {
         let code = bytes.get(0)?;
         match *code {
+            OP_PUSH_CHAIN_HEIGHT => Some((Opcode::PushHeight, &bytes[1..])),
             OP_RETURN => Some((Opcode::Return, &bytes[1..])),
             OP_DROP => Some((Opcode::Drop, &bytes[1..])),
             OP_DUP => Some((Opcode::Dup, &bytes[1..])),
@@ -126,6 +132,7 @@ impl Opcode {
         let n = array.len();
         match self {
             // Simple matches
+            Opcode::PushHeight => array.push(OP_PUSH_CHAIN_HEIGHT),
             Opcode::Return => array.push(OP_RETURN),
             Opcode::Drop => array.push(OP_DROP),
             Opcode::Dup => array.push(OP_DUP),
@@ -152,6 +159,7 @@ impl fmt::Display for Opcode {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         use Opcode::*;
         match self {
+            PushHeight => fmt.write_str("PushHeight"),
             HashBlake256 => fmt.write_str("HashBlake256"),
             Return => fmt.write_str("Return"),
             Drop => fmt.write_str("Drop"),

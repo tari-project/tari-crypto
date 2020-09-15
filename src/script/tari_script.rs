@@ -23,6 +23,7 @@ use crate::{
         op_codes::{to_hash, Opcode},
         ExecutionStack,
         HashValue,
+        ScriptContext,
         StackItem,
     },
 };
@@ -53,11 +54,17 @@ impl TariScript {
         TariScript { script }
     }
 
+    /// Executes the script using a default context
     pub fn execute(&self, inputs: &ExecutionStack) -> Result<(), ScriptError> {
+        self.execute_with_context(inputs, &ScriptContext::default())
+    }
+
+    /// Execute the script with the given inputs and the provided context
+    pub fn execute_with_context(&self, inputs: &ExecutionStack, context: &ScriptContext) -> Result<(), ScriptError> {
         // Copy all inputs onto the stack
         let mut stack = inputs.clone();
         for opcode in self.script.iter() {
-            self.execute_opcode(opcode, &mut stack)?
+            self.execute_opcode(opcode, &mut stack, context)?
         }
         TariScript::stack_is_zero(&stack)
     }
@@ -131,10 +138,17 @@ impl TariScript {
         RistrettoSecretKey::from_bytes(b.as_slice()).map_err(|_| ScriptError::InvalidSignature)
     }
 
-    fn execute_opcode(&self, opcode: &Opcode, stack: &mut ExecutionStack) -> Result<(), ScriptError> {
+    fn execute_opcode(
+        &self,
+        opcode: &Opcode,
+        stack: &mut ExecutionStack,
+        ctx: &ScriptContext,
+    ) -> Result<(), ScriptError>
+    {
         use StackItem::*;
         match opcode {
             Opcode::Return => Err(ScriptError::Return),
+            Opcode::PushHeight => TariScript::handle_push_height(stack, ctx),
             Opcode::Add => TariScript::handle_op_add(stack),
             Opcode::Sub => TariScript::handle_op_sub(stack),
             Opcode::Dup => TariScript::handle_dup(stack),
@@ -181,6 +195,10 @@ impl TariScript {
         };
 
         stack.push(Hash(hash_value))
+    }
+
+    fn handle_push_height(stack: &mut ExecutionStack, ctx: &ScriptContext) -> Result<(), ScriptError> {
+        stack.push(StackItem::Number(ctx.block_height() as i64))
     }
 
     fn handle_dup(stack: &mut ExecutionStack) -> Result<(), ScriptError> {
