@@ -24,7 +24,6 @@ use digest::{
     generic_array::{typenum::U32, GenericArray},
     FixedOutput,
     Input,
-    VariableOutput,
 };
 use k12::{
     digest::{ExtendableOutput, Reset, Update},
@@ -32,9 +31,15 @@ use k12::{
 };
 
 /// A convenience wrapper produce 256 bit hashes from Kangaroo12
+#[deprecated(
+    note = "This wrapper becomes obsolete once tari_crypto updates to digest v0.9, which is dependent on Dalek \
+            libraries updating to digest 0.9. When that happens, you can use the underlying KangarooTwelve hasher \
+            directly and this wrapper will be removed."
+)]
 #[derive(Debug)]
 pub struct K12(KangarooTwelve);
 
+#[allow(deprecated)]
 impl K12 {
     pub fn new() -> Self {
         let h = KangarooTwelve::new();
@@ -46,6 +51,7 @@ impl K12 {
     }
 }
 
+#[allow(deprecated)]
 impl Default for K12 {
     fn default() -> Self {
         let h = KangarooTwelve::new();
@@ -53,12 +59,14 @@ impl Default for K12 {
     }
 }
 
+#[allow(deprecated)]
 impl Input for K12 {
     fn input<B: AsRef<[u8]>>(&mut self, data: B) {
         (self.0).update(data.as_ref());
     }
 }
 
+#[allow(deprecated)]
 impl FixedOutput for K12 {
     type OutputSize = U32;
 
@@ -68,12 +76,14 @@ impl FixedOutput for K12 {
     }
 }
 
+#[allow(deprecated)]
 impl Reset for K12 {
     fn reset(&mut self) {
         (self.0).reset();
     }
 }
 
+#[allow(deprecated)]
 #[cfg(test)]
 mod test {
     use crate::hash::k12::K12;
@@ -81,7 +91,7 @@ mod test {
     use tari_utilities::hex;
 
     #[test]
-    fn K12_test() {
+    fn k12_test() {
         let e = K12::new().chain(b"").result().to_vec();
         let h = hex::to_hex(&e);
         assert_eq!(

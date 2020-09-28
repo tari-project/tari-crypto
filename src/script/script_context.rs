@@ -33,7 +33,7 @@ impl ScriptContext {
     pub fn new(height: u64, prev_hash: &HashValue, com: &PedersenCommitment) -> Self {
         ScriptContext {
             block_height: height,
-            prev_block_hash: prev_hash.clone(),
+            prev_block_hash: *prev_hash,
             commitment: com.clone(),
         }
     }
