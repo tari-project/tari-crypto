@@ -25,14 +25,19 @@ use digest::{
     FixedOutput,
     Input,
     Reset,
-    VariableOutput,
 };
 use sha3::{Digest, Sha3_256};
 
 /// A convenience wrapper produce 256 bit hashes from Blake2b
+#[deprecated(
+    note = "This wrapper becomes obsolete once tari_crypto updates to digest v0.9, which is dependent on Dalek \
+            libraries updating to digest 0.9. When that happens, you can use the underlying Sha3_256 hasher directly \
+            and this wrapper will be removed."
+)]
 #[derive(Clone, Debug)]
 pub struct Sha3(Sha3_256);
 
+#[allow(deprecated)]
 impl Sha3 {
     pub fn new() -> Self {
         let h = Sha3_256::new();
@@ -44,6 +49,7 @@ impl Sha3 {
     }
 }
 
+#[allow(deprecated)]
 impl Default for Sha3 {
     fn default() -> Self {
         let h = Sha3_256::new();
@@ -51,12 +57,14 @@ impl Default for Sha3 {
     }
 }
 
+#[allow(deprecated)]
 impl Input for Sha3 {
     fn input<B: AsRef<[u8]>>(&mut self, data: B) {
         (self.0).update(data);
     }
 }
 
+#[allow(deprecated)]
 impl FixedOutput for Sha3 {
     type OutputSize = U32;
 
@@ -66,12 +74,14 @@ impl FixedOutput for Sha3 {
     }
 }
 
+#[allow(deprecated)]
 impl Reset for Sha3 {
     fn reset(&mut self) {
         (self.0).reset()
     }
 }
 
+#[allow(deprecated)]
 #[cfg(test)]
 mod test {
     use crate::hash::sha3::Sha3;

@@ -29,9 +29,15 @@ use digest::{
 };
 
 /// A convenience wrapper produce 256 bit hashes from Blake3
+#[deprecated(
+    note = "This wrapper becomes obsolete once tari_crypto updates to digest v0.9, which is dependent on Dalek \
+            libraries updating to digest 0.9. When that happens, you can use the underlying blake3 hasher directly \
+            and this wrapper will be removed."
+)]
 #[derive(Clone, Debug)]
 pub struct Blake3(Hasher);
 
+#[allow(deprecated)]
 impl Blake3 {
     pub fn new() -> Self {
         let h = Hasher::new();
@@ -43,6 +49,7 @@ impl Blake3 {
     }
 }
 
+#[allow(deprecated)]
 impl Default for Blake3 {
     fn default() -> Self {
         let h = Hasher::new();
@@ -50,12 +57,14 @@ impl Default for Blake3 {
     }
 }
 
+#[allow(deprecated)]
 impl Input for Blake3 {
     fn input<B: AsRef<[u8]>>(&mut self, data: B) {
         (self.0).update(data.as_ref());
     }
 }
 
+#[allow(deprecated)]
 impl FixedOutput for Blake3 {
     type OutputSize = U32;
 
@@ -65,6 +74,7 @@ impl FixedOutput for Blake3 {
     }
 }
 
+#[allow(deprecated)]
 impl Reset for Blake3 {
     fn reset(&mut self) {
         (self.0).reset();
@@ -72,13 +82,14 @@ impl Reset for Blake3 {
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod test {
     use crate::hash::blake3::Blake3;
     use digest::Input;
     use tari_utilities::hex;
 
     #[test]
-    fn Blake3_test() {
+    fn blake3_test() {
         let e = Blake3::new()
             .chain(b"The quick brown fox jumps over ")
             .chain(b"the lazy dog")
