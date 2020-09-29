@@ -15,9 +15,6 @@ jobs:
           sudo apt install -y cmake
       - name: Download Rust
         uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          override: true
       - name: Build
         run: cargo test --all-features --no-fail-fast
         env:
