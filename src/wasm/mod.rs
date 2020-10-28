@@ -21,7 +21,7 @@
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use wasm_bindgen::prelude::*;
-const VERSION: &str = "0.2.0";
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 mod keyring;
 
