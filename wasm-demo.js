@@ -22,7 +22,7 @@
 //
 
 // If you get a "module not found" error, see README.md for details on how to generate the node package
-let tari_crypto = require('./pkg');
+let tari_crypto = require('./tari_js');
 let assert = require('assert');
 
 
@@ -43,6 +43,25 @@ console.log("PB = ", keys.public_key("Bob"));
 
 console.log("Signing message");
 let sig = keys.sign("Alice", "Hello Tari");
+if (sig.error) {
+    console.log(`Error getting signature ${sig.error}`);
+} else {
+    console.log('Signature:', sig);
+    console.log("Verifying signature..");
+    let pubkey = keys.public_key("Alice");
+    console.log(`Pubkey: ${pubkey}`);
+    let check = tari_crypto.check_signature(sig.public_nonce, sig.signature, pubkey, "Hello Tari");
+    if (check.result === true) {
+        console.log("Signature is valid!");
+    } else {
+        console.log(`Invalid signature: ${check.error}`);
+    }
+}
+
+// Sign with nonce
+console.log("Signing message with predetermined nonce");
+let nonce = keys.new_key("Nonce");
+sig = keys.sign_with_nonce("Alice", "Nonce","Hello Tari");
 if (sig.error) {
     console.log(`Error getting signature ${sig.error}`);
 } else {
