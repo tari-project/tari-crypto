@@ -32,7 +32,7 @@ use crate::{
     },
     wasm::{
         commitments::CommitmentResult,
-        key_utils::{sign_with_key, SignResult},
+        key_utils::{sign_message_with_key, SignResult},
     },
 };
 use rand::rngs::OsRng;
@@ -101,7 +101,35 @@ impl KeyRing {
             return JsValue::from_serde(&result).unwrap();
         }
         let k = k.unwrap();
-        sign_with_key(&k.0, msg, &mut result);
+        sign_message_with_key(&k.0, msg, None, &mut result);
+        JsValue::from_serde(&result).unwrap()
+    }
+
+    /// Sign a message using a private key and a specific nonce
+    ///
+    /// Use can use a key in the keyring to generate a digital signature. To create the signature, the caller must
+    /// provide the `id` associated with the key, the message to sign, and a `nonce_id`. *Do not* reuse nonces.
+    /// This function is provided because in some signature schemes require the public nonce to be
+    /// part of the message.
+    ///
+    /// The return type is pretty unRust-like, but is structured to more closely model a JSON object.
+    ///
+    /// `keys::check_signature` is used to verify signatures.
+    pub fn sign_with_nonce(&self, id: &str, nonce_id: &str, msg: &str) -> JsValue {
+        let mut result = SignResult::default();
+        let k = self.keys.get(id);
+        if k.is_none() {
+            result.error = format!("Private key for '{}' does not exist", id);
+            return JsValue::from_serde(&result).unwrap();
+        }
+        let k = k.unwrap();
+        let nonce = self.keys.get(nonce_id);
+        if nonce.is_none() {
+            result.error = format!("Private nonce for `{}` does not exist", nonce_id);
+            return JsValue::from_serde(&result).unwrap();
+        }
+        let nonce = nonce.unwrap();
+        sign_message_with_key(&k.0, msg, Some(&nonce.0), &mut result);
         JsValue::from_serde(&result).unwrap()
     }
 

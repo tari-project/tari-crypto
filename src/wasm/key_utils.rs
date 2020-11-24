@@ -32,7 +32,7 @@ use crate::{
 use blake2::Digest;
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
-use tari_utilities::hex::Hex;
+use tari_utilities::hex::{from_hex, Hex};
 use wasm_bindgen::prelude::*;
 
 #[derive(Serialize, Deserialize)]
@@ -87,15 +87,62 @@ pub fn sign(private_key: &str, msg: &str) -> JsValue {
             return JsValue::from_serde(&result).unwrap();
         },
     };
-    sign_with_key(&k, msg, &mut result);
+    sign_message_with_key(&k, msg, None, &mut result);
     JsValue::from_serde(&result).unwrap()
 }
 
-#[allow(non_snake_case)]
-pub(crate) fn sign_with_key(k: &RistrettoSecretKey, msg: &str, result: &mut SignResult) {
-    let (r, R) = RistrettoPublicKey::random_keypair(&mut OsRng);
+/// Generate a Schnorr signature of a challenge (that has already been hashed) using the given private
+/// key and a specified private nonce. DO NOT reuse nonces. This method is provide for cases where a
+/// public nonce has been used
+/// in the message.
+#[wasm_bindgen]
+pub fn sign_challenge_with_nonce(private_key: &str, private_nonce: &str, challenge_as_hex: &str) -> JsValue {
+    let mut result = SignResult::default();
+    let k = match RistrettoSecretKey::from_hex(private_key) {
+        Ok(k) => k,
+        _ => {
+            result.error = "Invalid private key".to_string();
+            return JsValue::from_serde(&result).unwrap();
+        },
+    };
+    let r = match RistrettoSecretKey::from_hex(private_nonce) {
+        Ok(r) => r,
+        _ => {
+            result.error = "Invalid private nonce".to_string();
+            return JsValue::from_serde(&result).unwrap();
+        },
+    };
+
+    let e = match from_hex(challenge_as_hex) {
+        Ok(e) => e,
+        _ => {
+            result.error = "Challenge was not valid HEX".to_string();
+            return JsValue::from_serde(&result).unwrap();
+        },
+    };
+    sign_with_key(&k, &e, Some(&r), &mut result);
+    JsValue::from_serde(&result).unwrap()
+}
+
+pub(crate) fn sign_message_with_key(
+    k: &RistrettoSecretKey,
+    msg: &str,
+    r: Option<&RistrettoSecretKey>,
+    result: &mut SignResult,
+)
+{
     let e = Blake256::digest(msg.as_bytes());
-    let sig = match RistrettoSchnorr::sign(k.clone(), r, e.as_slice()) {
+    sign_with_key(k, e.as_slice(), r, result)
+}
+
+#[allow(non_snake_case)]
+pub(crate) fn sign_with_key(k: &RistrettoSecretKey, e: &[u8], r: Option<&RistrettoSecretKey>, result: &mut SignResult) {
+    let (r, R) = match r {
+        Some(r) => (r.clone(), RistrettoPublicKey::from_secret_key(r)),
+        None => RistrettoPublicKey::random_keypair(&mut OsRng),
+    };
+
+    let sig = match RistrettoSchnorr::sign(k.clone(), r, e) {
         Ok(s) => s,
         Err(e) => {
             result.error = format!("Could not create signature. {}", e.to_string());
