@@ -62,3 +62,18 @@ To run the benchmarks with SIMD instructions:
 * Breaking change: `KeyRing.sign` doesn't take a nonce any more. It's not needed, and why risk someone re-using it?
 * New method: `key_utils.sign` to sign keys not in the key ring
 * New module: Commitments
+
+# Building the C FFI module
+
+To build the C bindings, you can run
+
+    make ffi
+
+To build the release version (recommended):
+
+    make ffi-release
+
+To run the small demo:
+
+    make demo
+    ./bin/demo
