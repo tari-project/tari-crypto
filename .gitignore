@@ -26,3 +26,8 @@ report
 Cargo.lock
 *.log
 
+# Generated during build
+/libtari/tari_crypto.h
+
+# C-demo output
+bin/

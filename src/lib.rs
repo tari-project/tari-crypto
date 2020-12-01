@@ -20,6 +20,9 @@ pub mod ristretto;
 #[cfg(feature = "wasm")]
 pub mod wasm;
 
+#[cfg(feature = "ffi")]
+pub mod ffi;
+
 pub mod script;
 
 // Re-export tari_utils
