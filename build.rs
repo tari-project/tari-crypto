@@ -23,7 +23,6 @@ fn main() {
     if needs_ffi {
         generate_ffi_header();
     }
-    generate_ffi_header();
 }
 
 fn generate_ffi_header() {
