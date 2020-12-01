@@ -16,8 +16,8 @@ base64 = "0.10.1"
 digest = "0.8.0"
 rand = "0.7.2"
 clear_on_drop = "=0.2.4"
-curve25519-dalek = { version = "2.0.0" }
-bulletproofs = { version = "2.0.0" }
+curve25519-dalek = { version = "3.0.0" }
+bulletproofs = {git = "https://github.com/tari-project/bulletproofs", version = "^2.0.0" , branch="develop"}
 merlin = "2.0.0"
 sha2 = "0.8.0"
 sha3 = "0.9"

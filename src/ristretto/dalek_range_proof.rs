@@ -30,6 +30,9 @@ use crate::{
 };
 use bulletproofs::{BulletproofGens, PedersenGens, RangeProof as DalekProof};
 use merlin::Transcript;
+use bulletproofs::range_proof::{get_rewind_nonce_from_pub_key, get_secret_nonce_from_pvt_key};
+use crate::keys::PublicKey;
+use crate::range_proof::{REWIND_PROOF_MESSAGE_LENGTH, REWIND_CHECK_MESSAGE, REWIND_USER_MESSAGE_LENGTH, FullRewindResult, RewindResult};
 
 /// A wrapper around the Dalek library implementation of Bulletproof range proofs.
 pub struct DalekRangeProofService {
@@ -39,6 +42,8 @@ pub struct DalekRangeProofService {
 }
 
 const MASK: usize = 0b111_1000; // Mask for 8,16,32,64; the valid ranges on the Dalek library
+
+
 
 impl DalekRangeProofService {
     /// Create a new RangeProofService. The Dalek library can only generate proofs for ranges between [0; 2^range),
@@ -88,6 +93,52 @@ impl RangeProofService for DalekRangeProofService {
     fn range(&self) -> usize {
         self.range
     }
+
+    fn construct_proof_with_rewind_key(&self, key: &RistrettoSecretKey, value: u64, rewind_key: &RistrettoSecretKey, rewind_blinding_key: &RistrettoSecretKey, proof_message: &[u8; REWIND_USER_MESSAGE_LENGTH]) -> Result<Vec<u8>, RangeProofError> {
+        let mut pt = Transcript::new(b"tari");
+        let mut full_proof_message = [0u8; REWIND_PROOF_MESSAGE_LENGTH];
+        full_proof_message[0..REWIND_CHECK_MESSAGE.len()].clone_from_slice(REWIND_CHECK_MESSAGE);
+        full_proof_message[REWIND_CHECK_MESSAGE.len()..].clone_from_slice(proof_message);
+
+        let k = key.0;
+        let rk = rewind_key.0;
+        let rbk = rewind_blinding_key.0;
+        let (proof, _) = DalekProof::prove_single_with_rewind_key(&self.bp_gens, &self.pc_gens, &mut pt, value, &k, self.range, &rk, &rbk, &full_proof_message)
+            .map_err(|_| RangeProofError::ProofConstructionError)?;
+        Ok(proof.to_bytes())
+    }
+
+    fn rewind_proof_value_only(&self, proof: &Self::P, commitment: &PedersenCommitment, rewind_public_key: &RistrettoPublicKey, rewind_blinding_public_key: &RistrettoPublicKey) -> Result<RewindResult, RangeProofError> {
+        let rp = DalekProof::from_bytes(&proof).map_err(|_| RangeProofError::InvalidProof)?;
+
+        let mut pt = Transcript::new(b"tari");
+        let rewind_nonce_1 = get_rewind_nonce_from_pub_key(&rewind_public_key.compressed, &commitment.as_public_key().compressed);
+        let rewind_nonce_2 = get_rewind_nonce_from_pub_key(&rewind_blinding_public_key.compressed, &commitment.as_public_key().compressed);
+        let (confidential_value, proof_message) = rp.rewind_single_get_value_only(&self.bp_gens, &mut pt, &commitment.as_public_key().compressed, self.range,&rewind_nonce_1,&rewind_nonce_2).map_err(|_| RangeProofError::ProofConstructionError)?;
+        if &proof_message[..REWIND_CHECK_MESSAGE.len()] != REWIND_CHECK_MESSAGE {
+            return Err(RangeProofError::InvalidRewind);
+        }
+        let mut truncated_proof_message: [u8; REWIND_USER_MESSAGE_LENGTH] = [0u8; REWIND_USER_MESSAGE_LENGTH];
+        truncated_proof_message.copy_from_slice(&proof_message[REWIND_CHECK_MESSAGE.len()..]);
+        Ok(RewindResult::new(confidential_value, truncated_proof_message))
+    }
+
+    fn rewind_proof_commitment_data(&self, proof: &Self::P, commitment: &PedersenCommitment, rewind_key: &RistrettoSecretKey, rewind_blinding_key: &RistrettoSecretKey) -> Result<FullRewindResult<RistrettoSecretKey>, RangeProofError> {
+        let rp = DalekProof::from_bytes(&proof).map_err(|_| RangeProofError::InvalidProof)?;
+
+        let mut pt = Transcript::new(b"tari");
+        let rewind_public_key = RistrettoPublicKey::from_secret_key(rewind_key);
+        let rewind_blinding_public_key = RistrettoPublicKey::from_secret_key(rewind_blinding_key);
+        let rewind_nonce_1 = get_rewind_nonce_from_pub_key(&rewind_public_key.compressed, &commitment.as_public_key().compressed);
+        let rewind_nonce_2 = get_rewind_nonce_from_pub_key(&rewind_blinding_public_key.compressed, &commitment.as_public_key().compressed);
+        let blinding_nonce_1 = get_secret_nonce_from_pvt_key(&rewind_key.0, &commitment.as_public_key().compressed);
+        let blinding_nonce_2 = get_secret_nonce_from_pvt_key(&rewind_blinding_key.0, &commitment.as_public_key().compressed);
+        let (confidential_value, blinding_factor, proof_message) = rp.rewind_single_get_commitment_data(&self.bp_gens,&self.pc_gens, &mut pt, &commitment.as_public_key().compressed, self.range,&rewind_nonce_1,&rewind_nonce_2,&blinding_nonce_1, &blinding_nonce_2).map_err(|_| RangeProofError::InvalidRewind)?;
+
+        let mut truncated_proof_message: [u8; REWIND_USER_MESSAGE_LENGTH] = [0u8; REWIND_USER_MESSAGE_LENGTH];
+        truncated_proof_message.copy_from_slice(&proof_message[REWIND_CHECK_MESSAGE.len()..]);
+        Ok(FullRewindResult::new(confidential_value, truncated_proof_message, RistrettoSecretKey(blinding_factor)))
+    }
 }
 
 #[cfg(test)]
@@ -103,6 +154,8 @@ mod test {
         },
     };
     use rand::thread_rng;
+    use crate::ristretto::RistrettoPublicKey;
+    use crate::keys::PublicKey;
 
     #[test]
     fn create_and_verify_proof() {
@@ -128,6 +181,44 @@ mod test {
         // Both invalid
         let c = commitment_factory.commit(&k, &v2);
         assert_eq!(prover.verify(&proof, &c), false);
+    }
+
+    #[test]
+    fn create_and_rewind_proof() {
+        let base = PedersenCommitmentFactory::default();
+
+        let prover = DalekRangeProofService::new(1 << 5, &base).unwrap();
+        let mut rng = thread_rng();
+        let k = RistrettoSecretKey::random(&mut rng);
+        let v = RistrettoSecretKey::from(42);
+
+        let rewind_k = RistrettoSecretKey::random(&mut rng);
+        let rewind_blinding_k = RistrettoSecretKey::random(&mut rng);
+        let random_k = RistrettoSecretKey::random(&mut rng);
+
+        let public_rewind_k = RistrettoPublicKey::from_secret_key(&rewind_k);
+        let public_rewind_blinding_k = RistrettoPublicKey::from_secret_key(&rewind_blinding_k);
+        let public_random_k = RistrettoPublicKey::from_secret_key(&random_k);
+
+        let commitment_factory: PedersenCommitmentFactory = PedersenCommitmentFactory::default();
+        let c = commitment_factory.commit(&k, &v);
+        let message = b"testing12345678910111";
+        let proof = prover.construct_proof_with_rewind_key(&k, 42, &rewind_k, &rewind_blinding_k, &message).unwrap();
+
+        assert_eq!(prover.rewind_proof_value_only(&proof, &c, &public_random_k, &public_rewind_blinding_k), Err(RangeProofError::InvalidRewind));
+        assert_eq!(prover.rewind_proof_value_only(&proof, &c, &public_rewind_k, &public_random_k), Err(RangeProofError::InvalidRewind));
+
+        let rewind_result = prover.rewind_proof_value_only(&proof, &c, &public_rewind_k, &public_rewind_blinding_k).unwrap();
+        assert_eq!(rewind_result.committed_value, 42);
+        assert_eq!(&rewind_result.proof_message, message);
+
+        assert_eq!(prover.rewind_proof_commitment_data(&proof, &c, &random_k, &rewind_blinding_k), Err(RangeProofError::InvalidRewind));
+        assert_eq!(prover.rewind_proof_commitment_data(&proof, &c, &rewind_k, &random_k), Err(RangeProofError::InvalidRewind));
+
+        let full_rewind_result = prover.rewind_proof_commitment_data(&proof, &c, &rewind_k, &rewind_blinding_k).unwrap();
+        assert_eq!(full_rewind_result.committed_value, 42);
+        assert_eq!(&full_rewind_result.proof_message, message);
+        assert_eq!(full_rewind_result.blinding_factor, k);
     }
 
     #[test]
