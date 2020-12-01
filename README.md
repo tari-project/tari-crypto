@@ -24,6 +24,8 @@ To build the WebAssembly module, the `wasm` feature must be enabled:
 To generate a module for use in node.js, use this command:
 
     $ wasm-pack build --target nodejs -d tari_js . -- --features "wasm"
+    
+Note: Node v10+ is needed for the WASM 
 
 ## Example (Node.js)
 
