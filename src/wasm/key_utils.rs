@@ -21,7 +21,7 @@
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //! Simple cryptographic key functions. It's generally not very efficient to use these functions to do lots of cool
-//! stuff with private and public keys, because the keys are transalted to- and from hex every time you make a call
+//! stuff with private and public keys, because the keys are translated to- and from hex every time you make a call
 //! using a function from this module. You should use a [KeyRing] instead. But sometimes, these functions are handy.
 
 use crate::{
@@ -64,6 +64,16 @@ pub fn generate_keypair() -> JsValue {
     let (k, p) = RistrettoPublicKey::random_keypair(&mut OsRng);
     let pair = (k.to_hex(), p.to_hex());
     JsValue::from_serde(&pair).unwrap()
+}
+
+/// Returns a public key object from a public key hex string, or false if the hex string does not represent a valid
+/// public key
+#[wasm_bindgen]
+pub fn pubkey_from_hex(hex: &str) -> JsValue {
+    match RistrettoPublicKey::from_hex(hex) {
+        Ok(pk) => JsValue::from_serde(&pk).unwrap_or_else(|_| JsValue::from_bool(false)),
+        Err(_) => JsValue::from_bool(false),
+    }
 }
 
 /// Calculate the public key associated with a private key. If the input is not a valid hex string representing a
