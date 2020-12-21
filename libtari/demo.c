@@ -18,7 +18,8 @@ int main() {
     const char *ver = version();
     printf("Tari Crypto (v%s)\n", ver);
 
-    uint8_t pub_key[KEY_LENGTH], priv_key[KEY_LENGTH];
+    uint8_t pub_key[KEY_LENGTH];
+    uint8_t priv_key[KEY_LENGTH];
 
     int code = random_keypair(&priv_key, &pub_key);
     if (code) {
@@ -33,7 +34,8 @@ int main() {
     const char msg[] = "Hello world\0";
     const char invalid[] = "Hullo world\0";
 
-    uint8_t r[KEY_LENGTH], sig[KEY_LENGTH];
+    uint8_t r[KEY_LENGTH];
+    uint8_t sig[KEY_LENGTH];
 
     code = sign(&priv_key, &msg[0], &r, &sig);
     if (code) {
