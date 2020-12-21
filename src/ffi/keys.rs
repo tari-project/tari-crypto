@@ -27,7 +27,7 @@ use rand::rngs::OsRng;
 use std::{ffi::CStr, os::raw::c_int};
 use tari_utilities::ByteArray;
 
-const KEY_LENGTH: usize = 32;
+pub const KEY_LENGTH: usize = 32;
 
 type KeyArray = [u8; KEY_LENGTH];
 
