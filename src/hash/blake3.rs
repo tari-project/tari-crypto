@@ -85,12 +85,28 @@ impl Reset for Blake3 {
 #[allow(deprecated)]
 mod test {
     use crate::hash::blake3::Blake3;
-    use digest::Input;
+    use digest::{Input, Reset};
     use tari_utilities::hex;
 
     #[test]
     fn blake3_test() {
         let e = Blake3::new()
+            .chain(b"The quick brown fox jumps over ")
+            .chain(b"the lazy dog")
+            .result()
+            .to_vec();
+        let h = hex::to_hex(&e);
+        assert_eq!(
+            h,
+            "2f1514181aadccd913abd94cfa592701a5686ab23f8df1dff1b74710febc6d4a".to_string()
+        );
+    }
+
+    #[test]
+    fn reset() {
+        let mut e = Blake3::default().chain(b"foobar");
+        e.reset();
+        let e = e
             .chain(b"The quick brown fox jumps over ")
             .chain(b"the lazy dog")
             .result()

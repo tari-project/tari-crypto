@@ -85,12 +85,24 @@ impl Reset for Sha3 {
 #[cfg(test)]
 mod test {
     use crate::hash::sha3::Sha3;
-    use digest::Input;
+    use digest::{Input, Reset};
     use tari_utilities::hex;
 
     #[test]
     fn sha_test() {
         let e = Sha3::new().chain(b"a").chain(b"bc").result().to_vec();
+        let h = hex::to_hex(&e);
+        assert_eq!(
+            h,
+            "3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532".to_string()
+        );
+    }
+
+    #[test]
+    fn reset() {
+        let mut e = Sha3::default().chain("fubar");
+        e.reset();
+        let e = e.chain(b"abc").result().to_vec();
         let h = hex::to_hex(&e);
         assert_eq!(
             h,

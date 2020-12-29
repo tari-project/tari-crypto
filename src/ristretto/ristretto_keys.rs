@@ -545,6 +545,16 @@ mod test {
         assert_eq!(&k + &zero, k);
     }
 
+    #[test]
+    fn k_minus_zero_is_k() {
+        let zero = RistrettoSecretKey::default();
+        let mut rng = rand::thread_rng();
+        let k = RistrettoSecretKey::random(&mut rng);
+        assert_eq!(&k - &zero, k);
+        assert_eq!(&k - zero.clone(), k);
+        assert_eq!(k.clone() - zero, k);
+    }
+
     /// These test vectors are from https://ristretto.group/test_vectors/ristretto255.html
     #[test]
     fn bad_keys() {
@@ -588,6 +598,15 @@ mod test {
         for bad_encoding in &bad_encodings {
             RistrettoPublicKey::from_hex(bad_encoding).expect_err(&format!("Encoding {} should fail", bad_encoding));
         }
+    }
+
+    #[test]
+    fn mul() {
+        let (k, p) = get_keypair();
+        let prod = &k * &p;
+        assert_eq!(k.clone() * &p, prod);
+        assert_eq!(&k * p.clone(), prod);
+        assert_eq!(k * p, prod);
     }
 
     #[test]
