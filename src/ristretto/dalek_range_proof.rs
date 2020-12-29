@@ -316,11 +316,10 @@ mod test {
     #[test]
     fn non_power_of_two_range() {
         let base = PedersenCommitmentFactory::default();
-        match DalekRangeProofService::new(10, &base) {
-            Err(RangeProofError::InitializationError) => (),
-            Err(_) => panic!("Wrong error type"),
-            Ok(_) => panic!("Should fail with non power of two range"),
-        }
+        assert!(matches!(
+            DalekRangeProofService::new(10, &base),
+            Err(RangeProofError::InitializationError)
+        ));
     }
 
     #[test]

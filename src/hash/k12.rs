@@ -88,11 +88,24 @@ impl Reset for K12 {
 mod test {
     use crate::hash::k12::K12;
     use digest::Input;
+    use k12::digest::Reset;
     use tari_utilities::hex;
 
     #[test]
     fn k12_test() {
         let e = K12::new().chain(b"").result().to_vec();
+        let h = hex::to_hex(&e);
+        assert_eq!(
+            h,
+            "1ac2d450fc3b4205d19da7bfca1b37513c0803577ac7167f06fe2ce1f0ef39e5".to_string()
+        );
+    }
+
+    #[test]
+    fn reset() {
+        let mut e = K12::default().chain(b"foobar");
+        e.reset();
+        let e = e.result().to_vec();
         let h = hex::to_hex(&e);
         assert_eq!(
             h,

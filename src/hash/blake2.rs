@@ -75,12 +75,24 @@ impl Reset for Blake256 {
 #[cfg(test)]
 mod test {
     use crate::common::Blake256;
-    use digest::Input;
+    use digest::{Input, Reset};
     use tari_utilities::hex;
 
     #[test]
     fn blake256() {
         let e = Blake256::new().chain(b"one").chain(b"two").result().to_vec();
+        let h = hex::to_hex(&e);
+        assert_eq!(
+            h,
+            "03521c1777639fc6e5c3d8c3b4600870f18becc155ad7f8053d2c65bc78e4aa0".to_string()
+        );
+    }
+
+    #[test]
+    fn reset() {
+        let mut e = Blake256::default().chain(b"foobar");
+        e.reset();
+        let e = e.chain(b"onetwo").result().to_vec();
         let h = hex::to_hex(&e);
         assert_eq!(
             h,
