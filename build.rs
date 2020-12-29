@@ -19,7 +19,7 @@ use cbindgen::Config;
 use std::{env, path::Path};
 
 fn main() {
-    let needs_ffi = env::var("CARGO_FEATURE_FFI").is_ok();
+    let needs_ffi = &env::var("CARGO_FEATURE_FFI").unwrap_or_default() == "1";
     if needs_ffi {
         generate_ffi_header();
     }
