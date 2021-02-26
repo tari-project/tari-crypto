@@ -7,7 +7,7 @@ categories = ["cryptography"]
 homepage = "https://tari.com"
 readme = "README.md"
 license = "BSD-3-Clause"
-version = "0.8.2"
+version = "0.8.3"
 edition = "2018"
 
 [dependencies]
@@ -37,13 +37,15 @@ criterion = "0.2"
 bincode = "1.1.4"
 
 [build-dependencies]
-cbindgen = "0.16.0"
+cbindgen = "0.17.0"
 
 [features]
 default = []
 avx2 = ["curve25519-dalek/avx2_backend", "bulletproofs/avx2_backend"]
-wasm = ["wasm-bindgen", "clear_on_drop/no_cc", "rand/wasm-bindgen", "rand/getrandom"]
+wasm = ["wasm-bindgen", "rand/wasm-bindgen", "rand/getrandom"]
 ffi = ["libc"]
+no_cc_nightly = ["clear_on_drop/nightly"]
+no_cc = ["clear_on_drop/no_cc"]
 
 [lib]
 # Disable benchmarks to allow Criterion to take over
