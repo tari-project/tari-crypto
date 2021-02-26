@@ -45,6 +45,10 @@ avx2 = ["curve25519-dalek/avx2_backend", "bulletproofs/avx2_backend"]
 wasm = ["wasm-bindgen", "clear_on_drop/no_cc", "rand/wasm-bindgen", "rand/getrandom"]
 ffi = ["libc"]
 
+[target.wasm32-unknown-unknown.dependencies]
+clear_on_drop = { features = ["no_cc"] }
+rand = { features = ["getrandom"] }
+
 [lib]
 # Disable benchmarks to allow Criterion to take over
 bench = false
