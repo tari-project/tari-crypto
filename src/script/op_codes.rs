@@ -15,114 +15,339 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+use crate::ristretto::RistrettoPublicKey;
 use std::{fmt, ops::Deref};
-use tari_utilities::hex::Hex;
+use tari_utilities::{hex::Hex, ByteArray};
+
+use super::ScriptError;
 
 pub type HashValue = [u8; 32];
+pub type Message = [u8; 32];
 
 /// Convert a slice into a HashValue.
 ///
 /// # Panics
 ///
 /// The function does not check slice for length at all.  You need to check this / guarantee it yourself.
-pub fn to_hash(slice: &[u8]) -> HashValue {
+pub fn slice_to_hash(slice: &[u8]) -> HashValue {
     let mut hash = [0u8; 32];
     hash.copy_from_slice(slice);
     hash
 }
 
 /// Convert a slice into a Boxed HashValue
-pub fn to_boxed_hash(slice: &[u8]) -> Box<HashValue> {
-    Box::new(to_hash(slice))
+pub fn slice_to_boxed_hash(slice: &[u8]) -> Box<HashValue> {
+    Box::new(slice_to_hash(slice))
 }
 
-// Opcode constants: Contextual
-pub const OP_PUSH_CHAIN_HEIGHT: u8 = 0x50;
+/// Convert a slice into a Message.
+///
+/// # Panics
+///
+/// The function does not check slice for length at all.  You need to check this / guarantee it yourself.
+pub fn slice_to_message(slice: &[u8]) -> Message {
+    let mut msg = [0u8; 32];
+    msg.copy_from_slice(slice);
+    msg
+}
 
-// Opcode constants: Script termination
-pub const OP_RETURN: u8 = 0x60;
+/// Convert a slice into a Boxed Message
+pub fn slice_to_boxed_message(slice: &[u8]) -> Box<Message> {
+    Box::new(slice_to_message(slice))
+}
 
-// Opcode constants: Stack manipulation
+/// Convert a slice of little endian bytes into a u64.
+///
+/// # Panics
+///
+/// The function does not check slice for length at all.  You need to check this / guarantee it yourself.
+fn slice_to_u64(slice: &[u8]) -> u64 {
+    let mut num = [0u8; 8];
+    num.copy_from_slice(slice);
+    u64::from_le_bytes(num)
+}
+
+/// Convert a slice of little endian bytes into an i64.
+///
+/// # Panics
+///
+/// The function does not check slice for length at all.  You need to check this / guarantee it yourself.
+fn slice_to_i64(slice: &[u8]) -> i64 {
+    let mut num = [0u8; 8];
+    num.copy_from_slice(slice);
+    i64::from_le_bytes(num)
+}
+
+// Opcode constants: Block Height Checks
+pub const OP_CHECK_HEIGHT_VERIFY: u8 = 0x66;
+pub const OP_CHECK_HEIGHT: u8 = 0x67;
+pub const OP_COMPARE_HEIGHT_VERIFY: u8 = 0x68;
+pub const OP_COMPARE_HEIGHT: u8 = 0x69;
+
+// Opcode constants: Stack Manipulation
 pub const OP_DROP: u8 = 0x70;
 pub const OP_DUP: u8 = 0x71;
 pub const OP_REV_ROT: u8 = 0x72;
 pub const OP_PUSH_HASH: u8 = 0x7a;
 pub const OP_PUSH_ZERO: u8 = 0x7b;
+pub const OP_NOP: u8 = 0x73;
+pub const OP_PUSH_ONE: u8 = 0x7c;
+pub const OP_PUSH_INT: u8 = 0x7d;
+pub const OP_PUSH_PUBKEY: u8 = 0x7e;
 
-// Opcode constants: Comparisons
+// Opcode constants: Math Operations
 pub const OP_EQUAL: u8 = 0x80;
 pub const OP_EQUAL_VERIFY: u8 = 0x81;
-
-// Opcode constants: Arithmetic
 pub const OP_ADD: u8 = 0x93;
 pub const OP_SUB: u8 = 0x94;
+pub const OP_GE_ZERO: u8 = 0x82;
+pub const OP_GT_ZERO: u8 = 0x83;
+pub const OP_LE_ZERO: u8 = 0x84;
+pub const OP_LT_ZERO: u8 = 0x85;
 
-// Opcode constants: Cryptography
+// Opcode constants: Boolean Logic
+pub const OP_OR_VERIFY: u8 = 0x64;
+pub const OP_OR: u8 = 0x65;
+
+// Opcode constants: Cryptographic Operations
 pub const OP_CHECK_SIG: u8 = 0xac;
 pub const OP_CHECK_SIG_VERIFY: u8 = 0xad;
 pub const OP_HASH_BLAKE256: u8 = 0xb0;
+pub const OP_HASH_SHA256: u8 = 0xb1;
+pub const OP_HASH_SHA3: u8 = 0xb2;
+
+// Opcode constants: Miscellaneous
+pub const OP_RETURN: u8 = 0x60;
+pub const OP_IF_THEN: u8 = 0x61;
+pub const OP_ELSE: u8 = 0x62;
+pub const OP_END_IF: u8 = 0x63;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Opcode {
-    /// Push the current chain height onto the stack
-    PushHeight,
-    /// Push the associated 32-byte value onto the stack
-    PushHash(Box<HashValue>),
-    /// Push a zero onto the stack
+    // Block Height Checks
+    /// Compare the current block height to height. Fails with VERIFY_FAILED if the block height < height.
+    CheckHeightVerify(u64),
+    /// Pushes the value of (the current tip height - height) to the stack. In other words, the top of the stack will
+    /// hold the height difference between height and the current height. If the chain has progressed beyond
+    /// height, the value is positive; and negative if the chain has yet to reach height. Fails with STACK_OVERFLOW
+    /// if the stack would exceed the max stack height.
+    CheckHeight(u64),
+    /// Pops the top of the stack as height and compares it to the current block height. Fails with INVALID_INPUT
+    /// if there is not a valid integer value on top of the stack. Fails with EMPTY_STACK if the stack is empty.
+    /// Fails with VERIFY_FAILED if the block height < height.
+    CompareHeightVerify,
+    /// Pops the top of the stack as height, then pushes the value of (height - the current height) to the stack. In
+    /// other words, this opcode replaces the top of the stack with the difference between that value and the current
+    /// height. Fails with INVALID_INPUT if there is not a valid integer value on top of the stack. Fails with
+    /// EMPTY_STACK if the stack is empty.
+    CompareHeight,
+
+    // Stack Manipulation
+    /// No op. Does nothing. Never fails.
+    Nop,
+    /// Pushes a zero onto the stack. This is a very common opcode and has the same effect as PushInt(0) but is more
+    /// compact. Fails with STACK_OVERFLOW if the stack would exceed the max stack height.
     PushZero,
-    /// Hash to top stack element with the Blake256 hash function and push the result to the stack
-    HashBlake256,
-    /// Fail the script immediately. (Must be executed.)
-    Return,
-    /// Drops the top stack item
+    /// Pushes a one onto the stack. This is a very common opcode and has the same effect as PushInt(1) but is more
+    /// compact. Fails with STACK_OVERFLOW if the stack would exceed the max stack height.
+    PushOne,
+    /// Push the associated 32-byte value onto the stack. Fails with INVALID_SCRIPT_DATA if HashValue is not a valid 32
+    /// byte sequence Fails with STACK_OVERFLOW if the stack would exceed the max stack height.
+    PushHash(Box<HashValue>),
+    /// Push the associated 64-bit signed integer onto the stack Fails with INVALID_SCRIPT_DATA if i64 is not a valid
+    /// integer. Fails with STACK_OVERFLOW if the stack would exceed the max stack height.
+    PushInt(i64),
+    /// Push the associated 32-byte value onto the stack. It will be interpreted as a public key or a commitment. Fails
+    /// with INVALID_SCRIPT_DATA if HashValue is not a valid 32 byte sequence Fails with STACK_OVERFLOW if the stack
+    /// would exceed the max stack height.
+    PushPubKey(Box<RistrettoPublicKey>),
+    /// Drops the top stack item. Fails with EMPTY_STACK if the stack is empty.
     Drop,
-    /// Duplicates the top stack item
+    /// Duplicates the top stack item. Fails with EMPTY_STACK if the stack is empty. Fails with STACK_OVERFLOW if the
+    /// stack would exceed the max stack height.
     Dup,
-    /// Reverse rotation. The top stack item moves into 3rd place, abc => bca
+    /// Reverse rotation. The top stack item moves into 3rd place, e.g. abc => bca. Fails with EMPTY_STACK if the stack
+    /// has fewer than three items.
     RevRot,
-    /// Pop two items and push their sum
+
+    // Math Operations
+    /// Pops the top stack element as val. If val is greater than or equal to zero, push a 1 to the stack, otherwise
+    /// push 0. Fails with EMPTY_STACK if the stack is empty. Fails with INVALID_INPUT if val is not an integer.
+    GeZero,
+    /// Pops the top stack element as val. If val is strictly greater than zero, push a 1 to the stack, otherwise push
+    /// 0. Fails with EMPTY_STACK if the stack is empty. Fails with INVALID_INPUT if the item is not an integer.
+    GtZero,
+    /// Pops the top stack element as val. If val is less than or equal to zero, push a 1 to the stack, otherwise push
+    /// 0. Fails with EMPTY_STACK if the stack is empty. Fails with INVALID_INPUT if the item is not an integer.
+    LeZero,
+    /// Pops the top stack element as val. If val is strictly less than zero, push a 1 to the stack, otherwise push 0.
+    /// Fails with EMPTY_STACK if the stack is empty. Fails with INVALID_INPUT if the items is not an integer.
+    LtZero,
+    /// Pop two items and push their sum Fails with EMPTY_STACK if the stack has fewer than two items. Fails with
+    /// INVALID_INPUT if the items cannot be added to each other (e.g. an integer and public key).
     Add,
-    /// Pop two items and push the second minus the top
+    /// Pop two items and push the second minus the top Fails with EMPTY_STACK if the stack has fewer than two items.
+    /// Fails with INVALID_INPUT if the items cannot be subtracted from each other (e.g. an integer and public key).
     Sub,
-    /// Pop the public key and then the signature. If the signature signs the script, push 0 to the stack, otherwise
-    /// push 1
-    CheckSig,
-    /// As for CheckSig, but aborts immediately if the signature is invalid. As opposed to Bitcoin, it pushes a zero
-    /// to the stack if successful
-    CheckSigVerify,
-    /// Pushes 0, if the inputs are exactly equal, 1 otherwise
+    /// Pops the top two items, and pushes 1 to the stack if the inputs are exactly equal, 0 otherwise. 0 is also
+    /// pushed if the values cannot be compared (e.g. integer and pubkey). Fails with EMPTY_STACK if the stack has
+    /// fewer than two items.
     Equal,
-    /// Pushes 0, if the inputs are exactly equal, aborts otherwise
+    /// Pops the top two items, and compares their values. Fails with EMPTY_STACK if the stack has fewer than two
+    /// items. Fails with VERIFY_FAILED if the top two stack elements are not equal.
     EqualVerify,
+
+    // Boolean Logic
+    /// n + 1 items are popped from the stack. If the last item popped matches at least one of the first n items
+    /// popped, push 1 onto the stack. Push 0 otherwise. Fails with EMPTY_STACK if the stack has fewer than n + 1
+    /// items.
+    Or(u8),
+    /// n + 1 items are popped from the stack. If the last item popped matches at least one of the first n items
+    /// popped, continue. Fail with VERIFY_FAILED otherwise. Fails with EMPTY_STACK if the stack has fewer than n + 1
+    /// items.
+    OrVerify(u8),
+
+    // Cryptographic Operations
+    /// Pop the top element, hash it with the Blake256 hash function and push the result to the stack. Fails with
+    /// EMPTY_STACK if the stack is empty.
+    HashBlake256,
+    /// Pop the top element, hash it with the SHA256 hash function and push the result to the stack. Fails with
+    /// EMPTY_STACK if the stack is empty.
+    HashSha256,
+    /// Pop the top element, hash it with the SHA-3 hash function and push the result to the stack. Fails with
+    /// EMPTY_STACK if the stack is empty.
+    HashSha3,
+    /// Pop the public key and then the signature. If the signature signs the 32-byte message, push 1 to the stack,
+    /// otherwise push 0. Fails with INVALID_SCRIPT_DATA if the Msg is not a valid 32-byte value. Fails with
+    /// EMPTY_STACK if the stack has fewer than 2 items. Fails with INVALID_INPUT if the top stack element is not a
+    /// PublicKey or Commitment. Fails with INVALID_INPUT if the second stack element is not a Signature.
+    CheckSig(Box<Message>),
+    /// Identical to CheckSig, except that nothing is pushed to the stack if the signature is valid, and the operation
+    /// fails with VERIFY_FAILED if the signature is invalid.
+    CheckSigVerify(Box<Message>),
+
+    // Miscellaneous
+    /// Always fails with VERIFY_FAILED.
+    Return,
+    /// Pop the top element of the stack into pred. If pred is 1, the instructions between IFTHEN and ELSE are
+    /// executed. If pred is 0, instructions are popped until ELSE or ENDIF is encountered. If ELSE is encountered,
+    /// instructions are executed until ENDIF is reached. ENDIF is a marker opcode and a no-op. Fails with EMPTY_STACK
+    /// if the stack is empty. If pred is anything other than 0 or 1, the script fails with INVALID_INPUT. If any
+    /// instruction during execution of the clause causes a failure, the script fails with that failure code.
+    IfThen,
+    /// Marks the beginning of the else branch.
+    Else,
+    /// Marks the end of the if statement.
+    EndIf,
 }
 
 impl Opcode {
+    pub fn parse(bytes: &[u8]) -> Result<Vec<Opcode>, ScriptError> {
+        let mut script = Vec::with_capacity(512);
+        let mut bytes_copy = bytes;
+
+        while !bytes_copy.is_empty() {
+            let (opcode, bytes_left) = Opcode::read_next(bytes_copy)?;
+            script.push(opcode);
+            bytes_copy = bytes_left;
+        }
+
+        Ok(script)
+    }
+
     /// Take a byte slice and read the next opcode from it, including any associated data. `read_next` returns a tuple
     /// of the deserialised opcode, and an updated slice that has the Opcode and data removed.
-    pub fn read_next(bytes: &[u8]) -> Option<(Opcode, &[u8])> {
-        let code = bytes.get(0)?;
+    fn read_next(bytes: &[u8]) -> Result<(Opcode, &[u8]), ScriptError> {
+        let code = bytes.get(0).ok_or(ScriptError::InvalidOpcode)?;
+        use Opcode::*;
         match *code {
-            OP_PUSH_CHAIN_HEIGHT => Some((Opcode::PushHeight, &bytes[1..])),
-            OP_RETURN => Some((Opcode::Return, &bytes[1..])),
-            OP_DROP => Some((Opcode::Drop, &bytes[1..])),
-            OP_DUP => Some((Opcode::Dup, &bytes[1..])),
-            OP_REV_ROT => Some((Opcode::RevRot, &bytes[1..])),
-            OP_EQUAL => Some((Opcode::Equal, &bytes[1..])),
-            OP_EQUAL_VERIFY => Some((Opcode::EqualVerify, &bytes[1..])),
-            OP_ADD => Some((Opcode::Add, &bytes[1..])),
-            OP_SUB => Some((Opcode::Sub, &bytes[1..])),
-            OP_CHECK_SIG => Some((Opcode::CheckSig, &bytes[1..])),
-            OP_CHECK_SIG_VERIFY => Some((Opcode::CheckSigVerify, &bytes[1..])),
-            OP_HASH_BLAKE256 => Some((Opcode::HashBlake256, &bytes[1..])),
-            OP_PUSH_ZERO => Some((Opcode::PushZero, &bytes[1..])),
+            OP_CHECK_HEIGHT_VERIFY => {
+                if bytes.len() < 9 {
+                    return Err(ScriptError::InvalidData);
+                }
+                let height = slice_to_u64(&bytes[1..9]);
+                Ok((CheckHeightVerify(height), &bytes[9..]))
+            },
+            OP_CHECK_HEIGHT => {
+                if bytes.len() < 9 {
+                    return Err(ScriptError::InvalidData);
+                }
+                let height = slice_to_u64(&bytes[1..9]);
+                Ok((CheckHeight(height), &bytes[9..]))
+            },
+            OP_COMPARE_HEIGHT_VERIFY => Ok((CompareHeightVerify, &bytes[1..])),
+            OP_COMPARE_HEIGHT => Ok((CompareHeight, &bytes[1..])),
+            OP_NOP => Ok((Nop, &bytes[1..])),
+            OP_PUSH_ZERO => Ok((PushZero, &bytes[1..])),
+            OP_PUSH_ONE => Ok((PushOne, &bytes[1..])),
             OP_PUSH_HASH => {
                 if bytes.len() < 33 {
-                    return None;
+                    return Err(ScriptError::InvalidData);
                 }
-                let hash = to_boxed_hash(&bytes[1..33]);
-                Some((Opcode::PushHash(hash), &bytes[33..]))
+                let hash = slice_to_boxed_hash(&bytes[1..33]);
+                Ok((PushHash(hash), &bytes[33..]))
             },
-            _ => None,
+            OP_PUSH_INT => {
+                if bytes.len() < 9 {
+                    return Err(ScriptError::InvalidData);
+                }
+                let n = slice_to_i64(&bytes[1..9]);
+                Ok((PushInt(n), &bytes[9..]))
+            },
+            OP_PUSH_PUBKEY => {
+                if bytes.len() < 33 {
+                    return Err(ScriptError::InvalidData);
+                }
+                let p = RistrettoPublicKey::from_bytes(&bytes[1..33])?;
+                Ok((PushPubKey(Box::new(p)), &bytes[33..]))
+            },
+            OP_DROP => Ok((Drop, &bytes[1..])),
+            OP_DUP => Ok((Dup, &bytes[1..])),
+            OP_REV_ROT => Ok((RevRot, &bytes[1..])),
+            OP_GE_ZERO => Ok((GeZero, &bytes[1..])),
+            OP_GT_ZERO => Ok((GtZero, &bytes[1..])),
+            OP_LE_ZERO => Ok((LeZero, &bytes[1..])),
+            OP_LT_ZERO => Ok((LtZero, &bytes[1..])),
+            OP_ADD => Ok((Add, &bytes[1..])),
+            OP_SUB => Ok((Sub, &bytes[1..])),
+            OP_EQUAL => Ok((Equal, &bytes[1..])),
+            OP_EQUAL_VERIFY => Ok((EqualVerify, &bytes[1..])),
+            OP_OR => {
+                if bytes.len() < 2 {
+                    return Err(ScriptError::InvalidData);
+                }
+                let n = &bytes[1];
+                Ok((Or(*n), &bytes[2..]))
+            },
+            OP_OR_VERIFY => {
+                if bytes.len() < 2 {
+                    return Err(ScriptError::InvalidData);
+                }
+                let n = &bytes[1];
+                Ok((OrVerify(*n), &bytes[2..]))
+            },
+            OP_HASH_BLAKE256 => Ok((HashBlake256, &bytes[1..])),
+            OP_HASH_SHA256 => Ok((HashSha256, &bytes[1..])),
+            OP_HASH_SHA3 => Ok((HashSha3, &bytes[1..])),
+            OP_CHECK_SIG => {
+                if bytes.len() < 33 {
+                    return Err(ScriptError::InvalidData);
+                }
+                let msg = slice_to_boxed_message(&bytes[1..33]);
+                Ok((CheckSig(msg), &bytes[33..]))
+            },
+            OP_CHECK_SIG_VERIFY => {
+                if bytes.len() < 33 {
+                    return Err(ScriptError::InvalidData);
+                }
+                let msg = slice_to_boxed_message(&bytes[1..33]);
+                Ok((CheckSigVerify(msg), &bytes[33..]))
+            },
+            OP_RETURN => Ok((Return, &bytes[1..])),
+            OP_IF_THEN => Ok((IfThen, &bytes[1..])),
+            OP_ELSE => Ok((Else, &bytes[1..])),
+            OP_END_IF => Ok((EndIf, &bytes[1..])),
+            _ => Err(ScriptError::InvalidOpcode),
         }
     }
 
@@ -130,27 +355,69 @@ impl Opcode {
     /// that matches the opcode as a convenience
     pub fn to_bytes<'a>(&self, array: &'a mut Vec<u8>) -> &'a [u8] {
         let n = array.len();
+        use Opcode::*;
         match self {
-            // Simple matches
-            Opcode::PushHeight => array.push(OP_PUSH_CHAIN_HEIGHT),
-            Opcode::Return => array.push(OP_RETURN),
-            Opcode::Drop => array.push(OP_DROP),
-            Opcode::Dup => array.push(OP_DUP),
-            Opcode::Equal => array.push(OP_EQUAL),
-            Opcode::EqualVerify => array.push(OP_EQUAL_VERIFY),
-            Opcode::Add => array.push(OP_ADD),
-            Opcode::Sub => array.push(OP_SUB),
-            Opcode::CheckSig => array.push(OP_CHECK_SIG),
-            Opcode::CheckSigVerify => array.push(OP_CHECK_SIG_VERIFY),
-            Opcode::RevRot => array.push(OP_REV_ROT),
-            Opcode::HashBlake256 => array.push(OP_HASH_BLAKE256),
-            Opcode::PushZero => array.push(OP_PUSH_ZERO),
-            // Complex matches
-            Opcode::PushHash(h) => {
+            CheckHeightVerify(height) => {
+                array.push(OP_CHECK_HEIGHT_VERIFY);
+                array.extend_from_slice(&height.to_le_bytes());
+            },
+            CheckHeight(height) => {
+                array.push(OP_CHECK_HEIGHT);
+                array.extend_from_slice(&height.to_le_bytes());
+            },
+            CompareHeightVerify => array.push(OP_COMPARE_HEIGHT_VERIFY),
+            CompareHeight => array.push(OP_COMPARE_HEIGHT),
+            Nop => array.push(OP_NOP),
+            PushZero => array.push(OP_PUSH_ZERO),
+            PushOne => array.push(OP_PUSH_ONE),
+            PushHash(h) => {
                 array.push(OP_PUSH_HASH);
                 array.extend_from_slice(h.deref());
             },
+            PushInt(n) => {
+                array.push(OP_PUSH_INT);
+                array.extend_from_slice(&n.to_le_bytes());
+            },
+            PushPubKey(p) => {
+                array.push(OP_PUSH_PUBKEY);
+                array.extend_from_slice(p.deref().as_bytes());
+            },
+            Drop => array.push(OP_DROP),
+            Dup => array.push(OP_DUP),
+            RevRot => array.push(OP_REV_ROT),
+            GeZero => array.push(OP_GE_ZERO),
+            GtZero => array.push(OP_GT_ZERO),
+            LeZero => array.push(OP_LE_ZERO),
+            LtZero => array.push(OP_LT_ZERO),
+            Add => array.push(OP_ADD),
+            Sub => array.push(OP_SUB),
+            Equal => array.push(OP_EQUAL),
+            EqualVerify => array.push(OP_EQUAL_VERIFY),
+            Or(n) => {
+                array.push(OP_OR);
+                array.push(*n);
+            },
+            OrVerify(n) => {
+                array.push(OP_OR_VERIFY);
+                array.push(*n);
+            },
+            HashBlake256 => array.push(OP_HASH_BLAKE256),
+            HashSha256 => array.push(OP_HASH_SHA256),
+            HashSha3 => array.push(OP_HASH_SHA3),
+            CheckSig(msg) => {
+                array.push(OP_CHECK_SIG);
+                array.extend_from_slice(msg.deref());
+            },
+            CheckSigVerify(msg) => {
+                array.push(OP_CHECK_SIG_VERIFY);
+                array.extend_from_slice(msg.deref());
+            },
+            Return => array.push(OP_RETURN),
+            IfThen => array.push(OP_IF_THEN),
+            Else => array.push(OP_ELSE),
+            EndIf => array.push(OP_END_IF),
         };
+
         &array[n..]
     }
 }
@@ -159,42 +426,66 @@ impl fmt::Display for Opcode {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         use Opcode::*;
         match self {
-            PushHeight => fmt.write_str("PushHeight"),
-            HashBlake256 => fmt.write_str("HashBlake256"),
-            Return => fmt.write_str("Return"),
+            CheckHeightVerify(height) => fmt.write_str(&format!("CheckHeightVerify({})", *height)),
+            CheckHeight(height) => fmt.write_str(&format!("CheckHeight({})", *height)),
+            CompareHeightVerify => fmt.write_str("CompareHeightVerify"),
+            CompareHeight => fmt.write_str("CompareHeight"),
+            Nop => fmt.write_str("Nop"),
+            PushZero => fmt.write_str("PushZero"),
+            PushOne => fmt.write_str("PushOne"),
+            PushHash(h) => fmt.write_str(&format!("PushHash({})", (*h).to_hex())),
+            PushInt(n) => fmt.write_str(&format!("PushInt({})", *n)),
+            PushPubKey(h) => fmt.write_str(&format!("PushPubKey({})", (*h).to_hex())),
             Drop => fmt.write_str("Drop"),
             Dup => fmt.write_str("Dup"),
             RevRot => fmt.write_str("RevRot"),
+            GeZero => fmt.write_str("GeZero"),
+            GtZero => fmt.write_str("GtZero"),
+            LeZero => fmt.write_str("LeZero"),
+            LtZero => fmt.write_str("LtZero"),
             Add => fmt.write_str("Add"),
             Sub => fmt.write_str("Sub"),
-            CheckSig => fmt.write_str("CheckSig"),
-            CheckSigVerify => fmt.write_str("CheckSigVerify"),
             Equal => fmt.write_str("Equal"),
             EqualVerify => fmt.write_str("EqualVerify"),
-            PushZero => fmt.write_str("PushZero"),
-            PushHash(h) => fmt.write_str(&format!("PushHash({})", (*h).to_hex())),
+            Or(n) => fmt.write_str(&format!("Or({})", *n)),
+            OrVerify(n) => fmt.write_str(&format!("OrVerify({})", *n)),
+            HashBlake256 => fmt.write_str("HashBlake256"),
+            HashSha256 => fmt.write_str("HashSha256"),
+            HashSha3 => fmt.write_str("HashSha3"),
+            CheckSig(msg) => fmt.write_str(&format!("CheckSig({})", (*msg).to_hex())),
+            CheckSigVerify(msg) => fmt.write_str(&format!("CheckSigVerify({})", (*msg).to_hex())),
+            Return => fmt.write_str("Return"),
+            IfThen => fmt.write_str("IfThen"),
+            Else => fmt.write_str("Else"),
+            EndIf => fmt.write_str("EndIf"),
         }
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::script::{Opcode, Opcode::*};
+    use crate::script::{Opcode, Opcode::*, ScriptError};
 
     #[test]
     fn empty_script() {
-        assert!(Opcode::read_next(&[]).is_none())
+        assert_eq!(Opcode::parse(&[]).unwrap(), Vec::new())
     }
 
     #[test]
-    fn read_next() {
+    fn parse() {
         let script = [0x60u8, 0x71, 0x00];
-        let (code, b) = Opcode::read_next(&script).unwrap();
-        assert_eq!(code, Return);
-        let (code, b) = Opcode::read_next(b).unwrap();
-        assert_eq!(code, Dup);
-        assert!(Opcode::read_next(b).is_none());
-        assert!(Opcode::read_next(&[0x7a]).is_none());
+        let err = Opcode::parse(&script).unwrap_err();
+        assert!(matches!(err, ScriptError::InvalidOpcode));
+
+        let script = [0x60u8, 0x71];
+        let opcodes = Opcode::parse(&script).unwrap();
+        let code = opcodes.first().unwrap();
+        assert_eq!(code, &Return);
+        let code = opcodes.get(1).unwrap();
+        assert_eq!(code, &Dup);
+
+        let err = Opcode::parse(&[0x7a]).unwrap_err();
+        assert!(matches!(err, ScriptError::InvalidData));
     }
 
     #[test]
@@ -202,7 +493,7 @@ mod test {
         let (code, b) = Opcode::read_next(b"\x7a/thirty-two~character~hash~val./").unwrap();
         match code {
             PushHash(v) if &*v == b"/thirty-two~character~hash~val./" => {},
-            _ => panic!("Did bot decode push hash"),
+            _ => panic!("Did not decode push hash"),
         }
         assert!(b.is_empty());
     }
