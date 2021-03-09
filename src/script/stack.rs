@@ -15,6 +15,8 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+use std::convert::TryFrom;
+
 use crate::{
     ristretto::{pedersen::PedersenCommitment, RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
     script::{error::ScriptError, op_codes::HashValue},
@@ -188,6 +190,58 @@ impl ExecutionStack {
         self.items.pop()
     }
 
+    /// Pops the top item in the stack and applies TryFrom for the given generic type. If the stack is not empty, and is
+    /// a StackItem::Number, `pop_into_number` returns the parsed number. Returns an error if the stack is empty or if
+    /// the top item is a different variant.
+    pub fn pop_into_number<T: TryFrom<i64>>(&mut self) -> Result<T, ScriptError> {
+        let item = self.items.pop().ok_or(ScriptError::StackUnderflow)?;
+
+        let number = match item {
+            StackItem::Number(n) => T::try_from(n).map_err(|_| ScriptError::ValueExceedsBounds)?,
+            _ => return Err(ScriptError::InvalidInput),
+        };
+
+        Ok(number)
+    }
+
+    /// Pops n + 1 items from the stack. Checks if the last popped item matches any of the first n items. Returns an
+    /// error if all n + 1 items aren't of the same variant, or if there are not n + 1 items on the stack.
+    pub fn pop_n_plus_one_contains(&mut self, n: u8) -> Result<bool, ScriptError> {
+        let items = self.pop_num_items(n)?;
+        let item = self.pop().ok_or(ScriptError::StackUnderflow)?;
+
+        // check that all popped items are of the same variant
+        // first count each variant
+        let counts = items.iter().fold([0; 5], |values, item| counter(values, item));
+        // also check the n + 1 item
+        let counts = counter(counts, &item);
+
+        // then filter those with more than 0
+        let distict_variants: Vec<&u8> = counts.iter().filter(|&c| c > &0).collect();
+
+        if distict_variants.len() > 1 {
+            return Err(ScriptError::InvalidInput);
+        }
+
+        Ok(items.contains(&item))
+    }
+
+    /// Pops the top n items in the stack. If the stack has at least n items, `pop_num_items` returns the items in stack
+    /// order (ie. bottom first), otherwise returns an error.
+    pub fn pop_num_items(&mut self, num_items: u8) -> Result<Vec<StackItem>, ScriptError> {
+        let stack_size = self.size();
+        let num_items = num_items as usize;
+
+        if stack_size < num_items {
+            Err(ScriptError::StackUnderflow)
+        } else {
+            let at = stack_size - num_items;
+            let items = self.items.split_off(at);
+
+            Ok(items)
+        }
+    }
+
     /// Return a binary array representation of the input stack
     pub fn as_bytes(&self) -> Vec<u8> {
         self.items.iter().fold(Vec::with_capacity(512), |mut bytes, item| {
@@ -245,6 +299,34 @@ impl Hex for ExecutionStack {
 
     fn to_hex(&self) -> String {
         to_hex(&self.as_bytes())
+    }
+}
+
+/// Utility function that given a count of `StackItem` variants, adds 1 for the given item.
+fn counter(values: [u8; 5], item: &StackItem) -> [u8; 5] {
+    let [n, h, c, p, s] = values;
+    use StackItem::*;
+    match item {
+        Number(_) => {
+            let n = n + 1;
+            [n, h, c, p, s]
+        },
+        Hash(_) => {
+            let h = h + 1;
+            [n, h, c, p, s]
+        },
+        Commitment(_) => {
+            let c = c + 1;
+            [n, h, c, p, s]
+        },
+        PublicKey(_) => {
+            let p = p + 1;
+            [n, h, c, p, s]
+        },
+        Signature(_) => {
+            let s = s + 1;
+            [n, h, c, p, s]
+        },
     }
 }
 

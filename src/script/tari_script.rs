@@ -15,12 +15,15 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// pending updates to Dalek/Digest
+#[allow(deprecated)]
 use crate::{
     common::Blake256,
+    hash::sha3::Sha3,
     ristretto::{RistrettoPublicKey, RistrettoSecretKey},
     script::{
         error::ScriptError,
-        op_codes::{to_hash, Opcode},
+        op_codes::{slice_to_hash, Message, Opcode},
         ExecutionStack,
         HashValue,
         ScriptContext,
@@ -28,7 +31,8 @@ use crate::{
     },
 };
 use blake2::Digest;
-use std::fmt;
+use sha2::Sha256;
+use std::{cmp::Ordering, convert::TryFrom, fmt, ops::Deref};
 use tari_utilities::{
     hex::{from_hex, to_hex, Hex, HexError},
     ByteArray,
@@ -54,19 +58,64 @@ impl TariScript {
         TariScript { script }
     }
 
-    /// Executes the script using a default context
-    pub fn execute(&self, inputs: &ExecutionStack) -> Result<(), ScriptError> {
+    /// Executes the script using a default context. If successful, returns the final stack item.
+    pub fn execute(&self, inputs: &ExecutionStack) -> Result<StackItem, ScriptError> {
         self.execute_with_context(inputs, &ScriptContext::default())
     }
 
-    /// Execute the script with the given inputs and the provided context
-    pub fn execute_with_context(&self, inputs: &ExecutionStack, context: &ScriptContext) -> Result<(), ScriptError> {
+    /// Execute the script with the given inputs and the provided context. If successful, returns the final stack item.
+    pub fn execute_with_context(
+        &self,
+        inputs: &ExecutionStack,
+        context: &ScriptContext,
+    ) -> Result<StackItem, ScriptError>
+    {
         // Copy all inputs onto the stack
         let mut stack = inputs.clone();
+
+        // Local execution state
+        let mut state = ExecutionState::default();
+
         for opcode in self.script.iter() {
-            self.execute_opcode(opcode, &mut stack, context)?
+            if self.should_execute(opcode, &state)? {
+                self.execute_opcode(opcode, &mut stack, context, &mut state)?
+            } else {
+                continue;
+            }
         }
-        TariScript::stack_is_zero(&stack)
+
+        // the script has finished but there was an open IfThen or Else!
+        if state.if_count > 0 || state.else_count > 0 {
+            return Err(ScriptError::MissingOpcode);
+        }
+
+        // After the script completes, it is successful if and only if it has not aborted, and there is exactly a single
+        // element on the stack. The script fails if the stack is empty, or contains more than one element, or aborts
+        // early.
+        if stack.size() == 1 {
+            stack.pop().ok_or(ScriptError::NonUnitLengthStack)
+        } else {
+            Err(ScriptError::NonUnitLengthStack)
+        }
+    }
+
+    fn should_execute(&self, opcode: &Opcode, state: &ExecutionState) -> Result<bool, ScriptError> {
+        match opcode {
+            &Opcode::Else | &Opcode::EndIf => {
+                // if we're getting Else or EndIf before an IfThen then the script is invalid
+                if state.if_count == 0 {
+                    return Err(ScriptError::InvalidOpcode);
+                }
+                // if the opcode is Else or EndIf then execute it
+                // Else or EndIf will update the execution state
+                Ok(true)
+            },
+            _ => {
+                // otherwise continue either executing or skipping opcodes
+                // until reaching Else or Endif
+                Ok(state.executing)
+            },
+        }
     }
 
     pub fn as_bytes(&self) -> Vec<u8> {
@@ -84,22 +133,13 @@ impl TariScript {
             return Err(ScriptError::InvalidDigest);
         }
         let h = D::digest(&self.as_bytes());
-        Ok(to_hash(&h.as_slice()[..32]))
+        Ok(slice_to_hash(&h.as_slice()[..32]))
     }
 
     /// Try to deserialise a byte slice into a valid Tari script
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, ScriptError> {
-        let mut script = Vec::with_capacity(512);
-        let mut byte_str = bytes;
-        while !byte_str.is_empty() {
-            match Opcode::read_next(byte_str) {
-                Some((code, b)) => {
-                    script.push(code);
-                    byte_str = b;
-                },
-                None => return Err(ScriptError::InvalidOpcode),
-            }
-        }
+        let script = Opcode::parse(bytes)?;
+
         Ok(TariScript { script })
     }
 
@@ -110,7 +150,7 @@ impl TariScript {
     /// use tari_crypto::script::TariScript;
     /// use tari_utilities::hex::Hex;
     ///
-    /// let hex_script = "71b07aae2337ce44f9ebb6169c863ec168046cb35ab4ef7aa9ed4f5f1f669bb74b09e58170ac";
+    /// let hex_script = "71b07aae2337ce44f9ebb6169c863ec168046cb35ab4ef7aa9ed4f5f1f669bb74b09e58170ac276657a418820f34036b20ea615302b373c70ac8feab8d30681a3e0f0960e708";
     /// let script = TariScript::from_hex(hex_script).unwrap();
     /// let ops = vec![
     ///     "Dup",
@@ -118,7 +158,7 @@ impl TariScript {
     ///     "PushHash(ae2337ce44f9ebb6169c863ec168046cb35ab4ef7aa9ed4f5f1f669bb74b09e5)",
     ///     "EqualVerify",
     ///     "Drop",
-    ///     "CheckSig",
+    ///     "CheckSig(276657a418820f34036b20ea615302b373c70ac8feab8d30681a3e0f0960e708)",
     /// ]
     /// .into_iter()
     /// .map(String::from)
@@ -138,41 +178,173 @@ impl TariScript {
         RistrettoSecretKey::from_bytes(b.as_slice()).map_err(|_| ScriptError::InvalidSignature)
     }
 
+    // pending updates to Dalek/Digest
+    #[allow(deprecated)]
     fn execute_opcode(
         &self,
         opcode: &Opcode,
         stack: &mut ExecutionStack,
         ctx: &ScriptContext,
+        state: &mut ExecutionState,
     ) -> Result<(), ScriptError>
     {
+        use Opcode::*;
         use StackItem::*;
         match opcode {
-            Opcode::Return => Err(ScriptError::Return),
-            Opcode::PushHeight => TariScript::handle_push_height(stack, ctx),
-            Opcode::Add => TariScript::handle_op_add(stack),
-            Opcode::Sub => TariScript::handle_op_sub(stack),
-            Opcode::Dup => TariScript::handle_dup(stack),
-            Opcode::Drop => TariScript::handle_drop(stack),
-            Opcode::Equal => match TariScript::handle_equal(stack)? {
-                true => stack.push(Number(0)),
-                false => stack.push(Number(1)),
+            CheckHeightVerify(height) => TariScript::handle_check_height_verify(*height, ctx.block_height()),
+            CheckHeight(height) => TariScript::handle_check_height(stack, *height, ctx.block_height()),
+            CompareHeightVerify => TariScript::handle_compare_height_verify(stack, ctx.block_height()),
+            CompareHeight => TariScript::handle_compare_height(stack, ctx.block_height()),
+            Nop => Ok(()),
+            PushZero => stack.push(Number(0)),
+            PushOne => stack.push(Number(1)),
+            PushHash(h) => stack.push(Hash(*h.clone())),
+            PushInt(n) => stack.push(Number(*n)),
+            PushPubKey(p) => stack.push(PublicKey(*p.clone())),
+            Drop => TariScript::handle_drop(stack),
+            Dup => TariScript::handle_dup(stack),
+            RevRot => stack.push_down(2),
+            GeZero => TariScript::handle_cmp_to_zero(stack, &[Ordering::Greater, Ordering::Equal]),
+            GtZero => TariScript::handle_cmp_to_zero(stack, &[Ordering::Greater]),
+            LeZero => TariScript::handle_cmp_to_zero(stack, &[Ordering::Less, Ordering::Equal]),
+            LtZero => TariScript::handle_cmp_to_zero(stack, &[Ordering::Less]),
+            Add => TariScript::handle_op_add(stack),
+            Sub => TariScript::handle_op_sub(stack),
+            Equal => match TariScript::handle_equal(stack)? {
+                true => stack.push(Number(1)),
+                false => stack.push(Number(0)),
             },
-            Opcode::EqualVerify => match TariScript::handle_equal(stack)? {
-                true => stack.push(Number(0)),
+            EqualVerify => match TariScript::handle_equal(stack)? {
+                true => Ok(()),
                 false => Err(ScriptError::VerifyFailed),
             },
-            Opcode::CheckSig => match self.check_sig(stack)? {
-                true => stack.push(Number(0)),
-                false => stack.push(Number(1)),
+            Or(n) => TariScript::handle_or(stack, *n),
+            OrVerify(n) => TariScript::handle_or_verify(stack, *n),
+            HashBlake256 => TariScript::handle_hash::<Blake256>(stack),
+            HashSha256 => TariScript::handle_hash::<Sha256>(stack),
+            HashSha3 => TariScript::handle_hash::<Sha3>(stack),
+            CheckSig(msg) => match self.check_sig(stack, *msg.deref())? {
+                true => stack.push(Number(1)),
+                false => stack.push(Number(0)),
             },
-            Opcode::CheckSigVerify => match self.check_sig(stack)? {
-                true => stack.push(Number(0)),
-                false => Err(ScriptError::InvalidSignature),
+            CheckSigVerify(msg) => match self.check_sig(stack, *msg.deref())? {
+                true => Ok(()),
+                false => Err(ScriptError::VerifyFailed),
             },
-            Opcode::RevRot => stack.push_down(2),
-            Opcode::PushHash(h) => stack.push(Hash(*h.clone())),
-            Opcode::HashBlake256 => TariScript::handle_hash::<Blake256>(stack),
-            Opcode::PushZero => stack.push(Number(0)),
+            Return => Err(ScriptError::Return),
+            IfThen => TariScript::handle_if_then(stack, state),
+            Else => TariScript::handle_else(state),
+            EndIf => TariScript::handle_end_if(state),
+        }
+    }
+
+    fn handle_check_height_verify(height: u64, block_height: u64) -> Result<(), ScriptError> {
+        if block_height >= height {
+            Ok(())
+        } else {
+            Err(ScriptError::VerifyFailed)
+        }
+    }
+
+    fn handle_check_height(stack: &mut ExecutionStack, height: u64, block_height: u64) -> Result<(), ScriptError> {
+        let height = i64::try_from(height)?;
+        let block_height = i64::try_from(block_height)?;
+        let item = StackItem::Number(block_height - height);
+
+        stack.push(item)
+    }
+
+    fn handle_compare_height_verify(stack: &mut ExecutionStack, block_height: u64) -> Result<(), ScriptError> {
+        let target_height = stack.pop_into_number::<u64>()?;
+
+        if block_height >= target_height {
+            Ok(())
+        } else {
+            Err(ScriptError::VerifyFailed)
+        }
+    }
+
+    fn handle_compare_height(stack: &mut ExecutionStack, block_height: u64) -> Result<(), ScriptError> {
+        let target_height = stack.pop_into_number::<i64>()?;
+        let block_height = i64::try_from(block_height)?;
+
+        let item = StackItem::Number(block_height - target_height);
+
+        stack.push(item)
+    }
+
+    fn handle_cmp_to_zero(stack: &mut ExecutionStack, valid_orderings: &[Ordering]) -> Result<(), ScriptError> {
+        let stack_number = stack.pop_into_number::<i64>()?;
+        let ordering = &stack_number.cmp(&0);
+
+        if valid_orderings.contains(ordering) {
+            stack.push(StackItem::Number(1))
+        } else {
+            stack.push(StackItem::Number(0))
+        }
+    }
+
+    fn handle_or(stack: &mut ExecutionStack, n: u8) -> Result<(), ScriptError> {
+        if stack.pop_n_plus_one_contains(n)? {
+            stack.push(StackItem::Number(1))
+        } else {
+            stack.push(StackItem::Number(0))
+        }
+    }
+
+    fn handle_or_verify(stack: &mut ExecutionStack, n: u8) -> Result<(), ScriptError> {
+        if stack.pop_n_plus_one_contains(n)? {
+            Ok(())
+        } else {
+            Err(ScriptError::VerifyFailed)
+        }
+    }
+
+    fn handle_if_then(stack: &mut ExecutionStack, state: &mut ExecutionState) -> Result<(), ScriptError> {
+        let pred = stack.pop().ok_or(ScriptError::StackUnderflow)?;
+        match pred {
+            StackItem::Number(1) => {
+                // continue execution until Else opcode
+                state.executing = true;
+                state.if_count += 1;
+                Ok(())
+            },
+            StackItem::Number(0) => {
+                // skip execution until Else opcode
+                state.executing = false;
+                state.if_count += 1;
+                Ok(())
+            },
+            _ => Err(ScriptError::InvalidInput),
+        }
+    }
+
+    fn handle_else(state: &mut ExecutionState) -> Result<(), ScriptError> {
+        // check to make sure Else is expected
+        // and not trying to execute more Else opcodes than IfThen
+        if state.if_count > 0 && state.else_count < state.if_count {
+            state.executing = !state.executing;
+            state.else_count += 1;
+            Ok(())
+        } else {
+            Err(ScriptError::InvalidOpcode)
+        }
+    }
+
+    fn handle_end_if(state: &mut ExecutionState) -> Result<(), ScriptError> {
+        // check to make sure EndIf is expected
+        // if_count may be greater than else_count when there are nested IfThen-Else-EndIf opcodes
+        if state.if_count > 0 && state.if_count >= state.else_count {
+            state.executing = true;
+            state.if_count -= 1;
+            if state.else_count > 0 {
+                state.else_count -= 1;
+            } else {
+                return Err(ScriptError::MissingOpcode);
+            }
+            Ok(())
+        } else {
+            Err(ScriptError::InvalidOpcode)
         }
     }
 
@@ -195,10 +367,6 @@ impl TariScript {
         };
 
         stack.push(Hash(hash_value))
-    }
-
-    fn handle_push_height(stack: &mut ExecutionStack, ctx: &ScriptContext) -> Result<(), ScriptError> {
-        stack.push(StackItem::Number(ctx.block_height() as i64))
     }
 
     fn handle_dup(stack: &mut ExecutionStack) -> Result<(), ScriptError> {
@@ -255,30 +423,13 @@ impl TariScript {
         }
     }
 
-    fn check_sig(&self, stack: &mut ExecutionStack) -> Result<bool, ScriptError> {
+    fn check_sig(&self, stack: &mut ExecutionStack, message: Message) -> Result<bool, ScriptError> {
         use StackItem::*;
         let pk = stack.pop().ok_or(ScriptError::StackUnderflow)?;
         let sig = stack.pop().ok_or(ScriptError::StackUnderflow)?;
         match (pk, sig) {
-            (PublicKey(p), Signature(s)) => {
-                let m = self.script_message(&p)?;
-                Ok(s.verify(&p, &m))
-            },
+            (PublicKey(p), Signature(s)) => Ok(s.verify_challenge(&p, &message)),
             (..) => Err(ScriptError::IncompatibleTypes),
-        }
-    }
-
-    fn stack_is_zero(stack: &ExecutionStack) -> Result<(), ScriptError> {
-        if stack.size() != 1 {
-            return Err(ScriptError::NonUnitLengthStack);
-        }
-        use StackItem::*;
-        match stack.peek().unwrap() {
-            Number(0) => Ok(()),
-            Number(v) => Err(ScriptError::NonZeroValue(*v)),
-            Commitment(c) if c.as_public_key() == &RistrettoPublicKey::default() => Ok(()),
-            Commitment(c) => Err(ScriptError::NonZeroCommitment(c.clone())),
-            _ => Err(ScriptError::IncorrectFinalState),
         }
     }
 }
@@ -309,26 +460,49 @@ impl fmt::Display for TariScript {
     }
 }
 
-#[derive(Default)]
-pub struct Builder {}
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct ExecutionState {
+    executing: bool,
+    if_count: u16,
+    else_count: u16,
+}
 
-impl Builder {
-    pub fn new() -> Self {
-        Builder {}
+impl Default for ExecutionState {
+    fn default() -> Self {
+        Self {
+            executing: true,
+            if_count: 0,
+            else_count: 0,
+        }
     }
 }
 
 #[cfg(test)]
 mod test {
+    #[allow(deprecated)]
     use crate::{
         common::Blake256,
+        hash::sha3::Sha3,
         inputs,
         keys::{PublicKey, SecretKey},
         ristretto::{pedersen::PedersenCommitment, RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
-        script::{error::ScriptError, op_codes::to_boxed_hash, ExecutionStack, TariScript, DEFAULT_SCRIPT_HASH},
+        script::{
+            error::ScriptError,
+            op_codes::{slice_to_boxed_hash, slice_to_boxed_message, HashValue},
+            ExecutionStack,
+            ScriptContext,
+            StackItem::{Commitment, Hash, Number},
+            TariScript,
+            DEFAULT_SCRIPT_HASH,
+        },
     };
     use blake2::Digest;
+    use sha2::Sha256;
     use tari_utilities::{hex::Hex, ByteArray};
+
+    fn context_with_height(height: u64) -> ScriptContext {
+        ScriptContext::new(height, &HashValue::default(), &PedersenCommitment::default())
+    }
 
     #[test]
     fn default_script() {
@@ -337,6 +511,256 @@ mod test {
         assert!(script.execute(&inputs).is_ok());
         assert_eq!(&script.to_hex(), "7b");
         assert_eq!(script.as_hash::<Blake256>().unwrap(), DEFAULT_SCRIPT_HASH);
+    }
+
+    #[test]
+    fn op_or() {
+        let script = script!(Or(1));
+
+        let inputs = inputs!(4, 4);
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(1));
+
+        let inputs = inputs!(3, 4);
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(0));
+
+        let script = script!(Or(3));
+
+        let inputs = inputs!(1, 2, 1, 3);
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(1));
+
+        let inputs = inputs!(1, 2, 4, 3);
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(0));
+
+        let mut rng = rand::thread_rng();
+        let (_, p) = RistrettoPublicKey::random_keypair(&mut rng);
+        let inputs = inputs!(1, p.clone(), 1, 3);
+        let err = script.execute(&inputs).unwrap_err();
+        assert!(matches!(err, ScriptError::InvalidInput));
+
+        let inputs = inputs!(p, 2, 1, 3);
+        let err = script.execute(&inputs).unwrap_err();
+        assert!(matches!(err, ScriptError::InvalidInput));
+
+        let inputs = inputs!(2, 4, 3);
+        let err = script.execute(&inputs).unwrap_err();
+        assert!(matches!(err, ScriptError::StackUnderflow));
+
+        let script = script!(OrVerify(1));
+
+        let inputs = inputs!(1, 4, 4);
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(1));
+
+        let inputs = inputs!(1, 3, 4);
+        let err = script.execute(&inputs).unwrap_err();
+        assert!(matches!(err, ScriptError::VerifyFailed));
+
+        let script = script!(OrVerify(2));
+
+        let inputs = inputs!(1, 2, 2, 3);
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(1));
+
+        let inputs = inputs!(1, 2, 3, 4);
+        let err = script.execute(&inputs).unwrap_err();
+        assert!(matches!(err, ScriptError::VerifyFailed));
+    }
+
+    #[test]
+    fn op_if_then_else() {
+        let script = script!(IfThen PushInt(420) Else PushInt(66) EndIf);
+
+        let inputs = inputs!(1);
+        let result = script.execute(&inputs);
+        assert_eq!(result.unwrap(), Number(420));
+
+        let inputs = inputs!(0);
+        let result = script.execute(&inputs);
+        assert_eq!(result.unwrap(), Number(66));
+
+        // nested
+        let script = script!(IfThen PushOne IfThen PushInt(420) Else PushInt(555) EndIf Else PushInt(66) EndIf);
+        let inputs = inputs!(1);
+        let result = script.execute(&inputs);
+        assert_eq!(result.unwrap(), Number(420));
+
+        let script = script!(IfThen PushInt(420) Else PushZero IfThen PushInt(111) Else PushInt(66) EndIf Nop EndIf);
+        let inputs = inputs!(0);
+        let result = script.execute(&inputs);
+        assert_eq!(result.unwrap(), Number(66));
+
+        // duplicate else
+        let script = script!(IfThen PushInt(420) Else PushInt(66) Else PushInt(777) EndIf);
+
+        let inputs = inputs!(0);
+        let result = script.execute(&inputs);
+        assert_eq!(result.unwrap_err(), ScriptError::InvalidOpcode);
+
+        // unexpected else
+        let script = script!(Else);
+
+        let inputs = inputs!(0);
+        let result = script.execute(&inputs);
+        assert_eq!(result.unwrap_err(), ScriptError::InvalidOpcode);
+
+        // unexpected endif
+        let script = script!(EndIf);
+
+        let inputs = inputs!(0);
+        let result = script.execute(&inputs);
+        assert_eq!(result.unwrap_err(), ScriptError::InvalidOpcode);
+
+        // duplicate endif
+        let script = script!(IfThen PushInt(420) Else PushInt(66) EndIf EndIf);
+        let inputs = inputs!(0);
+        let result = script.execute(&inputs);
+        assert_eq!(result.unwrap_err(), ScriptError::InvalidOpcode);
+
+        // no else or endif
+        let script = script!(IfThen PushOne IfThen PushOne);
+        let inputs = inputs!(1);
+        let result = script.execute(&inputs);
+        assert_eq!(result.unwrap_err(), ScriptError::MissingOpcode);
+
+        // no else
+        let script = script!(IfThen PushOne EndIf);
+        let inputs = inputs!(1);
+        let result = script.execute(&inputs);
+        assert_eq!(result.unwrap_err(), ScriptError::MissingOpcode);
+    }
+
+    #[test]
+    fn op_check_height() {
+        let inputs = ExecutionStack::default();
+        let script = script!(CheckHeight(5));
+
+        for block_height in 1..=10 {
+            let ctx = context_with_height(block_height as u64);
+            assert_eq!(
+                script.execute_with_context(&inputs, &ctx).unwrap(),
+                Number(block_height - 5)
+            );
+        }
+
+        let script = script!(CheckHeight(u64::MAX));
+        let ctx = context_with_height(i64::MAX as u64);
+        let err = script.execute_with_context(&inputs, &ctx).unwrap_err();
+        assert!(matches!(err, ScriptError::ValueExceedsBounds));
+
+        let script = script!(CheckHeightVerify(5));
+        let inputs = inputs!(1);
+
+        for block_height in 1..5 {
+            let ctx = context_with_height(block_height);
+            let err = script.execute_with_context(&inputs, &ctx).unwrap_err();
+            assert!(matches!(err, ScriptError::VerifyFailed));
+        }
+
+        for block_height in 5..=10 {
+            let ctx = context_with_height(block_height);
+            let result = script.execute_with_context(&inputs, &ctx).unwrap();
+            assert_eq!(result, Number(1));
+        }
+    }
+
+    #[test]
+    fn op_compare_height() {
+        let script = script!(CompareHeight);
+        let inputs = inputs!(5);
+
+        for block_height in 1..=10 {
+            let ctx = context_with_height(block_height as u64);
+            assert_eq!(
+                script.execute_with_context(&inputs, &ctx).unwrap(),
+                Number(block_height - 5)
+            );
+        }
+
+        let script = script!(CompareHeightVerify);
+        let inputs = inputs!(1, 5);
+
+        for block_height in 1..5 {
+            let ctx = context_with_height(block_height);
+            let err = script.execute_with_context(&inputs, &ctx).unwrap_err();
+            assert!(matches!(err, ScriptError::VerifyFailed));
+        }
+
+        for block_height in 5..=10 {
+            let ctx = context_with_height(block_height);
+            let result = script.execute_with_context(&inputs, &ctx).unwrap();
+            assert_eq!(result, Number(1));
+        }
+    }
+
+    #[test]
+    fn op_drop_push() {
+        let inputs = inputs!(420);
+        let script = script!(Drop PushOne);
+        assert_eq!(script.execute(&inputs).unwrap(), Number(1));
+
+        let script = script!(Drop PushZero);
+        assert_eq!(script.execute(&inputs).unwrap(), Number(0));
+
+        let script = script!(Drop PushInt(5));
+        assert_eq!(script.execute(&inputs).unwrap(), Number(5));
+    }
+
+    #[test]
+    fn op_comparison_to_zero() {
+        let script = script!(GeZero);
+        let inputs = inputs!(1);
+        assert_eq!(script.execute(&inputs).unwrap(), Number(1));
+        let inputs = inputs!(0);
+        assert_eq!(script.execute(&inputs).unwrap(), Number(1));
+
+        let script = script!(GtZero);
+        let inputs = inputs!(1);
+        assert_eq!(script.execute(&inputs).unwrap(), Number(1));
+        let inputs = inputs!(0);
+        assert_eq!(script.execute(&inputs).unwrap(), Number(0));
+
+        let script = script!(LeZero);
+        let inputs = inputs!(-1);
+        assert_eq!(script.execute(&inputs).unwrap(), Number(1));
+        let inputs = inputs!(0);
+        assert_eq!(script.execute(&inputs).unwrap(), Number(1));
+
+        let script = script!(LtZero);
+        let inputs = inputs!(-1);
+        assert_eq!(script.execute(&inputs).unwrap(), Number(1));
+        let inputs = inputs!(0);
+        assert_eq!(script.execute(&inputs).unwrap(), Number(0));
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn op_hash() {
+        let mut rng = rand::thread_rng();
+        let (_, p) = RistrettoPublicKey::random_keypair(&mut rng);
+        let c = PedersenCommitment::from_public_key(&p);
+        let script = script!(HashSha256);
+
+        let hash = Sha256::digest(p.as_bytes());
+        let inputs = inputs!(p.clone());
+        assert_eq!(script.execute(&inputs).unwrap(), Hash(hash.into()));
+
+        let hash = Sha256::digest(c.as_bytes());
+        let inputs = inputs!(c.clone());
+        assert_eq!(script.execute(&inputs).unwrap(), Hash(hash.into()));
+
+        let script = script!(HashSha3);
+
+        let hash = Sha3::digest(p.as_bytes());
+        let inputs = inputs!(p);
+        assert_eq!(script.execute(&inputs).unwrap(), Hash(hash.into()));
+
+        let hash = Sha3::digest(c.as_bytes());
+        let inputs = inputs!(c);
+        assert_eq!(script.execute(&inputs).unwrap(), Hash(hash.into()));
     }
 
     #[test]
@@ -350,9 +774,9 @@ mod test {
     fn op_add() {
         let script = script!(Add);
         let inputs = inputs!(3, 2);
-        assert_eq!(script.execute(&inputs), Err(ScriptError::NonZeroValue(5)));
+        assert_eq!(script.execute(&inputs).unwrap(), Number(5));
         let inputs = inputs!(3, -3);
-        assert!(script.execute(&inputs).is_ok());
+        assert_eq!(script.execute(&inputs).unwrap(), Number(0));
         let inputs = inputs!(i64::MAX, 1);
         assert_eq!(script.execute(&inputs), Err(ScriptError::ValueExceedsBounds));
         let inputs = inputs!(1);
@@ -371,19 +795,20 @@ mod test {
             PedersenCommitment::from_public_key(&c1),
             PedersenCommitment::from_public_key(&c2)
         );
-        assert_eq!(script.execute(&inputs), Err(ScriptError::NonZeroCommitment(c3)));
+        assert_eq!(script.execute(&inputs).unwrap(), Commitment(c3));
     }
 
     #[test]
     fn op_sub() {
+        use crate::script::StackItem::Number;
         let script = script!(Add Sub);
         let inputs = inputs!(5, 3, 2);
-        assert!(script.execute(&inputs).is_ok());
+        assert_eq!(script.execute(&inputs).unwrap(), Number(0));
         let inputs = inputs!(i64::MAX, 1);
         assert_eq!(script.execute(&inputs), Err(ScriptError::ValueExceedsBounds));
         let script = script!(Sub);
         let inputs = inputs!(5, 3);
-        assert_eq!(script.execute(&inputs), Err(ScriptError::NonZeroValue(2)));
+        assert_eq!(script.execute(&inputs).unwrap(), Number(2));
     }
 
     #[test]
@@ -397,84 +822,120 @@ mod test {
 
     #[test]
     fn check_sig() {
+        use crate::script::StackItem::Number;
         let mut rng = rand::thread_rng();
         let (k, p) = RistrettoPublicKey::random_keypair(&mut rng);
         let r = RistrettoSecretKey::random(&mut rng);
-        let script = script!(CheckSig);
-        let m = script.script_message(&p).unwrap();
+        let m = RistrettoSecretKey::random(&mut rng);
         let s = RistrettoSchnorr::sign(k.clone(), r.clone(), m.as_bytes()).unwrap();
+        let msg = slice_to_boxed_message(m.as_bytes());
+        let script = script!(CheckSig(msg));
+        let inputs = inputs!(s.clone(), p.clone());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(1));
+
+        let n = RistrettoSecretKey::random(&mut rng);
+        let msg = slice_to_boxed_message(n.as_bytes());
+        let script = script!(CheckSig(msg));
         let inputs = inputs!(s, p);
-        assert!(script.execute(&inputs).is_ok());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(0));
     }
 
     #[test]
     fn check_sig_verify() {
+        use crate::script::StackItem::Number;
         let mut rng = rand::thread_rng();
         let (k, p) = RistrettoPublicKey::random_keypair(&mut rng);
         let r = RistrettoSecretKey::random(&mut rng);
-        let script = script!(CheckSigVerify);
-        let m = script.script_message(&p).unwrap();
+        let m = RistrettoSecretKey::random(&mut rng);
         let s = RistrettoSchnorr::sign(k.clone(), r.clone(), m.as_bytes()).unwrap();
+        let msg = slice_to_boxed_message(m.as_bytes());
+        let script = script!(CheckSigVerify(msg) PushOne);
+        let inputs = inputs!(s.clone(), p.clone());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(1));
+
+        let n = RistrettoSecretKey::random(&mut rng);
+        let msg = slice_to_boxed_message(n.as_bytes());
+        let script = script!(CheckSigVerify(msg));
         let inputs = inputs!(s, p);
-        assert!(script.execute(&inputs).is_ok());
+        let err = script.execute(&inputs).unwrap_err();
+        assert!(matches!(err, ScriptError::VerifyFailed));
     }
 
     #[test]
     fn add_partial_signatures() {
+        use crate::script::StackItem::Number;
         let mut rng = rand::thread_rng();
         let (k1, p1) = RistrettoPublicKey::random_keypair(&mut rng);
         let (k2, p2) = RistrettoPublicKey::random_keypair(&mut rng);
         let r1 = RistrettoSecretKey::random(&mut rng);
         let r2 = RistrettoSecretKey::random(&mut rng);
-        let script = script!(Add RevRot Add CheckSigVerify);
-        let m = script.script_message(&(&p1 + &p2)).unwrap();
+
+        let m = RistrettoSecretKey::random(&mut rng);
+        let msg = slice_to_boxed_message(m.as_bytes());
+        let script = script!(Add RevRot Add CheckSigVerify(msg) PushOne);
+
         let s1 = RistrettoSchnorr::sign(k1.clone(), r1.clone(), m.as_bytes()).unwrap();
         let s2 = RistrettoSchnorr::sign(k2.clone(), r2.clone(), m.as_bytes()).unwrap();
         let inputs = inputs!(p1, p2, s1, s2);
-        assert_eq!(script.execute(&inputs), Ok(()));
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(1));
     }
 
     #[test]
     fn pay_to_public_key_hash() {
+        use crate::script::StackItem::Number;
         let k =
             RistrettoSecretKey::from_hex("7212ac93ee205cdbbb57c4f0f815fbf8db25b4d04d3532e2262e31907d82c700").unwrap();
         let p = RistrettoPublicKey::from_secret_key(&k); // 56c0fa32558d6edc0916baa26b48e745de834571534ca253ea82435f08ebbc7c
         let r =
             RistrettoSecretKey::from_hex("193ee873f3de511eda8ae387db6498f3d194d31a130a94cdf13dc5890ec1ad0f").unwrap();
         let hash = Blake256::digest(p.as_bytes());
-        let pkh = to_boxed_hash(hash.as_slice()); // ae2337ce44f9ebb6169c863ec168046cb35ab4ef7aa9ed4f5f1f669bb74b09e5
-        let script = script!(Dup HashBlake256 PushHash(pkh) EqualVerify Drop CheckSig);
-        let hex_script = "71b07aae2337ce44f9ebb6169c863ec168046cb35ab4ef7aa9ed4f5f1f669bb74b09e58170ac";
+        let pkh = slice_to_boxed_hash(hash.as_slice()); // ae2337ce44f9ebb6169c863ec168046cb35ab4ef7aa9ed4f5f1f669bb74b09e5
+        let m =
+            RistrettoSecretKey::from_hex("276657a418820f34036b20ea615302b373c70ac8feab8d30681a3e0f0960e708").unwrap();
+        let msg = slice_to_boxed_message(m.as_bytes());
+
+        let script = script!(Dup HashBlake256 PushHash(pkh) EqualVerify CheckSig(msg));
+        let hex_script = "71b07aae2337ce44f9ebb6169c863ec168046cb35ab4ef7aa9ed4f5f1f669bb74b09e581ac276657a418820f34036b20ea615302b373c70ac8feab8d30681a3e0f0960e708";
         // Test serialisation
         assert_eq!(script.to_hex(), hex_script);
         // Test de-serialisation
         assert_eq!(TariScript::from_hex(hex_script).unwrap(), script);
-        let m = script.script_message(&p).unwrap();
+
         let sig = RistrettoSchnorr::sign(k, r, m.as_bytes()).unwrap();
         // The top of the stack is the right-most element!
         let inputs = inputs!(sig, p);
-        assert_eq!(script.execute(&inputs), Ok(()));
+
+        let result = script.execute(&inputs).unwrap();
+
+        assert_eq!(result, Number(1));
     }
 
     #[test]
     fn hex_only() {
-        let inp = ExecutionStack::from_hex("0500f7c695528c858cde76dab3076908e01228b6dbdd5f671bed1b03\
-        b89e170c314c7b413e971dbb85879ba990e851607454da4bdf65839456d7cac19e5a338f060456c0fa32558d6edc0916baa26b48e745de8\
-        34571534ca253ea82435f08ebbc7c").unwrap();
+        use crate::script::StackItem::Number;
+        let hex = "0500f7c695528c858cde76dab3076908e01228b6dbdd5f671bed1b03b89e170c313d415e0584ef82b79e3bf9bdebeeef53d13aefdc0cfa64f616acea0229e6ee0f0456c0fa32558d6edc0916baa26b48e745de834571534ca253ea82435f08ebbc7c";
+        let inputs = ExecutionStack::from_hex(hex).unwrap();
         let script =
-            TariScript::from_hex("71b07aae2337ce44f9ebb6169c863ec168046cb35ab4ef7aa9ed4f5f1f669bb74b09e58170ac")
+            TariScript::from_hex("71b07aae2337ce44f9ebb6169c863ec168046cb35ab4ef7aa9ed4f5f1f669bb74b09e581ac276657a418820f34036b20ea615302b373c70ac8feab8d30681a3e0f0960e708")
                 .unwrap();
-        assert_eq!(script.execute(&inp), Ok(()));
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(1));
+
         // Try again with invalid sig
-        let inp = ExecutionStack::from_hex("0500b7c695528c858cde76dab3076908e01228b6dbdd5f671bed1b03\
+        let inputs = ExecutionStack::from_hex("0500b7c695528c858cde76dab3076908e01228b6dbdd5f671bed1b03\
         b89e170c314c7b413e971dbb85879ba990e851607454da4bdf65839456d7cac19e5a338f060456c0fa32558d6edc0916baa26b48e745de8\
         34571534ca253ea82435f08ebbc7c").unwrap();
-        assert_eq!(script.execute(&inp), Err(ScriptError::NonZeroValue(1)));
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(0));
     }
 
     #[test]
     fn disassemble() {
-        let hex_script = "71b07aae2337ce44f9ebb6169c863ec168046cb35ab4ef7aa9ed4f5f1f669bb74b09e58170ac";
+        let hex_script = "71b07aae2337ce44f9ebb6169c863ec168046cb35ab4ef7aa9ed4f5f1f669bb74b09e58170ac276657a418820f34036b20ea615302b373c70ac8feab8d30681a3e0f0960e708";
         let script = TariScript::from_hex(hex_script).unwrap();
         let ops = vec![
             "Dup",
@@ -482,7 +943,7 @@ mod test {
             "PushHash(ae2337ce44f9ebb6169c863ec168046cb35ab4ef7aa9ed4f5f1f669bb74b09e5)",
             "EqualVerify",
             "Drop",
-            "CheckSig",
+            "CheckSig(276657a418820f34036b20ea615302b373c70ac8feab8d30681a3e0f0960e708)",
         ]
         .into_iter()
         .map(String::from)
@@ -491,7 +952,7 @@ mod test {
         assert_eq!(
             script.to_string(),
             "Dup HashBlake256 PushHash(ae2337ce44f9ebb6169c863ec168046cb35ab4ef7aa9ed4f5f1f669bb74b09e5) EqualVerify \
-             Drop CheckSig"
+             Drop CheckSig(276657a418820f34036b20ea615302b373c70ac8feab8d30681a3e0f0960e708)"
         );
     }
 }

@@ -23,10 +23,10 @@ mod stack;
 mod tari_script;
 
 pub use error::ScriptError;
-pub use op_codes::{to_boxed_hash, to_hash, HashValue, Opcode};
+pub use op_codes::{slice_to_boxed_hash, slice_to_hash, HashValue, Opcode};
 pub use script_context::ScriptContext;
 pub use stack::{ExecutionStack, StackItem};
-pub use tari_script::{Builder, TariScript};
+pub use tari_script::TariScript;
 
 // As hex: c5a1ea6d3e0a6a0d650c99489bcd563e37a06221fd04b8f3a842a982b2813907
 pub const DEFAULT_SCRIPT_HASH: HashValue = [

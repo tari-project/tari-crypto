@@ -143,10 +143,7 @@ impl<D: Digest> RistrettoMuSig<D> {
 
     /// Convenience wrapper function to determined whether a signing ceremony has failed
     pub fn has_failed(&self) -> bool {
-        match self.state {
-            MuSigState::Failed(_) => true,
-            _ => false,
-        }
+        matches!(self.state, MuSigState::Failed(_))
     }
 
     /// IF `has_failed()` is true, you can obtain the specific error that caused the failure
@@ -159,34 +156,22 @@ impl<D: Digest> RistrettoMuSig<D> {
 
     /// Convenience function to determine whether we're in Round One of MuSig (nonce hash collection)
     pub fn is_collecting_hashes(&self) -> bool {
-        match self.state {
-            MuSigState::NonceHashCollection(_) => true,
-            _ => false,
-        }
+        matches!(self.state, MuSigState::NonceHashCollection(_))
     }
 
     /// Convenience function to determine whether we'rein Round Two of MuSig (public nonce collection)
     pub fn is_collecting_nonces(&self) -> bool {
-        match self.state {
-            MuSigState::NonceCollection(_) => true,
-            _ => false,
-        }
+        matches!(self.state, MuSigState::NonceCollection(_))
     }
 
     /// Convenience function to determine whether we're in Round Three of MuSig (partial signature collection)
     pub fn is_collecting_signatures(&self) -> bool {
-        match self.state {
-            MuSigState::SignatureCollection(_) => true,
-            _ => false,
-        }
+        matches!(self.state, MuSigState::SignatureCollection(_))
     }
 
     /// Convenience function to determine whether The MuSig protocol is complete (the aggregate signature is ready)
     pub fn is_finalized(&self) -> bool {
-        match self.state {
-            MuSigState::Finalized(_) => true,
-            _ => false,
-        }
+        matches!(self.state, MuSigState::Finalized(_))
     }
 
     /// Return the index of the public key in the MuSig ceremony. If were still collecting public keys, the state has
