@@ -479,6 +479,7 @@ impl Default for ExecutionState {
 
 #[cfg(test)]
 mod test {
+    use crate::script::StackItem;
     #[allow(deprecated)]
     use crate::{
         common::Blake256,
@@ -886,32 +887,27 @@ mod test {
 
     #[test]
     fn pay_to_public_key_hash() {
-        use crate::script::StackItem::Number;
+        use crate::script::StackItem::PublicKey;
         let k =
             RistrettoSecretKey::from_hex("7212ac93ee205cdbbb57c4f0f815fbf8db25b4d04d3532e2262e31907d82c700").unwrap();
         let p = RistrettoPublicKey::from_secret_key(&k); // 56c0fa32558d6edc0916baa26b48e745de834571534ca253ea82435f08ebbc7c
-        let r =
-            RistrettoSecretKey::from_hex("193ee873f3de511eda8ae387db6498f3d194d31a130a94cdf13dc5890ec1ad0f").unwrap();
         let hash = Blake256::digest(p.as_bytes());
         let pkh = slice_to_boxed_hash(hash.as_slice()); // ae2337ce44f9ebb6169c863ec168046cb35ab4ef7aa9ed4f5f1f669bb74b09e5
-        let m =
-            RistrettoSecretKey::from_hex("276657a418820f34036b20ea615302b373c70ac8feab8d30681a3e0f0960e708").unwrap();
-        let msg = slice_to_boxed_message(m.as_bytes());
 
-        let script = script!(Dup HashBlake256 PushHash(pkh) EqualVerify CheckSig(msg));
-        let hex_script = "71b07aae2337ce44f9ebb6169c863ec168046cb35ab4ef7aa9ed4f5f1f669bb74b09e581ac276657a418820f34036b20ea615302b373c70ac8feab8d30681a3e0f0960e708";
+        // Unlike in Bitcoin where P2PKH includes a CheckSig at the end of the script, that part of the process is built
+        // into definition of how TariScript is evaluated by a base node or wallet
+        let script = script!(Dup HashBlake256 PushHash(pkh) EqualVerify);
+        let hex_script = "71b07aae2337ce44f9ebb6169c863ec168046cb35ab4ef7aa9ed4f5f1f669bb74b09e581";
         // Test serialisation
         assert_eq!(script.to_hex(), hex_script);
         // Test de-serialisation
         assert_eq!(TariScript::from_hex(hex_script).unwrap(), script);
 
-        let sig = RistrettoSchnorr::sign(k, r, m.as_bytes()).unwrap();
-        // The top of the stack is the right-most element!
-        let inputs = inputs!(sig, p);
+        let inputs = inputs!(p.clone());
 
         let result = script.execute(&inputs).unwrap();
 
-        assert_eq!(result, Number(1));
+        assert_eq!(result, PublicKey(p));
     }
 
     #[test]
@@ -953,6 +949,53 @@ mod test {
             script.to_string(),
             "Dup HashBlake256 PushHash(ae2337ce44f9ebb6169c863ec168046cb35ab4ef7aa9ed4f5f1f669bb74b09e5) EqualVerify \
              Drop CheckSig(276657a418820f34036b20ea615302b373c70ac8feab8d30681a3e0f0960e708)"
+        );
+    }
+
+    #[test]
+    fn time_locked_contract_example() {
+        let k_alice =
+            RistrettoSecretKey::from_hex("f305e64c0e73cbdb665165ac97b69e5df37b2cd81f9f8f569c3bd854daff290e").unwrap();
+        let p_alice = RistrettoPublicKey::from_secret_key(&k_alice); // 9c35e9f0f11cf25ce3ca1182d37682ab5824aa033f2024651e007364d06ec355
+
+        let k_bob =
+            RistrettoSecretKey::from_hex("e0689386a018e88993a7bb14cbff5bad8a8858ea101d6e0da047df3ddf499c0e").unwrap();
+        let p_bob = RistrettoPublicKey::from_secret_key(&k_bob); // 3a58f371e94da76a8902e81b4b55ddabb7dc006cd8ebde3011c46d0e02e9172f
+
+        let lock_height = 4000u64;
+
+        let script = script!(Dup PushPubKey(Box::new(p_bob.clone())) CheckHeight(lock_height) GeZero IfThen PushPubKey(Box::new(p_alice.clone())) OrVerify(2) Else EqualVerify EndIf );
+
+        // Alice tries to spend the output before the height is reached
+        let inputs_alice_spends_early = inputs!(p_alice.clone());
+        let ctx = context_with_height(3990u64);
+        assert_eq!(
+            script.execute_with_context(&inputs_alice_spends_early, &ctx),
+            Err(ScriptError::VerifyFailed)
+        );
+
+        // Alice tries to spend the output after the height is reached
+        let inputs_alice_spends_early = inputs!(p_alice.clone());
+        let ctx = context_with_height(4000u64);
+        assert_eq!(
+            script.execute_with_context(&inputs_alice_spends_early, &ctx).unwrap(),
+            StackItem::PublicKey(p_alice)
+        );
+
+        // Bob spends before time lock is reached
+        let inputs_bob_spends_early = inputs!(p_bob.clone());
+        let ctx = context_with_height(3990u64);
+        assert_eq!(
+            script.execute_with_context(&inputs_bob_spends_early, &ctx).unwrap(),
+            StackItem::PublicKey(p_bob.clone())
+        );
+
+        // Bob spends after time lock is reached
+        let inputs_bob_spends_early = inputs!(p_bob.clone());
+        let ctx = context_with_height(4001u64);
+        assert_eq!(
+            script.execute_with_context(&inputs_bob_spends_early, &ctx).unwrap(),
+            StackItem::PublicKey(p_bob)
         );
     }
 }
