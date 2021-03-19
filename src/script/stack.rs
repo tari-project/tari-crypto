@@ -21,11 +21,11 @@ use crate::{
     ristretto::{pedersen::PedersenCommitment, RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
     script::{error::ScriptError, op_codes::HashValue},
 };
+use serde::{Deserialize, Serialize};
 use tari_utilities::{
     hex::{from_hex, to_hex, Hex, HexError},
     ByteArray,
 };
-
 pub const MAX_STACK_SIZE: usize = 256;
 
 #[macro_export]
@@ -54,7 +54,7 @@ pub const TYPE_COMMITMENT: u8 = 3;
 pub const TYPE_PUBKEY: u8 = 4;
 pub const TYPE_SIG: u8 = 5;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum StackItem {
     Number(i64),
     Hash(HashValue),
@@ -158,7 +158,7 @@ stack_item_from!(PedersenCommitment => Commitment);
 stack_item_from!(RistrettoPublicKey => PublicKey);
 stack_item_from!(RistrettoSchnorr => Signature);
 
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExecutionStack {
     items: Vec<StackItem>,
 }
