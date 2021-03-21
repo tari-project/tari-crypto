@@ -257,8 +257,8 @@ impl DiffieHellmanSharedSecret for RistrettoPublicKey {
 impl Hashable for RistrettoPublicKey {
     fn hash(&self) -> Vec<u8> {
         let mut hasher = HashDigest::new();
-        hasher.input(&self.to_vec());
-        hasher.result().to_vec()
+        hasher.update(&self.to_vec());
+        hasher.finalize().to_vec()
     }
 }
 

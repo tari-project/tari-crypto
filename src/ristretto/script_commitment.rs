@@ -184,7 +184,7 @@ impl ScriptCommitmentFactory {
         let script_hash = s
             .as_hash::<D>()
             .map_err(|_| ScriptCommitmentError::InvalidDigestLength)?;
-        let h = D::new().chain(c.as_bytes()).chain(&script_hash[..]).result();
+        let h = D::new().chain(c.as_bytes()).chain(&script_hash[..]).finalize();
         let hash = RistrettoSecretKey::from_bytes(&h[..]).map_err(ScriptCommitmentError::from)?;
         Ok(key + &hash)
     }

@@ -23,10 +23,11 @@
 use blake2::VarBlake2b;
 use digest::{
     generic_array::{typenum::U32, GenericArray},
-    FixedOutput,
-    Input,
+    FixedOutputDirty,
     Reset,
+    Update,
     VariableOutput,
+    VariableOutputDirty,
 };
 
 /// A convenience wrapper produce 256 bit hashes from Blake2b
@@ -35,34 +36,36 @@ pub struct Blake256(VarBlake2b);
 
 impl Blake256 {
     pub fn new() -> Self {
-        let h = VarBlake2b::new(32).unwrap();
+        let h = VariableOutput::new(32).unwrap();
         Blake256(h)
     }
 
-    pub fn result(self) -> GenericArray<u8, U32> {
-        self.fixed_result()
+    pub fn finalize(self) -> GenericArray<u8, U32> {
+        let mut buf = [0; 32];
+        (self.0).finalize_variable(|res| buf.copy_from_slice(res));
+
+        GenericArray::from(buf)
     }
 }
 
 impl Default for Blake256 {
     fn default() -> Self {
-        let h = VarBlake2b::new(32).unwrap();
+        let h = VariableOutput::new(32).unwrap();
         Blake256(h)
     }
 }
 
-impl Input for Blake256 {
-    fn input<B: AsRef<[u8]>>(&mut self, data: B) {
-        (self.0).input(data);
+impl Update for Blake256 {
+    fn update(&mut self, data: impl AsRef<[u8]>) {
+        (self.0).update(data);
     }
 }
 
-impl FixedOutput for Blake256 {
+impl FixedOutputDirty for Blake256 {
     type OutputSize = U32;
 
-    fn fixed_result(self) -> GenericArray<u8, U32> {
-        let v = (self.0).vec_result();
-        GenericArray::clone_from_slice(&v)
+    fn finalize_into_dirty(&mut self, out: &mut GenericArray<u8, Self::OutputSize>) {
+        (self.0).finalize_variable_dirty(|res| out.copy_from_slice(res))
     }
 }
 
@@ -75,12 +78,12 @@ impl Reset for Blake256 {
 #[cfg(test)]
 mod test {
     use crate::common::Blake256;
-    use digest::{Input, Reset};
+    use digest::{Reset, Update};
     use tari_utilities::hex;
 
     #[test]
     fn blake256() {
-        let e = Blake256::new().chain(b"one").chain(b"two").result().to_vec();
+        let e = Blake256::new().chain(b"one").chain(b"two").finalize().to_vec();
         let h = hex::to_hex(&e);
         assert_eq!(
             h,
@@ -92,7 +95,7 @@ mod test {
     fn reset() {
         let mut e = Blake256::default().chain(b"foobar");
         e.reset();
-        let e = e.chain(b"onetwo").result().to_vec();
+        let e = e.chain(b"onetwo").finalize().to_vec();
         let h = hex::to_hex(&e);
         assert_eq!(
             h,

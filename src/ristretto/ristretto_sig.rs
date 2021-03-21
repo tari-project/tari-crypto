@@ -127,7 +127,7 @@ mod test {
             .chain(P.as_bytes())
             .chain(R.as_bytes())
             .chain(b"Small Gods")
-            .result();
+            .finalize();
         let e_key = RistrettoSecretKey::from_bytes(&e).unwrap();
         let s = &r + &e_key * &k;
         let sig = RistrettoSchnorr::sign(k, r, &e).unwrap();
@@ -160,7 +160,7 @@ mod test {
             .chain(P1.as_bytes())
             .chain(P2.as_bytes())
             .chain(b"Moving Pictures")
-            .result();
+            .finalize();
         // Calculate Alice's signature
         let s1 = RistrettoSchnorr::sign(k1, r1, &e).unwrap();
         // Calculate Bob's signature

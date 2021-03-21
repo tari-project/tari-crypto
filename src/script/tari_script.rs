@@ -19,7 +19,6 @@
 #[allow(deprecated)]
 use crate::{
     common::Blake256,
-    hash::sha3::Sha3,
     ristretto::{RistrettoPublicKey, RistrettoSecretKey},
     script::{
         error::ScriptError,
@@ -32,6 +31,7 @@ use crate::{
 };
 use blake2::Digest;
 use sha2::Sha256;
+use sha3::Sha3_256 as Sha3;
 use std::{cmp::Ordering, convert::TryFrom, fmt, ops::Deref};
 use tari_utilities::{
     hex::{from_hex, to_hex, Hex, HexError},
@@ -174,7 +174,7 @@ impl TariScript {
         let b = Blake256::new()
             .chain(pub_key.as_bytes())
             .chain(&self.as_bytes())
-            .result();
+            .finalize();
         RistrettoSecretKey::from_bytes(b.as_slice()).map_err(|_| ScriptError::InvalidSignature)
     }
 
@@ -483,7 +483,6 @@ mod test {
     #[allow(deprecated)]
     use crate::{
         common::Blake256,
-        hash::sha3::Sha3,
         inputs,
         keys::{PublicKey, SecretKey},
         ristretto::{pedersen::PedersenCommitment, RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
@@ -499,6 +498,7 @@ mod test {
     };
     use blake2::Digest;
     use sha2::Sha256;
+    use sha3::Sha3_256 as Sha3;
     use tari_utilities::{hex::Hex, ByteArray};
 
     fn context_with_height(height: u64) -> ScriptContext {

@@ -45,7 +45,11 @@ pub fn sign<D: Digest>(
 {
     let mut rng = rand::thread_rng();
     let (nonce, public_nonce) = RistrettoPublicKey::random_keypair(&mut rng);
-    let message = D::new().chain(public_nonce.as_bytes()).chain(message).result().to_vec();
+    let message = D::new()
+        .chain(public_nonce.as_bytes())
+        .chain(message)
+        .finalize()
+        .to_vec();
     let e = RistrettoSecretKey::from_bytes(&message).map_err(|_| SchnorrSignatureError::InvalidChallenge)?;
     let s = RistrettoSchnorr::sign(private_key.clone(), nonce.clone(), e.as_bytes())?;
     Ok(SignatureSet {

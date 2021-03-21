@@ -13,16 +13,16 @@ edition = "2018"
 [dependencies]
 tari_utilities = "^0.3"
 base64 = "0.10.1"
-digest = "0.8.0"
+digest = "0.9"
 rand = "0.7.2"
 clear_on_drop = "=0.2.4"
-curve25519-dalek = { version = "2" }
-bulletproofs = {version = "2.1.0" , package="tari_bulletproofs"}
+curve25519-dalek = { version = "3" }
+bulletproofs = { version = "2.1.0", package = "tari_bulletproofs" }
 merlin = "2.0.0"
-sha2 = "0.8.0"
+sha2 = "0.9"
 sha3 = "0.9"
 thiserror = "1.0.20"
-blake2 = "0.8.1"
+blake2 = "0.9"
 blake3 = "0.3"
 k12 = "0.1"
 rmp-serde = "0.13.7"
