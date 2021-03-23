@@ -31,7 +31,7 @@ pub const MAX_STACK_SIZE: usize = 256;
 #[macro_export]
 macro_rules! inputs {
     ($($input:expr),+) => {{
-        use crate::script::{ExecutionStack, StackItem};
+        use $crate::script::{ExecutionStack, StackItem};
 
         let items = vec![$(StackItem::from($input)),+];
         ExecutionStack::new(items)

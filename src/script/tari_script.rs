@@ -41,8 +41,8 @@ use tari_utilities::{
 #[macro_export]
 macro_rules! script {
     ($($opcode:ident$(($var:expr))?) +) => {{
-        use crate::script::TariScript;
-        use crate::script::Opcode;
+        use $crate::script::TariScript;
+        use $crate::script::Opcode;
         let script = vec![$(Opcode::$opcode $(($var))?),+];
         TariScript::new(script)
     }}
