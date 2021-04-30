@@ -32,7 +32,10 @@ use crate::{
 use blake2::Digest;
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
-use tari_utilities::hex::{from_hex, Hex};
+use tari_utilities::{
+    hex::{from_hex, Hex},
+    ByteArray,
+};
 use wasm_bindgen::prelude::*;
 
 #[derive(Serialize, Deserialize)]
@@ -198,4 +201,77 @@ pub fn check_signature(pub_nonce: &str, signature: &str, pub_key: &str, msg: &st
     let msg = Blake256::digest(msg.as_bytes());
     result.result = sig.verify_challenge(&P, msg.as_slice());
     JsValue::from_serde(&result).unwrap()
+}
+
+/// Create a secret key on the Ristretto255 curve using the given little-endian byte array represented as a hex string.
+/// If the hex string does not represent 32 bytes the function will return false
+#[allow(non_snake_case)]
+#[wasm_bindgen]
+pub fn secret_key_from_hex_bytes(private_key_hex: &str) -> JsValue {
+    let bytes = match from_hex(private_key_hex) {
+        Ok(b) => b,
+        Err(_) => return JsValue::from_bool(false),
+    };
+
+    match RistrettoSecretKey::from_bytes(bytes.as_slice()) {
+        Ok(pk) => JsValue::from_serde(&pk).unwrap_or_else(|_| JsValue::from_bool(false)),
+        Err(_) => JsValue::from_bool(false),
+    }
+}
+
+/// A function that accepts two private keys and adds them together and returns the result. Will return false if
+/// either key is invalid
+#[allow(non_snake_case)]
+#[wasm_bindgen]
+pub fn add_secret_keys(private_key_a: &str, private_key_b: &str) -> JsValue {
+    let k_a = match RistrettoSecretKey::from_hex(private_key_a) {
+        Ok(k) => k,
+        _ => return JsValue::from_bool(false),
+    };
+
+    let k_b = match RistrettoSecretKey::from_hex(private_key_b) {
+        Ok(k) => k,
+        _ => return JsValue::from_bool(false),
+    };
+
+    let result_key = k_a + k_b;
+    return JsValue::from_serde(&result_key).unwrap();
+}
+
+/// A function that accepts two private keys and subtracts the second from the first. Will return false if
+/// either key is invalid
+#[allow(non_snake_case)]
+#[wasm_bindgen]
+pub fn subtract_secret_keys(private_key_a: &str, private_key_b: &str) -> JsValue {
+    let k_a = match RistrettoSecretKey::from_hex(private_key_a) {
+        Ok(k) => k,
+        _ => return JsValue::from_bool(false),
+    };
+
+    let k_b = match RistrettoSecretKey::from_hex(private_key_b) {
+        Ok(k) => k,
+        _ => return JsValue::from_bool(false),
+    };
+
+    let result_key = k_a - k_b;
+    return JsValue::from_serde(&result_key).unwrap();
+}
+
+/// A function that accepts two private keys and multiplies them together and returns the result. Will return false if
+/// either key is invalid
+#[allow(non_snake_case)]
+#[wasm_bindgen]
+pub fn multiply_secret_keys(private_key_a: &str, private_key_b: &str) -> JsValue {
+    let k_a = match RistrettoSecretKey::from_hex(private_key_a) {
+        Ok(k) => k,
+        _ => return JsValue::from_bool(false),
+    };
+
+    let k_b = match RistrettoSecretKey::from_hex(private_key_b) {
+        Ok(k) => k,
+        _ => return JsValue::from_bool(false),
+    };
+
+    let result_key = k_a * k_b;
+    return JsValue::from_serde(&result_key).unwrap();
 }
