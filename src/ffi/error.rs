@@ -64,3 +64,50 @@ pub fn get_error_message(code: i32) -> &'static str {
         _ => "Unknown error code.",
     }
 }
+
+#[cfg(test)]
+mod test {
+    use std::{mem, ptr::null_mut};
+
+    use digest::generic_array::transmute;
+
+    use super::*;
+
+    #[test]
+    pub fn test_lookup_error_message_invalid_params() {
+        unsafe {
+            assert_eq!(lookup_error_message(OK, null_mut(), 0), NULL_POINTER);
+        }
+        unsafe {
+            let mut buffer = [0i8; 1];
+            assert_eq!(lookup_error_message(OK, buffer.as_mut_ptr(), 1), BUFFER_TOO_SMALL);
+        }
+    }
+
+    #[test]
+    pub fn test_lookup_error_message_valid_params() {
+        unsafe {
+            let mut buffer = [0u8; 1000];
+            assert_eq!(
+                lookup_error_message(OK, buffer.as_mut_ptr() as *mut i8, 1000) as usize,
+                get_error_message(OK).len()
+            );
+            assert_eq!(
+                String::from_utf8_lossy(&buffer)[0..get_error_message(OK).len()],
+                *get_error_message(OK)
+            );
+        }
+    }
+
+    #[test]
+    pub fn test_get_error_message() {
+        let unknown_error = get_error_message(12345); // Force unknown error
+        assert_eq!(unknown_error, "Unknown error code.");
+        assert_ne!(unknown_error, get_error_message(OK));
+        assert_ne!(unknown_error, get_error_message(NULL_POINTER));
+        assert_ne!(unknown_error, get_error_message(BUFFER_TOO_SMALL));
+        assert_ne!(unknown_error, get_error_message(INVALID_SECRET_KEY_SER));
+        assert_ne!(unknown_error, get_error_message(SIGNING_ERROR));
+        assert_ne!(unknown_error, get_error_message(STR_CONV_ERR));
+    }
+}

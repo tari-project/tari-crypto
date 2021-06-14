@@ -38,7 +38,7 @@ type KeyArray = [u8; KEY_LENGTH];
 /// least `KEY_LENGTH` bytes have been allocated in `priv_key` and `pub_key`.
 #[no_mangle]
 pub unsafe extern "C" fn random_keypair(priv_key: *mut KeyArray, pub_key: *mut KeyArray) -> c_int {
-    if priv_key.is_null() && pub_key.is_null() {
+    if priv_key.is_null() {
         return NULL_POINTER;
     }
     if pub_key.is_null() {
@@ -91,8 +91,10 @@ pub unsafe extern "C" fn verify(
     err_code: *mut c_int,
 ) -> bool
 {
-    if pub_key.is_null() || msg.is_null() || pub_nonce.is_null() || signature.is_null() {
-        *err_code = NULL_POINTER;
+    if pub_key.is_null() || msg.is_null() || pub_nonce.is_null() || signature.is_null() || err_code.is_null() {
+        if !err_code.is_null() {
+            *err_code = NULL_POINTER;
+        }
         return false;
     }
     let pk = match RistrettoPublicKey::from_bytes(&(*pub_key)) {
@@ -121,4 +123,174 @@ pub unsafe extern "C" fn verify(
         _ => return false,
     };
     sig.verify(&pk, &challenge)
+}
+
+#[cfg(test)]
+mod test {
+    use curve25519_dalek::scalar::Scalar;
+    use rand::{CryptoRng, Rng};
+
+    use super::*;
+    use std::ptr::null_mut;
+
+    #[test]
+    pub fn test_random_keypair_with_invalid_params() {
+        // both are invalid
+        unsafe { assert_eq!(NULL_POINTER, random_keypair(null_mut(), null_mut())) };
+        let mut pub_key: KeyArray = [0; KEY_LENGTH];
+        unsafe { assert_eq!(NULL_POINTER, random_keypair(null_mut(), &mut pub_key)) };
+    }
+
+    // Mock for the randomness of the keys.
+    impl RistrettoSecretKey {
+        pub fn random<R>(_rng: &mut R) -> Self {
+            RistrettoSecretKey(Scalar::from_bits([1; 32]))
+        }
+    }
+
+    impl RistrettoPublicKey {
+        pub fn random_keypair<R: Rng + CryptoRng>(_rng: &mut R) -> (RistrettoSecretKey, Self) {
+            let k = RistrettoSecretKey(Scalar::from_bits([2; 32]));
+            let pk = RistrettoPublicKey::from_secret_key(&k);
+            (k, pk)
+        }
+    }
+
+    #[test]
+    pub fn test_random_keypair_with_valid_params() {
+        let mut priv_key: KeyArray = [0; KEY_LENGTH];
+        let mut pub_key: KeyArray = [0; KEY_LENGTH];
+
+        // Public keys is null.
+        unsafe {
+            random_keypair(&mut priv_key, null_mut());
+        }
+        assert_eq!([1; 32], priv_key);
+
+        // Both are not null.
+        unsafe {
+            random_keypair(&mut priv_key, &mut pub_key);
+        }
+        assert_eq!([2; 32], priv_key);
+        assert_eq!(
+            RistrettoPublicKey::from_secret_key(&RistrettoSecretKey(Scalar::from_bits(priv_key))).as_bytes(),
+            pub_key
+        );
+    }
+
+    #[test]
+    pub fn test_sign_invalid_params() {
+        unsafe {
+            let priv_key = [0; KEY_LENGTH];
+            let msg = "msg";
+            let mut nonce = [0; KEY_LENGTH];
+            let mut signature = [0; KEY_LENGTH];
+            assert_eq!(
+                sign(null_mut(), msg.as_ptr() as *const c_char, &mut nonce, &mut signature),
+                NULL_POINTER
+            );
+            assert_eq!(sign(&priv_key, null_mut(), &mut nonce, &mut signature), NULL_POINTER);
+            assert_eq!(
+                sign(&priv_key, msg.as_ptr() as *const c_char, null_mut(), &mut signature),
+                NULL_POINTER
+            );
+            assert_eq!(
+                sign(&priv_key, msg.as_ptr() as *const c_char, &mut nonce, null_mut()),
+                NULL_POINTER
+            );
+        }
+    }
+
+    #[test]
+    pub fn test_sign_valid_params() {
+        let priv_key = [1; KEY_LENGTH];
+        let msg = "msg";
+        let mut nonce = [0; KEY_LENGTH];
+        let mut signature = [0; KEY_LENGTH];
+        unsafe {
+            assert_eq!(
+                sign(&priv_key, msg.as_ptr() as *const c_char, &mut nonce, &mut signature),
+                OK
+            );
+        }
+    }
+
+    #[test]
+    pub fn test_verify_invalid_params() {
+        let pub_key = [1; KEY_LENGTH];
+        let msg = "msg";
+        let mut pub_nonce = [0; KEY_LENGTH];
+        let mut signature = [0; KEY_LENGTH];
+        let mut err_code = 0i32;
+        unsafe {
+            assert_eq!(
+                verify(
+                    null_mut(),
+                    msg.as_ptr() as *const c_char,
+                    &mut pub_nonce,
+                    &mut signature,
+                    &mut err_code
+                ),
+                false
+            );
+            assert_eq!(
+                verify(&pub_key, null_mut(), &mut pub_nonce, &mut signature, &mut err_code),
+                false
+            );
+            assert_eq!(
+                verify(
+                    &pub_key,
+                    msg.as_ptr() as *const c_char,
+                    null_mut(),
+                    &mut signature,
+                    &mut err_code
+                ),
+                false
+            );
+            assert_eq!(
+                verify(
+                    &pub_key,
+                    msg.as_ptr() as *const c_char,
+                    &mut pub_nonce,
+                    null_mut(),
+                    &mut err_code
+                ),
+                false
+            );
+            assert_eq!(
+                verify(
+                    &pub_key,
+                    msg.as_ptr() as *const c_char,
+                    &mut pub_nonce,
+                    &mut signature,
+                    null_mut()
+                ),
+                false
+            );
+        }
+    }
+
+    #[test]
+    pub fn test_verify_success() {
+        let mut priv_key: KeyArray = [0; KEY_LENGTH];
+        let mut pub_key: KeyArray = [0; KEY_LENGTH];
+        let mut pub_nonce: KeyArray = [0; KEY_LENGTH];
+        let mut signature: KeyArray = [0; KEY_LENGTH];
+        let msg = "msg";
+        let mut err_code = 0i32;
+        unsafe {
+            random_keypair(&mut priv_key, &mut pub_key);
+            sign(&priv_key, msg.as_ptr() as *const c_char, &mut pub_nonce, &mut signature);
+            assert_eq!(
+                verify(
+                    &pub_key,
+                    msg.as_ptr() as *const c_char,
+                    &mut pub_nonce,
+                    &mut signature,
+                    &mut err_code
+                ),
+                true
+            );
+        }
+    }
 }
