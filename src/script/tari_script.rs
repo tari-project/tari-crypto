@@ -825,20 +825,20 @@ mod test {
     fn check_sig() {
         use crate::script::StackItem::Number;
         let mut rng = rand::thread_rng();
-        let (k, p) = RistrettoPublicKey::random_keypair(&mut rng);
-        let r = RistrettoSecretKey::random(&mut rng);
-        let m = RistrettoSecretKey::random(&mut rng);
-        let s = RistrettoSchnorr::sign(k.clone(), r.clone(), m.as_bytes()).unwrap();
-        let msg = slice_to_boxed_message(m.as_bytes());
+        let (pvt_key, pub_key) = RistrettoPublicKey::random_keypair(&mut rng);
+        let nonce = RistrettoSecretKey::random(&mut rng);
+        let m_key = RistrettoSecretKey::random(&mut rng);
+        let sig = RistrettoSchnorr::sign(pvt_key, nonce, m_key.as_bytes()).unwrap();
+        let msg = slice_to_boxed_message(m_key.as_bytes());
         let script = script!(CheckSig(msg));
-        let inputs = inputs!(s.clone(), p.clone());
+        let inputs = inputs!(sig.clone(), pub_key.clone());
         let result = script.execute(&inputs).unwrap();
         assert_eq!(result, Number(1));
 
-        let n = RistrettoSecretKey::random(&mut rng);
-        let msg = slice_to_boxed_message(n.as_bytes());
+        let n_key = RistrettoSecretKey::random(&mut rng);
+        let msg = slice_to_boxed_message(n_key.as_bytes());
         let script = script!(CheckSig(msg));
-        let inputs = inputs!(s, p);
+        let inputs = inputs!(sig, pub_key);
         let result = script.execute(&inputs).unwrap();
         assert_eq!(result, Number(0));
     }
@@ -847,20 +847,20 @@ mod test {
     fn check_sig_verify() {
         use crate::script::StackItem::Number;
         let mut rng = rand::thread_rng();
-        let (k, p) = RistrettoPublicKey::random_keypair(&mut rng);
-        let r = RistrettoSecretKey::random(&mut rng);
-        let m = RistrettoSecretKey::random(&mut rng);
-        let s = RistrettoSchnorr::sign(k.clone(), r.clone(), m.as_bytes()).unwrap();
-        let msg = slice_to_boxed_message(m.as_bytes());
+        let (pvt_key, pub_key) = RistrettoPublicKey::random_keypair(&mut rng);
+        let nonce = RistrettoSecretKey::random(&mut rng);
+        let m_key = RistrettoSecretKey::random(&mut rng);
+        let sig = RistrettoSchnorr::sign(pvt_key, nonce, m_key.as_bytes()).unwrap();
+        let msg = slice_to_boxed_message(m_key.as_bytes());
         let script = script!(CheckSigVerify(msg) PushOne);
-        let inputs = inputs!(s.clone(), p.clone());
+        let inputs = inputs!(sig.clone(), pub_key.clone());
         let result = script.execute(&inputs).unwrap();
         assert_eq!(result, Number(1));
 
-        let n = RistrettoSecretKey::random(&mut rng);
-        let msg = slice_to_boxed_message(n.as_bytes());
+        let n_key = RistrettoSecretKey::random(&mut rng);
+        let msg = slice_to_boxed_message(n_key.as_bytes());
         let script = script!(CheckSigVerify(msg));
-        let inputs = inputs!(s, p);
+        let inputs = inputs!(sig, pub_key);
         let err = script.execute(&inputs).unwrap_err();
         assert!(matches!(err, ScriptError::VerifyFailed));
     }
@@ -878,8 +878,8 @@ mod test {
         let msg = slice_to_boxed_message(m.as_bytes());
         let script = script!(Add RevRot Add CheckSigVerify(msg) PushOne);
 
-        let s1 = RistrettoSchnorr::sign(k1.clone(), r1.clone(), m.as_bytes()).unwrap();
-        let s2 = RistrettoSchnorr::sign(k2.clone(), r2.clone(), m.as_bytes()).unwrap();
+        let s1 = RistrettoSchnorr::sign(k1, r1, m.as_bytes()).unwrap();
+        let s2 = RistrettoSchnorr::sign(k2, r2, m.as_bytes()).unwrap();
         let inputs = inputs!(p1, p2, s1, s2);
         let result = script.execute(&inputs).unwrap();
         assert_eq!(result, Number(1));

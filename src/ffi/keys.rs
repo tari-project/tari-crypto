@@ -16,10 +16,17 @@
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use crate::{
+    commitment::{HomomorphicCommitment, HomomorphicCommitmentFactory},
     ffi::error::{INVALID_SECRET_KEY_SER, NULL_POINTER, OK, SIGNING_ERROR, STR_CONV_ERR},
     hash::blake2::Blake256,
     keys::{PublicKey, SecretKey},
-    ristretto::{RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
+    ristretto::{
+        pedersen::PedersenCommitmentFactory,
+        RistrettoComSig,
+        RistrettoPublicKey,
+        RistrettoSchnorr,
+        RistrettoSecretKey,
+    },
 };
 use digest::Digest;
 use libc::c_char;
@@ -52,6 +59,7 @@ pub unsafe extern "C" fn random_keypair(priv_key: *mut KeyArray, pub_key: *mut K
     OK
 }
 
+/// Generate a Schnorr signature (s, R) using the provided private key and challenge (k, e).
 #[no_mangle]
 pub unsafe extern "C" fn sign(
     priv_key: *const KeyArray,
@@ -82,6 +90,7 @@ pub unsafe extern "C" fn sign(
     OK
 }
 
+/// Verify that a Schnorr signature (s, R) is valid for the provided public key and challenge (P, e).
 #[no_mangle]
 pub unsafe extern "C" fn verify(
     pub_key: *const KeyArray,
@@ -121,4 +130,124 @@ pub unsafe extern "C" fn verify(
         _ => return false,
     };
     sig.verify(&pk, &challenge)
+}
+
+/// Generate a Pedersen commitment (C) using the provided value and spending key (a, x).
+#[no_mangle]
+pub unsafe extern "C" fn commitment(
+    value: *const KeyArray,
+    spend_key: *const KeyArray,
+    commitment: *mut KeyArray,
+) -> c_int
+{
+    if value.is_null() || spend_key.is_null() || spend_key.is_null() {
+        return NULL_POINTER;
+    }
+    let value = match RistrettoSecretKey::from_bytes(&(*value)) {
+        Ok(k) => k,
+        _ => return INVALID_SECRET_KEY_SER,
+    };
+    let spend_key = match RistrettoSecretKey::from_bytes(&(*spend_key)) {
+        Ok(k) => k,
+        _ => return INVALID_SECRET_KEY_SER,
+    };
+    let factory = PedersenCommitmentFactory::default();
+    let c = factory.commit(&spend_key, &value);
+    (*commitment).copy_from_slice(c.as_bytes());
+    OK
+}
+
+/// Generate a commitment signature (R, u, v) using the provided value, spending key and challenge (a, x, e).
+#[no_mangle]
+pub unsafe extern "C" fn sign_comsig(
+    secret_a: *const KeyArray,
+    secret_x: *const KeyArray,
+    msg: *const c_char,
+    public_nonce: *mut KeyArray,
+    signature_u: *mut KeyArray,
+    signature_v: *mut KeyArray,
+) -> c_int
+{
+    if secret_a.is_null() ||
+        secret_x.is_null() ||
+        msg.is_null() ||
+        public_nonce.is_null() ||
+        signature_u.is_null() ||
+        signature_v.is_null()
+    {
+        return NULL_POINTER;
+    }
+    let secret_a = match RistrettoSecretKey::from_bytes(&(*secret_a)) {
+        Ok(k) => k,
+        _ => return INVALID_SECRET_KEY_SER,
+    };
+    let secret_x = match RistrettoSecretKey::from_bytes(&(*secret_x)) {
+        Ok(k) => k,
+        _ => return INVALID_SECRET_KEY_SER,
+    };
+    let nonce_a = RistrettoSecretKey::random(&mut OsRng);
+    let nonce_x = RistrettoSecretKey::random(&mut OsRng);
+    let msg = match CStr::from_ptr(msg).to_str() {
+        Ok(s) => s,
+        _ => return STR_CONV_ERR,
+    };
+    let challenge = Blake256::digest(msg.as_bytes()).to_vec();
+    let factory = PedersenCommitmentFactory::default();
+    let sig = match RistrettoComSig::sign(secret_a, secret_x, nonce_a, nonce_x, &challenge, &factory) {
+        Ok(sig) => sig,
+        _ => return SIGNING_ERROR,
+    };
+    (*public_nonce).copy_from_slice(sig.public_nonce().as_bytes());
+    (*signature_u).copy_from_slice(sig.u().as_bytes());
+    (*signature_v).copy_from_slice(sig.v().as_bytes());
+    OK
+}
+
+/// Verify that a commitment signature (R, u, v) is valid for the provided commitment and challenge (C, e).
+#[no_mangle]
+pub unsafe extern "C" fn verify_comsig(
+    commitment: *const KeyArray,
+    msg: *const c_char,
+    public_nonce: *const KeyArray,
+    signature_u: *const KeyArray,
+    signature_v: *const KeyArray,
+    err_code: *mut c_int,
+) -> bool
+{
+    if commitment.is_null() || msg.is_null() || public_nonce.is_null() || signature_u.is_null() || signature_v.is_null()
+    {
+        *err_code = NULL_POINTER;
+        return false;
+    }
+    let commitment = match HomomorphicCommitment::from_bytes(&(*commitment)) {
+        Ok(k) => k,
+        _ => {
+            *err_code = INVALID_SECRET_KEY_SER;
+            return false;
+        },
+    };
+    let r_pub = match HomomorphicCommitment::from_bytes(&(*public_nonce)) {
+        Ok(r) => r,
+        _ => return false,
+    };
+    let u = match RistrettoSecretKey::from_bytes(&(*signature_u)) {
+        Ok(s) => s,
+        _ => return false,
+    };
+    let v = match RistrettoSecretKey::from_bytes(&(*signature_v)) {
+        Ok(s) => s,
+        _ => return false,
+    };
+    let msg = match CStr::from_ptr(msg).to_str() {
+        Ok(s) => s,
+        _ => return false,
+    };
+    let sig = RistrettoComSig::new(r_pub, u, v);
+    let challenge = Blake256::digest(msg.as_bytes());
+    let challenge = match RistrettoSecretKey::from_bytes(challenge.as_slice()) {
+        Ok(e) => e,
+        _ => return false,
+    };
+    let factory = PedersenCommitmentFactory::default();
+    sig.verify(&commitment, &challenge, &factory)
 }

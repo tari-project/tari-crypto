@@ -24,6 +24,7 @@ pub mod constants;
 pub mod dalek_range_proof;
 pub mod musig;
 pub mod pedersen;
+pub mod ristretto_com_sig;
 pub mod ristretto_keys;
 pub mod ristretto_sig;
 pub mod script_commitment;
@@ -32,6 +33,7 @@ pub mod utils;
 
 // Re-export
 pub use self::{
+    ristretto_com_sig::RistrettoComSig,
     ristretto_keys::{RistrettoPublicKey, RistrettoSecretKey},
     ristretto_sig::RistrettoSchnorr,
 };
