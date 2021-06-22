@@ -109,7 +109,6 @@ where T: Borrow<PedersenCommitment>
 mod test {
     use super::*;
     use crate::keys::{PublicKey, SecretKey};
-    use rand;
     use std::convert::From;
     use tari_utilities::{message_format::MessageFormat, ByteArray};
 
@@ -153,7 +152,7 @@ mod test {
     #[allow(non_snake_case)]
     fn check_open() {
         let factory = PedersenCommitmentFactory::default();
-        let H = RISTRETTO_PEDERSEN_H.clone();
+        let H = *RISTRETTO_PEDERSEN_H;
         let mut rng = rand::thread_rng();
         for _ in 0..100 {
             let v = RistrettoSecretKey::random(&mut rng);
@@ -195,6 +194,29 @@ mod test {
             assert_eq!(c_sum, c_sum2);
             assert!(factory.open(&k_sum, &v_sum, &c_sum));
         }
+    }
+
+    /// Test addition of a public key to a homomorphic commitment.
+    /// $$
+    ///   C = C_1 + P = (v_1.H + k_1.G) + k_2.G = v_1.H + (k_1 + k_2).G
+    /// $$
+    /// and
+    /// `open(k1+k2, v1)` is true for _C_
+    #[test]
+    fn check_homomorphism_with_public_key() {
+        let mut rng = rand::thread_rng();
+        // Left-hand side
+        let v1 = RistrettoSecretKey::random(&mut rng);
+        let k1 = RistrettoSecretKey::random(&mut rng);
+        let factory = PedersenCommitmentFactory::default();
+        let c1 = factory.commit(&k1, &v1);
+        let (k2, k2_pub) = RistrettoPublicKey::random_keypair(&mut rng);
+        let c_sum = &c1 + &k2_pub;
+        // Right-hand side
+        let c2 = factory.commit(&(&k1 + &k2), &v1);
+        // Test
+        assert_eq!(c_sum, c2);
+        assert!(factory.open(&(&k1 + &k2), &v1, &c2));
     }
 
     #[test]

@@ -303,6 +303,7 @@ impl Hex for ExecutionStack {
 }
 
 /// Utility function that given a count of `StackItem` variants, adds 1 for the given item.
+#[allow(clippy::many_single_char_names)]
 fn counter(values: [u8; 5], item: &StackItem) -> [u8; 5] {
     let [n, h, c, p, s] = values;
     use StackItem::*;

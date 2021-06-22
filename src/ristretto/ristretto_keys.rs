@@ -444,7 +444,6 @@ impl From<RistrettoPublicKey> for CompressedRistretto {
 mod test {
     use super::*;
     use crate::{keys::PublicKey, ristretto::test_common::get_keypair};
-    use rand;
     use tari_utilities::{message_format::MessageFormat, ByteArray};
 
     fn assert_completely_equal(k1: &RistrettoPublicKey, k2: &RistrettoPublicKey) {

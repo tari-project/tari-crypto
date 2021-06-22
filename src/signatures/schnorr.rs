@@ -1,4 +1,4 @@
-//! Digital Signature module
+//! Schnorr Signature module
 //! This module defines generic traits for handling the digital signature operations, agnostic
 //! of the underlying elliptic curve implementation
 

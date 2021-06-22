@@ -53,6 +53,30 @@ pub fn commit(key: &str, value: u64) -> JsValue {
     JsValue::from_serde(&result).unwrap()
 }
 
+/// Commits two private keys into a Pedersen commitment.
+#[wasm_bindgen]
+pub fn commit_private_keys(key_1: &str, key_2: &str) -> JsValue {
+    let mut result = CommitmentResult::default();
+    let factory = PedersenCommitmentFactory::default();
+    let k_1 = match RistrettoSecretKey::from_hex(key_1) {
+        Ok(k) => k,
+        _ => {
+            result.error = format!("Private key for '{}' does not exist", key_1);
+            return JsValue::from_serde(&result).unwrap();
+        },
+    };
+    let k_2 = match RistrettoSecretKey::from_hex(key_2) {
+        Ok(k) => k,
+        _ => {
+            result.error = format!("Private key for '{}' does not exist", key_2);
+            return JsValue::from_serde(&result).unwrap();
+        },
+    };
+    let commitment = factory.commit(&k_1, &k_2);
+    result.commitment = Some(commitment.to_hex());
+    JsValue::from_serde(&result).unwrap()
+}
+
 /// Checks whether the given key and value opens the commitment
 #[wasm_bindgen]
 pub fn opens(key: &str, value: u64, commitment: &str) -> bool {

@@ -1,4 +1,4 @@
-// Copyright 2020. The Tari Project
+// Copyright 2021. The Tari Project
 // Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
 // following conditions are met:
 // 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following
@@ -15,17 +15,8 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use libc::c_char;
+mod commitment_signature;
+mod schnorr;
 
-mod error;
-mod keys;
-
-pub use error::lookup_error_message;
-pub use keys::{commitment, random_keypair, sign, sign_comsig, verify, verify_comsig};
-
-const VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "\u{00}");
-
-#[no_mangle]
-pub extern "C" fn version() -> *const c_char {
-    VERSION.as_ptr() as *const c_char
-}
+pub use commitment_signature::*;
+pub use schnorr::*;
