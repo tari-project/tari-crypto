@@ -106,7 +106,6 @@ mod test {
         ristretto::{RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
     };
     use digest::Digest;
-    use rand;
     use tari_utilities::{hex::from_hex, ByteArray};
 
     #[test]

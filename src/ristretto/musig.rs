@@ -680,8 +680,8 @@ mod test {
             r_agg = r_agg + r;
         }
         assert_eq!(musig.has_failed(), false);
-        if msg.is_some() {
-            musig = musig.set_message(msg.unwrap());
+        if let Some(v) = msg {
+            musig = musig.set_message(v);
         }
         // We should now have switched to Round 1 automatically
         assert!(musig.is_collecting_hashes());
@@ -709,8 +709,8 @@ mod test {
             musig = musig.add_nonce_commitment(p, h.clone());
         }
         assert_eq!(musig.has_failed(), false);
-        if msg.is_some() {
-            musig = musig.set_message(&msg.unwrap());
+        if let Some(v) = msg {
+            musig = musig.set_message(v);
         }
         // We should now have switched to Round 2 automatically
         assert!(musig.is_collecting_nonces());
@@ -725,8 +725,8 @@ mod test {
         for (p, r) in data.pub_keys.iter().zip(&data.public_nonces) {
             musig = musig.add_nonce(p, r.clone())
         }
-        if msg.is_some() {
-            musig = musig.set_message(&msg.unwrap());
+        if let Some(v) = msg {
+            musig = musig.set_message(v);
         }
         assert!(musig.is_collecting_signatures());
         let e = musig.get_challenge().unwrap();
