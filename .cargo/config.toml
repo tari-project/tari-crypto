@@ -1,0 +1,3 @@
+# For wasm-* targets, the wasm-bindgen-test runner must be used
+[target.wasm32-unknown-unknown]
+runner = 'wasm-bindgen-test-runner'

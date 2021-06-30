@@ -464,7 +464,7 @@ impl fmt::Display for Opcode {
 
 #[cfg(test)]
 mod test {
-    use crate::script::{op_codes::*, stack::StackItem::PublicKey, Opcode, Opcode::*, ScriptError};
+    use crate::script::{op_codes::*, Opcode, Opcode::*, ScriptError};
 
     #[test]
     fn empty_script() {

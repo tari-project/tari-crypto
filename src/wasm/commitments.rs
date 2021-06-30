@@ -92,3 +92,70 @@ pub fn opens(key: &str, value: u64, commitment: &str) -> bool {
     let c = PedersenCommitment::from_public_key(&c.unwrap());
     factory.open_value(&k.unwrap(), value, &c)
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::keys::SecretKey;
+    use rand::rngs::OsRng;
+    use wasm_bindgen_test::*;
+
+    mod commit {
+        use super::*;
+
+        #[wasm_bindgen_test]
+        fn it_fails_for_invalid_key() {
+            let val = commit("aa", 123).into_serde::<CommitmentResult>().unwrap();
+            assert!(!val.error.is_empty());
+            assert!(val.commitment.is_none());
+        }
+
+        #[wasm_bindgen_test]
+        fn it_produces_a_commitment_with_given_key() {
+            let key = RistrettoSecretKey::random(&mut OsRng);
+            let expected_commit = PedersenCommitmentFactory::default().commit_value(&key, 123);
+            let commitment = commit(&key.to_hex(), 123).into_serde::<CommitmentResult>().unwrap();
+            assert!(commitment.error.is_empty());
+            assert_eq!(commitment.commitment, Some(expected_commit.to_hex()))
+        }
+    }
+
+    mod commit_private_keys {
+        use super::*;
+
+        #[wasm_bindgen_test]
+        fn it_fails_for_empty_input() {
+            let val = commit_private_keys("", "").into_serde::<CommitmentResult>().unwrap();
+            assert!(!val.error.is_empty());
+            assert!(val.commitment.is_none());
+        }
+
+        #[wasm_bindgen_test]
+        fn it_produces_a_commitment_with_given_keys() {
+            let key1 = RistrettoSecretKey::random(&mut OsRng);
+            let key2 = RistrettoSecretKey::random(&mut OsRng);
+            let commitment = commit_private_keys(&key1.to_hex(), &key2.to_hex())
+                .into_serde::<CommitmentResult>()
+                .unwrap();
+            let expected_commit = PedersenCommitmentFactory::default().commit(&key1, &key2);
+            assert!(commitment.error.is_empty());
+            assert_eq!(commitment.commitment, Some(expected_commit.to_hex()))
+        }
+    }
+
+    mod opens {
+        use super::*;
+
+        #[wasm_bindgen_test]
+        fn it_returns_false_for_zero_length_input() {
+            assert!(!opens("", 123, &""));
+        }
+
+        #[wasm_bindgen_test]
+        fn it_returns_true_if_key_value_opens_commitment() {
+            let key = RistrettoSecretKey::random(&mut OsRng);
+            let commitment = PedersenCommitmentFactory::default().commit_value(&key, 123);
+            assert!(opens(&key.to_hex(), 123, &commitment.to_hex()));
+        }
+    }
+}

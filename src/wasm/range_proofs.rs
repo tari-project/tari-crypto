@@ -22,7 +22,12 @@
 
 use crate::{
     range_proof::RangeProofService,
-    ristretto::{dalek_range_proof::DalekRangeProofService, pedersen::PedersenCommitmentFactory, RistrettoSecretKey},
+    ristretto::{
+        dalek_range_proof::DalekRangeProofService,
+        pedersen::{PedersenCommitment, PedersenCommitmentFactory},
+        RistrettoSecretKey,
+    },
+    tari_utilities::hex::from_hex,
 };
 use serde::{Deserialize, Serialize};
 use tari_utilities::hex::Hex;
@@ -71,27 +76,63 @@ impl RangeProofFactory {
         JsValue::from_serde(&result).unwrap()
     }
 
-    //    /// Verifies the given range proof and key-value pair. There is an odd bug in wasm-bindgen that causes the
-    // wasm    /// module to not quit if this function is compiled in. The issue is with the verify call itself. So
-    // going to    /// comment this out fo the time being.
-    //    pub fn verify(&self, key: &str, value: u64, proof: &str) -> JsValue {
-    //        let mut result = VerificationResult::default();
-    //        let k = match RistrettoSecretKey::from_hex(key) {
-    //            Ok(k) => k,
-    //            _ => {
-    //                result.error = "Invalid private key".to_string();
-    //                return JsValue::from_serde(&result).unwrap();
-    //            },
-    //        };
-    //        let proof = match from_hex(proof) {
-    //            Ok(v) => v,
-    //            Err(e) => {
-    //                result.error = format!("Range proof is invalid. {}", e.to_string());
-    //                return JsValue::from_serde(&result).unwrap();
-    //            },
-    //        };
-    //        let commitment = self.cf.commit_value(&k, value);
-    //        result.valid = self.rpf.verify(&proof, &commitment);
-    //        JsValue::from_serde(&result).unwrap()
-    //    }
+    /// Verifies the given range proof and commitment.
+    pub fn verify(&self, commitment: &str, proof: &str) -> JsValue {
+        let mut result = VerificationResult::default();
+        let commitment = match PedersenCommitment::from_hex(commitment) {
+            Ok(commitment) => commitment,
+            _ => {
+                result.error = "Invalid private key".to_string();
+                return JsValue::from_serde(&result).unwrap();
+            },
+        };
+        let proof = match from_hex(proof) {
+            Ok(v) => v,
+            Err(e) => {
+                result.error = format!("Range proof is invalid. {}", e.to_string());
+                return JsValue::from_serde(&result).unwrap();
+            },
+        };
+        result.valid = self.rpf.verify(&proof, &commitment);
+        JsValue::from_serde(&result).unwrap()
+    }
+}
+
+impl Default for RangeProofFactory {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::{commitment::HomomorphicCommitmentFactory, keys::PublicKey, ristretto::RistrettoPublicKey};
+    use rand::rngs::OsRng;
+    use wasm_bindgen_test::*;
+
+    #[wasm_bindgen_test]
+    fn it_fails_with_invalid_hex_input() {
+        let factory = RangeProofFactory::new();
+        let result = factory.create_proof("", 123).into_serde::<RangeProofResult>().unwrap();
+        assert_eq!(result.error.is_empty(), false);
+        assert!(result.proof.is_empty());
+    }
+
+    #[wasm_bindgen_test]
+    fn it_creates_a_valid_proof() {
+        let factory = RangeProofFactory::new();
+        let (sk, _) = RistrettoPublicKey::random_keypair(&mut OsRng);
+        let result = factory
+            .create_proof(&sk.to_hex(), 123)
+            .into_serde::<RangeProofResult>()
+            .unwrap();
+        let commitment = PedersenCommitmentFactory::default().commit_value(&sk, 123);
+        assert!(factory.rpf.verify(&from_hex(&result.proof).unwrap(), &commitment));
+        let result = factory
+            .verify(&commitment.to_hex(), &result.proof)
+            .into_serde::<VerificationResult>()
+            .unwrap();
+        assert!(result.valid);
+    }
 }
