@@ -42,6 +42,7 @@ use bulletproofs::{
     BulletproofGens,
     PedersenGens,
     RangeProof as DalekProof,
+
 };
 use merlin::Transcript;
 

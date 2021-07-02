@@ -7,18 +7,18 @@ categories = ["cryptography"]
 homepage = "https://tari.com"
 readme = "README.md"
 license = "BSD-3-Clause"
-version = "0.9.1"
+version = "0.10.0"
 edition = "2018"
 
 [dependencies]
 tari_utilities = "^0.3"
 base64 = "0.10.1"
 digest = "0.8.0"
-rand = "0.7.2"
+rand = { version = "0.8", default-features = false }
 clear_on_drop = "=0.2.4"
-curve25519-dalek = { version = "2" }
-bulletproofs = {version = "2.1.0" , package="tari_bulletproofs"}
-merlin = "2.0.0"
+curve25519-dalek = { package = "curve25519-dalek-ng", version = "4", default-features = false, features = ["u64_backend", "serde", "alloc"] }
+bulletproofs = {version = "4.0.0", package="tari_bulletproofs"}
+merlin = { version = "3", default-features = false }
 sha2 = "0.8.0"
 sha3 = "0.9"
 thiserror = "1.0.20"
@@ -33,16 +33,21 @@ libc = { version = "0.2", optional = true }
 wasm-bindgen = { version = "^0.2", features = ["serde-serialize"], optional = true }
 
 [dev-dependencies]
-criterion = "0.2"
+criterion = "0.3.4"
 bincode = "1.1.4"
 
 [build-dependencies]
 cbindgen = "0.17.0"
 
 [features]
-default = []
+default = ["no_cc"]
+# Note: avx2 still requires a nightly compiler as of 01/07/2021
+# The nightly compiler must be older than 2021-06-03 to avoid the
+# #![cfg_attr(feature = "nightly", feature(external_doc))]
+#                                          ^^^^^^^^^^^^ feature has been removed
+# feature error on subtle-ng
 avx2 = ["curve25519-dalek/avx2_backend", "bulletproofs/avx2_backend"]
-wasm = ["wasm-bindgen", "rand/wasm-bindgen", "rand/getrandom"]
+wasm = ["wasm-bindgen",  "rand/getrandom"]
 ffi = ["libc"]
 no_cc_nightly = ["clear_on_drop/nightly"]
 no_cc = ["clear_on_drop/no_cc"]
