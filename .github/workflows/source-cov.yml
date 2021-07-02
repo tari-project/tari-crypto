@@ -1,0 +1,32 @@
+name: Source Coverage
+  push:
+    branches:
+      - main
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v1
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y jq lcov
+      - name: Download Rust
+        uses: actions-rs/toolchain@v1
+      - name: Install llvm-tools
+        run: |
+          rustup component add llvm-tools-preview
+          cargo install cargo-binutils
+          cargo install rustfilt
+      - name: Run test coverage
+        id: coverage
+        env:
+          SKIP_HTML: '1'
+        run: |
+          /bin/bash -c ./test_coverage.sh
+      - name: Coveralls upload
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path-to-lcov: ./cov_raw/tari_crypto.lcov
