@@ -102,10 +102,11 @@ mod test {
     use crate::{
         commitment::HomomorphicCommitmentFactory,
         common::Blake256,
-        keys::SecretKey,
+        keys::{PublicKey, SecretKey},
         ristretto::{
             pedersen::{PedersenCommitment, PedersenCommitmentFactory},
             RistrettoComSig,
+            RistrettoPublicKey,
             RistrettoSecretKey,
         },
     };
@@ -212,5 +213,18 @@ mod test {
         let k_1 = RistrettoSecretKey::random(&mut rng);
         let k_2 = RistrettoSecretKey::random(&mut rng);
         assert!(RistrettoComSig::sign(a_value, x_value, k_2, k_1, &message, &factory).is_ok());
+    }
+
+    #[test]
+    fn to_vec() {
+        let sig = RistrettoComSig::default();
+        let bytes = sig.to_vec();
+
+        assert_eq!(
+            bytes.capacity(),
+            RistrettoPublicKey::key_length() + RistrettoSecretKey::key_length() * 2
+        );
+        assert_eq!(bytes.capacity(), bytes.len());
+        assert!(bytes.iter().all(|b| *b == 0x00));
     }
 }

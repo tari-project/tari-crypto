@@ -178,6 +178,15 @@ where
     pub fn public_nonce(&self) -> &HomomorphicCommitment<P> {
         &self.public_nonce
     }
+
+    /// Returns a canonical byte representation of the commitment signature
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf = Vec::with_capacity(P::key_length() + K::key_length() + K::key_length());
+        buf.extend_from_slice(self.public_nonce().as_bytes());
+        buf.extend_from_slice(self.u().as_bytes());
+        buf.extend_from_slice(self.v().as_bytes());
+        buf
+    }
 }
 
 impl<'a, 'b, P, K> Add<&'b CommitmentSignature<P, K>> for &'a CommitmentSignature<P, K>
@@ -285,6 +294,6 @@ where
     K: SecretKey,
 {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write(&[self.public_nonce().as_bytes(), self.u().as_bytes(), self.v().as_bytes()].concat())
+        state.write(&self.to_vec())
     }
 }
