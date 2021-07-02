@@ -1,0 +1,5 @@
+BUILD_ANDROID=1
+BUILD_IOS=1
+NDK_PATH=/usr/local/android-ndk-r20
+REPO_PATH=/usr/local/tari-crypto
+CARGO_CLEAN=1

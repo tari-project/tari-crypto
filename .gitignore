@@ -31,3 +31,12 @@ Cargo.lock
 
 # C-demo output
 bin/
+
+# Mobile related
+mobile_build.config
+logs/
+mobile_build/
+
+
+
+
