@@ -41,8 +41,7 @@ pub struct SignatureSet {
 pub fn sign<D: Digest>(
     private_key: &RistrettoSecretKey,
     message: &[u8],
-) -> Result<SignatureSet, SchnorrSignatureError>
-{
+) -> Result<SignatureSet, SchnorrSignatureError> {
     let mut rng = rand::thread_rng();
     let (nonce, public_nonce) = RistrettoPublicKey::random_keypair(&mut rng);
     let message = D::new().chain(public_nonce.as_bytes()).chain(message).result().to_vec();

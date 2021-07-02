@@ -20,7 +20,7 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use criterion::{criterion_group, Criterion};
+use criterion::{criterion_group, BenchmarkId, Criterion};
 use rand::{thread_rng, Rng};
 use std::time::Duration;
 use tari_crypto::{
@@ -40,36 +40,31 @@ fn setup(n: usize) -> (DalekRangeProofService, RistrettoSecretKey, u64, Pedersen
     let prover = DalekRangeProofService::new(n, &base).unwrap();
     let k = RistrettoSecretKey::random(&mut rng);
     let n_max = 1u64 << (n as u64 - 1);
-    let v = rng.gen_range(1, n_max);
+    let v = rng.gen_range(1..n_max);
     let c = base.commit_value(&k, v);
     (prover, k, v, c)
 }
 
 pub fn generate_rangeproof(c: &mut Criterion) {
-    c.bench_function_over_inputs(
-        "Generate range proofs",
-        |b, range| {
-            let (prover, k, v, _) = setup(**range);
+    let mut group = c.benchmark_group("Generate and validate range proofs");
+    for input in &[8, 16, 32, 64] {
+        let parameter_str = format!("{} bytes", input);
+        // let proof = prover.construct_proof(&k, v).unwrap();
+        group.bench_with_input(BenchmarkId::new("construct_proof", &parameter_str), input, |b, n| {
+            let (prover, k, v, _) = setup(*n);
             b.iter(move || prover.construct_proof(&k, v).unwrap());
-        },
-        &[8, 16, 32, 64],
-    );
-}
-
-pub fn verify_rangeproof_valid(c: &mut Criterion) {
-    c.bench_function_over_inputs(
-        "Validate valid range proofs",
-        |b, range| {
-            let (prover, k, v, c) = setup(**range);
-            let proof = prover.construct_proof(&k, v).unwrap();
-            b.iter(move || assert!(prover.verify(&proof, &c)));
-        },
-        &[8, 16, 32, 64],
-    );
+        });
+        group.bench_with_input(BenchmarkId::new("validate_proof", &parameter_str), input, |b, n| {
+            let (verifier, k, v, c) = setup(*n);
+            let proof = verifier.construct_proof(&k, v).unwrap();
+            b.iter(move || assert!(verifier.verify(&proof, &c)));
+        });
+    }
+    group.finish();
 }
 
 criterion_group!(
 name = range_proofs;
 config = Criterion::default().warm_up_time(Duration::from_millis(1_500));
-targets = generate_rangeproof, verify_rangeproof_valid
+targets = generate_rangeproof
 );

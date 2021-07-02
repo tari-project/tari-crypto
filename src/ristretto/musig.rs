@@ -270,8 +270,7 @@ impl<D: Digest> RistrettoMuSig<D> {
         pub_key: &RistrettoPublicKey,
         secret: &RistrettoSecretKey,
         nonce: &RistrettoSecretKey,
-    ) -> Option<RistrettoSchnorr>
-    {
+    ) -> Option<RistrettoSchnorr> {
         let index = self.index_of(pub_key)?;
         let pub_nonce = self.get_public_nonce(index)?;
         let ai = self.get_musig_scalar(pub_key)?;
@@ -544,8 +543,7 @@ impl SignatureCollection {
         r_agg: &RistrettoPublicKey,
         p_agg: &RistrettoPublicKey,
         m: &MessageHashSlice,
-    ) -> RistrettoSecretKey
-    {
+    ) -> RistrettoSecretKey {
         let e = D::new()
             .chain(r_agg.as_bytes())
             .chain(p_agg.as_bytes())

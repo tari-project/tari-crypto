@@ -66,8 +66,7 @@ pub unsafe extern "C" fn sign(
     msg: *const c_char,
     nonce: *mut KeyArray,
     signature: *mut KeyArray,
-) -> c_int
-{
+) -> c_int {
     if nonce.is_null() || signature.is_null() || priv_key.is_null() || msg.is_null() {
         return NULL_POINTER;
     }
@@ -98,8 +97,7 @@ pub unsafe extern "C" fn verify(
     pub_nonce: *mut KeyArray,
     signature: *mut KeyArray,
     err_code: *mut c_int,
-) -> bool
-{
+) -> bool {
     if pub_key.is_null() || msg.is_null() || pub_nonce.is_null() || signature.is_null() || err_code.is_null() {
         if !err_code.is_null() {
             *err_code = NULL_POINTER;
@@ -140,8 +138,7 @@ pub unsafe extern "C" fn commitment(
     value: *const KeyArray,
     spend_key: *const KeyArray,
     commitment: *mut KeyArray,
-) -> c_int
-{
+) -> c_int {
     if value.is_null() || spend_key.is_null() || spend_key.is_null() {
         return NULL_POINTER;
     }
@@ -168,8 +165,7 @@ pub unsafe extern "C" fn sign_comsig(
     public_nonce: *mut KeyArray,
     signature_u: *mut KeyArray,
     signature_v: *mut KeyArray,
-) -> c_int
-{
+) -> c_int {
     if secret_a.is_null() ||
         secret_x.is_null() ||
         msg.is_null() ||
@@ -214,8 +210,7 @@ pub unsafe extern "C" fn verify_comsig(
     signature_u: *const KeyArray,
     signature_v: *const KeyArray,
     err_code: *mut c_int,
-) -> bool
-{
+) -> bool {
     if commitment.is_null() || msg.is_null() || public_nonce.is_null() || signature_u.is_null() || signature_v.is_null()
     {
         *err_code = NULL_POINTER;
