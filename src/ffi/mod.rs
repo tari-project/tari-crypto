@@ -29,3 +29,16 @@ const VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "\u{00}");
 pub extern "C" fn version() -> *const c_char {
     VERSION.as_ptr() as *const c_char
 }
+
+#[cfg(test)]
+mod test {
+    use super::version;
+    use std::ffi::CStr;
+
+    #[test]
+    pub fn test_version() {
+        unsafe {
+            assert_eq!(env!("CARGO_PKG_VERSION"), CStr::from_ptr(version()).to_str().unwrap());
+        }
+    }
+}
