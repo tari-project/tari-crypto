@@ -61,8 +61,10 @@ impl FixedOutput for Blake256 {
     type OutputSize = U32;
 
     fn fixed_result(self) -> GenericArray<u8, U32> {
-        let v = (self.0).vec_result();
-        GenericArray::clone_from_slice(&v)
+        let mut arr = GenericArray::default();
+        // ..32 range index is always safe because VarBlake2b is initialized with 32 elements
+        self.0.variable_result(|res| arr.copy_from_slice(&res[..32]));
+        arr
     }
 }
 
