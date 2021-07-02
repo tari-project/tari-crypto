@@ -68,8 +68,7 @@ impl TariScript {
         &self,
         inputs: &ExecutionStack,
         context: &ScriptContext,
-    ) -> Result<StackItem, ScriptError>
-    {
+    ) -> Result<StackItem, ScriptError> {
         // Copy all inputs onto the stack
         let mut stack = inputs.clone();
 
@@ -186,8 +185,7 @@ impl TariScript {
         stack: &mut ExecutionStack,
         ctx: &ScriptContext,
         state: &mut ExecutionState,
-    ) -> Result<(), ScriptError>
-    {
+    ) -> Result<(), ScriptError> {
         use Opcode::*;
         use StackItem::*;
         match opcode {

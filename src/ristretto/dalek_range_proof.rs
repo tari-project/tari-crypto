@@ -110,8 +110,7 @@ impl RangeProofService for DalekRangeProofService {
         rewind_key: &RistrettoSecretKey,
         rewind_blinding_key: &RistrettoSecretKey,
         proof_message: &[u8; REWIND_USER_MESSAGE_LENGTH],
-    ) -> Result<Vec<u8>, RangeProofError>
-    {
+    ) -> Result<Vec<u8>, RangeProofError> {
         let mut pt = Transcript::new(b"tari");
         let mut full_proof_message = [0u8; REWIND_PROOF_MESSAGE_LENGTH];
         full_proof_message[0..REWIND_CHECK_MESSAGE.len()].clone_from_slice(REWIND_CHECK_MESSAGE);
@@ -141,8 +140,7 @@ impl RangeProofService for DalekRangeProofService {
         commitment: &PedersenCommitment,
         rewind_public_key: &RistrettoPublicKey,
         rewind_blinding_public_key: &RistrettoPublicKey,
-    ) -> Result<RewindResult, RangeProofError>
-    {
+    ) -> Result<RewindResult, RangeProofError> {
         let rp = DalekProof::from_bytes(&proof).map_err(|_| RangeProofError::InvalidProof)?;
 
         let mut pt = Transcript::new(b"tari");
@@ -176,8 +174,7 @@ impl RangeProofService for DalekRangeProofService {
         commitment: &PedersenCommitment,
         rewind_key: &RistrettoSecretKey,
         rewind_blinding_key: &RistrettoSecretKey,
-    ) -> Result<FullRewindResult<RistrettoSecretKey>, RangeProofError>
-    {
+    ) -> Result<FullRewindResult<RistrettoSecretKey>, RangeProofError> {
         let rp = DalekProof::from_bytes(&proof).map_err(|_| RangeProofError::InvalidProof)?;
 
         let mut pt = Transcript::new(b"tari");

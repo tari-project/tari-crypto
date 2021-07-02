@@ -167,8 +167,7 @@ pub(crate) fn sign_message_with_key(
     msg: &str,
     r: Option<&RistrettoSecretKey>,
     result: &mut SignResult,
-)
-{
+) {
     let e = Blake256::digest(msg.as_bytes());
     sign_with_key(k, e.as_slice(), r, result)
 }
@@ -261,8 +260,7 @@ pub fn sign_comsig_challenge_with_nonce(
     private_nonce_1: &str,
     private_nonce_2: &str,
     challenge_as_hex: &str,
-) -> JsValue
-{
+) -> JsValue {
     let mut result = ComSignResult::default();
     let private_key_a = match RistrettoSecretKey::from_hex(private_key_a) {
         Ok(private_key_a) => private_key_a,
@@ -318,8 +316,7 @@ pub(crate) fn sign_comsig_message_with_key(
     nonce_1: Option<&RistrettoSecretKey>,
     nonce_2: Option<&RistrettoSecretKey>,
     result: &mut ComSignResult,
-)
-{
+) {
     let e = Blake256::digest(msg.as_bytes());
     sign_comsig_with_key(private_key_a, private_key_x, e.as_slice(), nonce_1, nonce_2, result);
 }
@@ -332,8 +329,7 @@ pub(crate) fn sign_comsig_with_key(
     nonce_1: Option<&RistrettoSecretKey>,
     nonce_2: Option<&RistrettoSecretKey>,
     result: &mut ComSignResult,
-)
-{
+) {
     let factory = PedersenCommitmentFactory::default();
     let r_1 = match nonce_1 {
         Some(v) => v.clone(),
@@ -366,8 +362,7 @@ pub fn check_comsig_signature(
     signature_v: &str,
     commitment: &str,
     msg: &str,
-) -> JsValue
-{
+) -> JsValue {
     let mut result = SignatureVerifyResult {
         result: false,
         error: "".into(),

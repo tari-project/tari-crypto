@@ -135,8 +135,7 @@ impl ScriptCommitmentFactory {
         key: &RistrettoSecretKey,
         value: u64,
         script: &TariScript,
-    ) -> Result<ScriptCommitment, ScriptCommitmentError>
-    {
+    ) -> Result<ScriptCommitment, ScriptCommitmentError> {
         if D::output_size() < 32 {
             return Err(ScriptCommitmentError::InvalidDigestLength);
         }
@@ -166,8 +165,7 @@ impl ScriptCommitmentFactory {
         v: u64,
         script: &TariScript,
         commitment: &PedersenCommitment,
-    ) -> bool
-    {
+    ) -> bool {
         match self.commit_script::<D>(k, v, script) {
             Ok(sc) => commitment == &self.script_to_pedersen(&sc),
             _ => false,
@@ -179,8 +177,7 @@ impl ScriptCommitmentFactory {
         key: &RistrettoSecretKey,
         c: &PedersenCommitment,
         s: &TariScript,
-    ) -> Result<RistrettoSecretKey, ScriptCommitmentError>
-    {
+    ) -> Result<RistrettoSecretKey, ScriptCommitmentError> {
         let script_hash = s
             .as_hash::<D>()
             .map_err(|_| ScriptCommitmentError::InvalidDigestLength)?;
