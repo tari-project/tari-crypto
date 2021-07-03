@@ -548,7 +548,7 @@ impl SignatureCollection {
             .chain(r_agg.as_bytes())
             .chain(p_agg.as_bytes())
             .chain(m)
-            .result();
+            .finalize();
         RistrettoSecretKey::from_bytes(&e).expect("Found a u256 that does not map to a valid Ristretto scalar")
     }
 
@@ -916,7 +916,7 @@ mod test {
             .chain(data.r_agg.as_bytes())
             .chain(p_agg.as_bytes())
             .chain(&m_hash)
-            .result();
+            .finalize();
         assert!(sig.verify_challenge(p_agg, &challenge));
         assert_eq!(&s_agg, sig);
     }
@@ -1042,7 +1042,7 @@ mod test_joint_key {
             .chain(p2.as_bytes())
             .chain(p1.as_bytes())
             .chain(p3.as_bytes())
-            .result()
+            .finalize()
             .to_vec();
         // Check Ell
         let ell = RistrettoSecretKey::from_vec(&ell).unwrap();
@@ -1052,7 +1052,7 @@ mod test_joint_key {
             let h = Sha256::new()
                 .chain(ell.as_bytes())
                 .chain(p.as_bytes())
-                .result()
+                .finalize()
                 .to_vec();
             RistrettoSecretKey::from_vec(&h).unwrap()
         };

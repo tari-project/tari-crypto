@@ -180,7 +180,7 @@ where
         for k in self.pub_keys.iter() {
             common = common.chain(k.as_bytes());
         }
-        K::from_bytes(&common.result())
+        K::from_bytes(&common.finalize())
             .expect("Could not calculate Scalar from hash value. Your crypto/hash combination might be inconsistent")
     }
 
@@ -190,7 +190,7 @@ where
     /// You should ensure that the SecretKey constructor protects against failures and that the hash digest given
     /// produces a byte array of the correct length.
     fn calculate_partial_key<D: Digest>(common: &[u8], pubkey: &P) -> K {
-        let k = D::new().chain(common).chain(pubkey.as_bytes()).result();
+        let k = D::new().chain(common).chain(pubkey.as_bytes()).finalize();
         K::from_bytes(&k)
             .expect("Could not calculate Scalar from hash value. Your crypto/hash combination might be inconsistent")
     }
