@@ -37,6 +37,7 @@ cargo cov -- \
     --show-instantiation-summary \
     --show-region-summary \
     --ignore-filename-regex='/.cargo/registry' \
+    --ignore-filename-regex="^/rustc" \
     --instr-profile=cov_raw/tari_crypto.profdata \
     $files \
     > cov_raw/tari_crypto.lcov
