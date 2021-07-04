@@ -254,7 +254,7 @@ impl DiffieHellmanSharedSecret for RistrettoPublicKey {
 // Requires custom Hashable implementation for RistrettoPublicKey as CompressedRistretto doesnt implement this trait
 impl Hashable for RistrettoPublicKey {
     fn hash(&self) -> Vec<u8> {
-        Blake2b::digest(&self.to_vec()).to_vec()
+        Blake2b::digest(self.as_bytes()).to_vec()
     }
 }
 
