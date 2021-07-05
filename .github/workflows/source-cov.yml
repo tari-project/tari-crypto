@@ -1,4 +1,5 @@
 name: Source Coverage
+on:
   push:
     branches:
       - main
