@@ -57,6 +57,31 @@ To run the benchmarks with SIMD instructions:
 
 # Change log
 
+## v0.11.0
+
+* All dependencies to use the digest 0.9 traits and APIs.
+
+Clients of this generally only need to update the `result` method to
+`finalize`; and obviously make use of the v0.9 `digest::Digest` trait
+where necessary.
+
+As a result, the deprecated k12, sha3 and Blake3 objects have been removed.
+Methods and functins that need a hasher are all generic over `Digest`.
+
+We retain the convenience wrapper over `VarBlake2B` to produce 256 bit
+hashes and implement the necessary sub-traits to support `digest::Digest`.
+
+## v0.10.0
+
+* Support stable rust
+
+Updated dependencies such that Rust stable 1.53 is now supported.
+The optimised avx_2 option will NOT rust on stable because there's
+still an unstable feature on subtle-ng. BUT this feature is actually
+for doc generation and has been removed from Rust. As soon as subtle-ng
+merges https://github.com/dalek-cryptography/subtle/pull/85, avx2 will
+probably be supported on stable as well.
+
 ## v0.2.0
 
 ### General
