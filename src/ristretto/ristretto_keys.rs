@@ -538,6 +538,9 @@ mod test {
         let mut rng = rand::thread_rng();
         let k = RistrettoSecretKey::random(&mut rng);
         assert_eq!(&k + &zero, k);
+        assert_eq!(&k + zero.clone(), k);
+        assert_eq!(k.clone() + &zero, k);
+        assert_eq!(k.clone() + zero, k);
     }
 
     #[test]
@@ -547,6 +550,7 @@ mod test {
         let k = RistrettoSecretKey::random(&mut rng);
         assert_eq!(&k - &zero, k);
         assert_eq!(&k - zero.clone(), k);
+        assert_eq!(k.clone() - &zero, k);
         assert_eq!(k.clone() - zero, k);
     }
 

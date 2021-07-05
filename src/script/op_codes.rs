@@ -464,7 +464,7 @@ impl fmt::Display for Opcode {
 
 #[cfg(test)]
 mod test {
-    use crate::script::{Opcode, Opcode::*, ScriptError};
+    use crate::script::{op_codes::*, stack::StackItem::PublicKey, Opcode, Opcode::*, ScriptError};
 
     #[test]
     fn empty_script() {
@@ -491,10 +491,284 @@ mod test {
     #[test]
     fn push_hash() {
         let (code, b) = Opcode::read_next(b"\x7a/thirty-two~character~hash~val./").unwrap();
-        match code {
-            PushHash(v) if &*v == b"/thirty-two~character~hash~val./" => {},
-            _ => panic!("Did not decode push hash"),
-        }
+        assert!(matches!(code, PushHash(v) if &*v == b"/thirty-two~character~hash~val./"));
         assert!(b.is_empty());
+    }
+
+    #[test]
+    fn slice_to_u64_tests() {
+        // Zero
+        let val = slice_to_u64(&[0, 0, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(val, 0);
+        // Little-endian one-byte
+        let val = slice_to_u64(&[63, 0, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(val, 63);
+        // A large number
+        let val = slice_to_u64(&[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F]);
+        assert_eq!(val, 9_223_372_036_854_775_807);
+    }
+
+    #[test]
+    fn slice_to_i64_tests() {
+        // Zero
+        let val = slice_to_i64(&[0, 0, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(val, 0);
+        // Little-endian one-byte
+        let val = slice_to_i64(&[63, 0, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(val, 63);
+        let val = slice_to_i64(&[63, 0, 0, 0, 0, 0, 0, 128]);
+        assert_eq!(val, -9_223_372_036_854_775_745);
+        // A large negative number
+        let val = slice_to_i64(&[0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x80]);
+        assert_eq!(val, -9_151_314_442_816_848_128);
+    }
+
+    #[test]
+    fn check_height() {
+        fn test_check_height(op: Opcode, val: u8, display: &str) {
+            // Serialize
+            assert!(matches!(
+                Opcode::read_next(&[val, 1, 2, 3]),
+                Err(ScriptError::InvalidData)
+            ));
+            let s = &[val, 63, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3];
+            let (opcode, rem) = Opcode::read_next(s).unwrap();
+            assert_eq!(opcode, op);
+            assert_eq!(rem, &[1, 2, 3]);
+            // Deserialise
+            let mut arr = vec![1, 2, 3];
+            op.to_bytes(&mut arr);
+            assert_eq!(&arr, &[1, 2, 3, val, 63, 0, 0, 0, 0, 0, 0, 0]);
+            // Format
+            assert_eq!(format!("{}", op).as_str(), display);
+        }
+        test_check_height(Opcode::CheckHeight(63), 0x67, "CheckHeight(63)");
+        test_check_height(Opcode::CheckHeightVerify(63), 0x66, "CheckHeightVerify(63)");
+    }
+
+    #[test]
+    fn push_int() {
+        // Serialise
+        assert!(matches!(Opcode::read_next(b"\x7dshort"), Err(ScriptError::InvalidData)));
+        let s = &[OP_PUSH_INT, 1, 1, 0, 0, 0, 0, 0, 0];
+        let (opcode, rem) = Opcode::read_next(s).unwrap();
+        assert!(matches!(opcode, Opcode::PushInt(257)));
+        assert!(rem.is_empty());
+        // Deserialise
+        let op = Opcode::PushInt(257);
+        let mut arr = vec![];
+        op.to_bytes(&mut arr);
+        assert_eq!(&arr, &[OP_PUSH_INT, 1, 1, 0, 0, 0, 0, 0, 0]);
+        // Format
+        assert_eq!(format!("{}", op).as_str(), "PushInt(257)");
+    }
+
+    #[test]
+    fn push_pubkey() {
+        // Serialise
+        assert!(matches!(
+            Opcode::read_next(b"\x7eshort_needs_33_bytes"),
+            Err(ScriptError::InvalidData)
+        ));
+        let key =
+            RistrettoPublicKey::from_hex("6c9cb4d3e57351462122310fa22c90b1e6dfb528d64615363d1261a75da3e401").unwrap();
+        let s = &[
+            OP_PUSH_PUBKEY,
+            108,
+            156,
+            180,
+            211,
+            229,
+            115,
+            81,
+            70,
+            33,
+            34,
+            49,
+            15,
+            162,
+            44,
+            144,
+            177,
+            230,
+            223,
+            181,
+            40,
+            214,
+            70,
+            21,
+            54,
+            61,
+            18,
+            97,
+            167,
+            93,
+            163,
+            228,
+            1,
+        ];
+        let op = Opcode::PushPubKey(Box::new(key.clone()));
+        let (opcode, rem) = Opcode::read_next(s).unwrap();
+        assert_eq!(opcode, op);
+        assert!(rem.is_empty());
+        // Deserialise
+        let mut arr = vec![];
+        op.to_bytes(&mut arr);
+        assert_eq!(&arr, s);
+        // Format
+        assert_eq!(
+            format!("{}", op).as_str(),
+            "PushPubKey(6c9cb4d3e57351462122310fa22c90b1e6dfb528d64615363d1261a75da3e401)"
+        );
+    }
+
+    #[test]
+    fn or() {
+        fn test_or(op: Opcode, val: u8, display: &str) {
+            // Serialise
+            assert!(matches!(Opcode::read_next(&[val]), Err(ScriptError::InvalidData)));
+            let s = &[val, 5, 83];
+            let (opcode, rem) = Opcode::read_next(s).unwrap();
+            assert!(matches!(opcode, op));
+            assert_eq!(rem, &[83]);
+            // Deserialise
+            let mut arr = vec![];
+            op.to_bytes(&mut arr);
+            assert_eq!(&arr, &[val, 5]);
+            // Format
+            assert_eq!(format!("{}", op).as_str(), display);
+        }
+        test_or(Opcode::Or(5), OP_OR, "Or(5)");
+        test_or(Opcode::OrVerify(5), OP_OR_VERIFY, "OrVerify(5)");
+    }
+
+    #[test]
+    fn check_sig() {
+        fn test_checksig(op: Opcode, val: u8, display: &str) {
+            // Serialise
+            assert!(matches!(Opcode::read_next(&[val]), Err(ScriptError::InvalidData)));
+            let msg = &[
+                val, 108, 156, 180, 211, 229, 115, 81, 70, 33, 34, 49, 15, 162, 44, 144, 177, 230, 223, 181, 40, 214,
+                70, 21, 54, 61, 18, 97, 167, 93, 163, 228, 1,
+            ];
+            let (opcode, rem) = Opcode::read_next(msg).unwrap();
+            assert!(matches!(opcode, op));
+            assert!(rem.is_empty());
+            // Deserialise
+            let mut arr = vec![];
+            op.to_bytes(&mut arr);
+            assert_eq!(arr, msg);
+            // Format
+            assert_eq!(format!("{}", op).as_str(), display);
+        }
+        let msg = &[
+            108, 156, 180, 211, 229, 115, 81, 70, 33, 34, 49, 15, 162, 44, 144, 177, 230, 223, 181, 40, 214, 70, 21,
+            54, 61, 18, 97, 167, 93, 163, 228, 1,
+        ];
+        test_checksig(
+            Opcode::CheckSig(Box::new(msg.clone())),
+            OP_CHECK_SIG,
+            "CheckSig(6c9cb4d3e57351462122310fa22c90b1e6dfb528d64615363d1261a75da3e401)",
+        );
+        test_checksig(
+            Opcode::CheckSigVerify(Box::new(msg.clone())),
+            OP_CHECK_SIG_VERIFY,
+            "CheckSigVerify(6c9cb4d3e57351462122310fa22c90b1e6dfb528d64615363d1261a75da3e401)",
+        );
+    }
+
+    #[test]
+    fn deserialise_no_param_opcodes() {
+        fn test_opcode(code: u8, expected: Opcode) {
+            let s = &[code, 1, 2, 3];
+            let (opcode, rem) = Opcode::read_next(s).unwrap();
+            assert_eq!(opcode, expected);
+            assert_eq!(rem, &[1, 2, 3]);
+        }
+        test_opcode(OP_COMPARE_HEIGHT_VERIFY, Opcode::CompareHeightVerify);
+        test_opcode(OP_COMPARE_HEIGHT, Opcode::CompareHeight);
+        test_opcode(OP_NOP, Opcode::Nop);
+        test_opcode(OP_PUSH_ZERO, Opcode::PushZero);
+        test_opcode(OP_PUSH_ONE, Opcode::PushOne);
+        test_opcode(OP_DROP, Opcode::Drop);
+        test_opcode(OP_DUP, Opcode::Dup);
+        test_opcode(OP_REV_ROT, Opcode::RevRot);
+        test_opcode(OP_GE_ZERO, Opcode::GeZero);
+        test_opcode(OP_GT_ZERO, Opcode::GtZero);
+        test_opcode(OP_LE_ZERO, Opcode::LeZero);
+        test_opcode(OP_LT_ZERO, Opcode::LtZero);
+        test_opcode(OP_EQUAL, Opcode::Equal);
+        test_opcode(OP_EQUAL_VERIFY, Opcode::EqualVerify);
+        test_opcode(OP_HASH_SHA3, Opcode::HashSha3);
+        test_opcode(OP_HASH_BLAKE256, Opcode::HashBlake256);
+        test_opcode(OP_HASH_SHA256, Opcode::HashSha256);
+        test_opcode(OP_IF_THEN, Opcode::IfThen);
+        test_opcode(OP_ELSE, Opcode::Else);
+        test_opcode(OP_END_IF, Opcode::EndIf);
+        test_opcode(OP_ADD, Opcode::Add);
+        test_opcode(OP_SUB, Opcode::Sub);
+        test_opcode(OP_RETURN, Opcode::Return);
+    }
+
+    #[test]
+    fn serialise_no_param_opcodes() {
+        fn test_opcode(val: u8, opcode: Opcode) {
+            let mut arr = vec![];
+            assert_eq!(opcode.to_bytes(&mut arr), &[val]);
+        }
+        test_opcode(OP_COMPARE_HEIGHT_VERIFY, Opcode::CompareHeightVerify);
+        test_opcode(OP_COMPARE_HEIGHT, Opcode::CompareHeight);
+        test_opcode(OP_NOP, Opcode::Nop);
+        test_opcode(OP_PUSH_ZERO, Opcode::PushZero);
+        test_opcode(OP_PUSH_ONE, Opcode::PushOne);
+        test_opcode(OP_DROP, Opcode::Drop);
+        test_opcode(OP_DUP, Opcode::Dup);
+        test_opcode(OP_REV_ROT, Opcode::RevRot);
+        test_opcode(OP_GE_ZERO, Opcode::GeZero);
+        test_opcode(OP_GT_ZERO, Opcode::GtZero);
+        test_opcode(OP_LE_ZERO, Opcode::LeZero);
+        test_opcode(OP_LT_ZERO, Opcode::LtZero);
+        test_opcode(OP_EQUAL, Opcode::Equal);
+        test_opcode(OP_EQUAL_VERIFY, Opcode::EqualVerify);
+        test_opcode(OP_HASH_SHA3, Opcode::HashSha3);
+        test_opcode(OP_HASH_BLAKE256, Opcode::HashBlake256);
+        test_opcode(OP_HASH_SHA256, Opcode::HashSha256);
+        test_opcode(OP_IF_THEN, Opcode::IfThen);
+        test_opcode(OP_ELSE, Opcode::Else);
+        test_opcode(OP_END_IF, Opcode::EndIf);
+        test_opcode(OP_ADD, Opcode::Add);
+        test_opcode(OP_SUB, Opcode::Sub);
+        test_opcode(OP_RETURN, Opcode::Return);
+    }
+
+    #[test]
+    fn display() {
+        fn test_opcode(opcode: Opcode, expected: &str) {
+            let s = format!("{}", opcode);
+            assert_eq!(s.as_str(), expected);
+        }
+        test_opcode(Opcode::CompareHeightVerify, "CompareHeightVerify");
+        test_opcode(Opcode::CompareHeight, "CompareHeight");
+        test_opcode(Opcode::Nop, "Nop");
+        test_opcode(Opcode::PushZero, "PushZero");
+        test_opcode(Opcode::PushOne, "PushOne");
+        test_opcode(Opcode::Drop, "Drop");
+        test_opcode(Opcode::Dup, "Dup");
+        test_opcode(Opcode::RevRot, "RevRot");
+        test_opcode(Opcode::GeZero, "GeZero");
+        test_opcode(Opcode::GtZero, "GtZero");
+        test_opcode(Opcode::LeZero, "LeZero");
+        test_opcode(Opcode::LtZero, "LtZero");
+        test_opcode(Opcode::Equal, "Equal");
+        test_opcode(Opcode::EqualVerify, "EqualVerify");
+        test_opcode(Opcode::HashSha3, "HashSha3");
+        test_opcode(Opcode::HashBlake256, "HashBlake256");
+        test_opcode(Opcode::HashSha256, "HashSha256");
+        test_opcode(Opcode::IfThen, "IfThen");
+        test_opcode(Opcode::Else, "Else");
+        test_opcode(Opcode::EndIf, "EndIf");
+        test_opcode(Opcode::Add, "Add");
+        test_opcode(Opcode::Sub, "Sub");
+        test_opcode(Opcode::Return, "Return");
     }
 }

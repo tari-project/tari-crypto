@@ -23,6 +23,7 @@ tags
 # Ignore Code Coverage Report files
 cov_raw/
 coverage_report/
+default.profraw
 
 Cargo.lock
 *.log
