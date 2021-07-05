@@ -278,6 +278,8 @@ mod test {
             .construct_proof_with_rewind_key(&k, 42, &rewind_k, &rewind_blinding_k, &message)
             .unwrap();
 
+        // test Debug impl
+        assert!(!format!("{:?}", proof).is_empty());
         assert_eq!(
             prover.rewind_proof_value_only(&proof, &c, &public_random_k, &public_rewind_blinding_k),
             Err(RangeProofError::InvalidRewind)
@@ -292,6 +294,8 @@ mod test {
             .unwrap();
         assert_eq!(rewind_result.committed_value, 42);
         assert_eq!(&rewind_result.proof_message, message);
+        // test Debug impl
+        assert!(!format!("{:?}", rewind_result).is_empty());
 
         assert_eq!(
             prover.rewind_proof_commitment_data(&proof, &c, &random_k, &rewind_blinding_k),
@@ -308,6 +312,8 @@ mod test {
         assert_eq!(full_rewind_result.committed_value, 42);
         assert_eq!(&full_rewind_result.proof_message, message);
         assert_eq!(full_rewind_result.blinding_factor, k);
+        // test Debug impl
+        assert!(!format!("{:?}", full_rewind_result).is_empty());
     }
 
     #[test]

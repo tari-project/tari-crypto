@@ -22,7 +22,9 @@ get_binaries() {
 }
 
 get_binaries
-echo $files
+
+# Remove old coverage files
+rm cov_raw/*profraw cov_raw/tari_crypto.profdata cov_raw/tari_crypto.lcov cov_raw/tari_crypto.txt
 
 RUSTFLAGS=$RUSTFLAGS LLVM_PROFILE_FILE=$LLVM_PROFILE_FILE cargo test --tests
 
@@ -41,6 +43,18 @@ cargo cov -- \
     --instr-profile=cov_raw/tari_crypto.profdata \
     $files \
     > cov_raw/tari_crypto.lcov
+
+cargo cov -- \
+  show \
+    --Xdemangler=rustfilt \
+    --show-branch-summary \
+    --show-instantiation-summary \
+    --show-region-summary \
+    --ignore-filename-regex='/.cargo/registry' \
+    --ignore-filename-regex="^/rustc" \
+    --instr-profile=cov_raw/tari_crypto.profdata \
+    $files \
+    > cov_raw/tari_crypto.txt
 
 if [ -z ${SKIP_HTML+x} ]; then
   genhtml -o coverage_report cov_raw/tari_crypto.lcov

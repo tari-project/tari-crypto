@@ -109,7 +109,11 @@ where T: Borrow<PedersenCommitment>
 mod test {
     use super::*;
     use crate::keys::{PublicKey, SecretKey};
-    use std::convert::From;
+    use std::{
+        collections::hash_map::DefaultHasher,
+        convert::From,
+        hash::{Hash, Hasher},
+    };
     use tari_utilities::{message_format::MessageFormat, ByteArray};
 
     #[test]
@@ -255,5 +259,39 @@ mod test {
         let ser_c = c.to_binary().unwrap();
         let c2 = PedersenCommitment::from_binary(&ser_c).unwrap();
         assert!(factory.open_value(&k, 420, &c2));
+        // Invalid Base64
+        assert!(PedersenCommitment::from_base64("bad@ser$").is_err());
+    }
+
+    #[test]
+    fn derived_methods() {
+        let factory = PedersenCommitmentFactory::default();
+        let k = RistrettoSecretKey::from(1024);
+        let c1 = factory.commit_value(&k, 2048);
+        // Test Debug impl
+        assert_eq!(
+            format!("{:?}", c1),
+            "HomomorphicCommitment(f09a7f46c5e3cbadc4c1e84c10278cffab2cb902f7b6f37223c88dd548877a6a)"
+        );
+        // test Clone impl
+        let c2 = c1.clone();
+        assert_eq!(c1, c2);
+        // test hash impl
+        let mut hasher = DefaultHasher::new();
+        c1.hash(&mut hasher);
+        let result = format!("{:x}", hasher.finish());
+        assert_eq!(&result, "b1b43e91f6d6109f");
+        // test Ord and PartialOrd impl
+        let c3 = factory.commit_value(&k, 2049);
+        assert!(c2 > c3);
+        assert!(c2 != c3);
+        assert!(c3 < c2);
+        assert!(matches!(c2.cmp(&c3), std::cmp::Ordering::Greater));
+    }
+
+    #[test]
+    fn default_value() {
+        let c = PedersenCommitment::default();
+        assert_eq!(c, PedersenCommitment::from_public_key(&RistrettoPublicKey::default()));
     }
 }
