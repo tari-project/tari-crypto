@@ -20,51 +20,29 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use blake2::VarBlake2b;
-use digest::{
-    generic_array::{typenum::U32, GenericArray},
-    FixedOutput,
-    Input,
-    Reset,
-    VariableOutput,
-};
+use blake2::{digest::VariableOutput, VarBlake2b};
+use digest::{consts::U32, generic_array::GenericArray, FixedOutput, Reset, Update};
 
 /// A convenience wrapper produce 256 bit hashes from Blake2b
 #[derive(Clone, Debug)]
 pub struct Blake256(VarBlake2b);
 
-impl Blake256 {
-    pub fn new() -> Self {
-        let h = VarBlake2b::new(32).unwrap();
-        Blake256(h)
-    }
-
-    pub fn result(self) -> GenericArray<u8, U32> {
-        self.fixed_result()
-    }
-}
-
 impl Default for Blake256 {
     fn default() -> Self {
-        let h = VarBlake2b::new(32).unwrap();
+        let h = VariableOutput::new(32).unwrap();
         Blake256(h)
-    }
-}
-
-impl Input for Blake256 {
-    fn input<B: AsRef<[u8]>>(&mut self, data: B) {
-        (self.0).input(data);
     }
 }
 
 impl FixedOutput for Blake256 {
     type OutputSize = U32;
 
-    fn fixed_result(self) -> GenericArray<u8, U32> {
-        let mut arr = GenericArray::default();
-        // ..32 range index is always safe because VarBlake2b is initialized with 32 elements
-        self.0.variable_result(|res| arr.copy_from_slice(&res[..32]));
-        arr
+    fn finalize_into(self, out: &mut GenericArray<u8, Self::OutputSize>) {
+        self.0.finalize_variable(|res| out.copy_from_slice(res));
+    }
+
+    fn finalize_into_reset(&mut self, out: &mut GenericArray<u8, Self::OutputSize>) {
+        self.0.finalize_variable_reset(|res| out.copy_from_slice(res));
     }
 }
 
@@ -74,15 +52,21 @@ impl Reset for Blake256 {
     }
 }
 
+impl Update for Blake256 {
+    fn update(&mut self, data: impl AsRef<[u8]>) {
+        self.0.update(data);
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::common::Blake256;
-    use digest::{Input, Reset};
+    use digest::Digest;
     use tari_utilities::hex;
 
     #[test]
     fn blake256() {
-        let e = Blake256::new().chain(b"one").chain(b"two").result().to_vec();
+        let e = Blake256::new().chain(b"one").chain(b"two").finalize().to_vec();
         let h = hex::to_hex(&e);
         assert_eq!(
             h,
@@ -94,7 +78,7 @@ mod test {
     fn reset() {
         let mut e = Blake256::default().chain(b"foobar");
         e.reset();
-        let e = e.chain(b"onetwo").result().to_vec();
+        let e = e.chain(b"onetwo").finalize().to_vec();
         let h = hex::to_hex(&e);
         assert_eq!(
             h,

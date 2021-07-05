@@ -143,7 +143,7 @@ mod test {
             .chain(commitment.as_bytes())
             .chain(nonce_commitment.as_bytes())
             .chain(b"Small Gods")
-            .result();
+            .finalize();
         let e_key = RistrettoSecretKey::from_bytes(&challenge).unwrap();
         let u_value = &k_1 + e_key.clone() * &x_value;
         let v_value = &k_2 + e_key * &a_value;
@@ -188,7 +188,7 @@ mod test {
             .chain(nonce_commitment_alice.as_bytes())
             .chain(nonce_commitment_bob.as_bytes())
             .chain(b"Moving Pictures")
-            .result();
+            .finalize();
         // Calculate Alice's signature
         let sig_alice =
             RistrettoComSig::sign(a_value_alice, x_value_alice, k_2_alice, k_1_alice, &challenge, &factory).unwrap();

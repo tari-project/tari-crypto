@@ -41,8 +41,6 @@ use std::{
 };
 use tari_utilities::{hex::Hex, ByteArray, ByteArrayError, ExtendBytes, Hashable};
 
-type HashDigest = Blake2b;
-
 /// The [SecretKey](trait.SecretKey.html) implementation for [Ristretto](https://ristretto.group) is a thin wrapper
 /// around the Dalek [Scalar](struct.Scalar.html) type, representing a 256-bit integer (mod the group order).
 ///
@@ -256,9 +254,7 @@ impl DiffieHellmanSharedSecret for RistrettoPublicKey {
 // Requires custom Hashable implementation for RistrettoPublicKey as CompressedRistretto doesnt implement this trait
 impl Hashable for RistrettoPublicKey {
     fn hash(&self) -> Vec<u8> {
-        let mut hasher = HashDigest::new();
-        hasher.input(&self.to_vec());
-        hasher.result().to_vec()
+        Blake2b::digest(self.as_bytes()).to_vec()
     }
 }
 

@@ -16,10 +16,8 @@
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // pending updates to Dalek/Digest
-#[allow(deprecated)]
 use crate::{
     common::Blake256,
-    hash::sha3::Sha3,
     ristretto::{RistrettoPublicKey, RistrettoSecretKey},
     script::{
         error::ScriptError,
@@ -30,8 +28,9 @@ use crate::{
         StackItem,
     },
 };
-use blake2::Digest;
+use digest::Digest;
 use sha2::Sha256;
+use sha3::Sha3_256;
 use std::{cmp::Ordering, convert::TryFrom, fmt, ops::Deref};
 use tari_utilities::{
     hex::{from_hex, to_hex, Hex, HexError},
@@ -173,12 +172,11 @@ impl TariScript {
         let b = Blake256::new()
             .chain(pub_key.as_bytes())
             .chain(&self.as_bytes())
-            .result();
+            .finalize();
         RistrettoSecretKey::from_bytes(b.as_slice()).map_err(|_| ScriptError::InvalidSignature)
     }
 
     // pending updates to Dalek/Digest
-    #[allow(deprecated)]
     fn execute_opcode(
         &self,
         opcode: &Opcode,
@@ -220,7 +218,7 @@ impl TariScript {
             OrVerify(n) => TariScript::handle_or_verify(stack, *n),
             HashBlake256 => TariScript::handle_hash::<Blake256>(stack),
             HashSha256 => TariScript::handle_hash::<Sha256>(stack),
-            HashSha3 => TariScript::handle_hash::<Sha3>(stack),
+            HashSha3 => TariScript::handle_hash::<Sha3_256>(stack),
             CheckSig(msg) => match self.check_sig(stack, *msg.deref())? {
                 true => stack.push(Number(1)),
                 false => stack.push(Number(0)),
@@ -477,11 +475,8 @@ impl Default for ExecutionState {
 
 #[cfg(test)]
 mod test {
-    use crate::script::StackItem;
-    #[allow(deprecated)]
     use crate::{
         common::Blake256,
-        hash::sha3::Sha3,
         inputs,
         keys::{PublicKey, SecretKey},
         ristretto::{pedersen::PedersenCommitment, RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
@@ -490,6 +485,7 @@ mod test {
             op_codes::{slice_to_boxed_hash, slice_to_boxed_message, HashValue},
             ExecutionStack,
             ScriptContext,
+            StackItem,
             StackItem::{Commitment, Hash, Number},
             TariScript,
             DEFAULT_SCRIPT_HASH,
@@ -497,6 +493,7 @@ mod test {
     };
     use blake2::Digest;
     use sha2::Sha256;
+    use sha3::Sha3_256 as Sha3;
     use tari_utilities::{hex::Hex, ByteArray};
 
     fn context_with_height(height: u64) -> ScriptContext {
@@ -736,7 +733,6 @@ mod test {
     }
 
     #[test]
-    #[allow(deprecated)]
     fn op_hash() {
         let mut rng = rand::thread_rng();
         let (_, p) = RistrettoPublicKey::random_keypair(&mut rng);

@@ -21,6 +21,3 @@
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 pub mod blake2;
-pub mod blake3;
-pub mod k12;
-pub mod sha3;
