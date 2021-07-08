@@ -464,7 +464,7 @@ impl fmt::Display for Opcode {
 
 #[cfg(test)]
 mod test {
-    use crate::script::{op_codes::*, stack::StackItem::PublicKey, Opcode, Opcode::*, ScriptError};
+    use crate::script::{op_codes::*, Opcode, Opcode::*, ScriptError};
 
     #[test]
     fn empty_script() {
@@ -629,7 +629,7 @@ mod test {
             assert!(matches!(Opcode::read_next(&[val]), Err(ScriptError::InvalidData)));
             let s = &[val, 5, 83];
             let (opcode, rem) = Opcode::read_next(s).unwrap();
-            assert!(matches!(opcode, op));
+            assert_eq!(opcode, op);
             assert_eq!(rem, &[83]);
             // Deserialise
             let mut arr = vec![];
@@ -652,7 +652,7 @@ mod test {
                 70, 21, 54, 61, 18, 97, 167, 93, 163, 228, 1,
             ];
             let (opcode, rem) = Opcode::read_next(msg).unwrap();
-            assert!(matches!(opcode, op));
+            assert_eq!(opcode, op);
             assert!(rem.is_empty());
             // Deserialise
             let mut arr = vec![];

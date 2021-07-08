@@ -212,14 +212,14 @@ impl ExecutionStack {
 
         // check that all popped items are of the same variant
         // first count each variant
-        let counts = items.iter().fold([0; 5], |values, item| counter(values, item));
+        let counts = items.iter().fold([0; 5], counter);
         // also check the n + 1 item
         let counts = counter(counts, &item);
 
         // then filter those with more than 0
-        let distict_variants: Vec<&u8> = counts.iter().filter(|&c| c > &0).collect();
+        let num_distinct_variants = counts.iter().filter(|&c| *c > 0).count();
 
-        if distict_variants.len() > 1 {
+        if num_distinct_variants > 1 {
             return Err(ScriptError::InvalidInput);
         }
 
