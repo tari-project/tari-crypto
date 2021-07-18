@@ -166,11 +166,12 @@ pub(super) fn sign_with_key(k: &RistrettoSecretKey, e: &[u8], r: Option<&Ristret
 }
 
 /// Checks the validity of a Schnorr signature
+#[allow(non_snake_case)]
 #[wasm_bindgen]
 pub fn check_signature(pub_nonce: &str, signature: &str, pub_key: &str, msg: &str) -> JsValue {
     let mut result = SignatureVerifyResult::default();
 
-    let pub_nonce = match RistrettoPublicKey::from_hex(pub_nonce) {
+    let R = match RistrettoPublicKey::from_hex(pub_nonce) {
         Ok(n) => n,
         Err(_) => {
             result.error = format!("{} is not a valid public nonce", pub_nonce);
@@ -178,7 +179,7 @@ pub fn check_signature(pub_nonce: &str, signature: &str, pub_key: &str, msg: &st
         },
     };
 
-    let pub_key = match RistrettoPublicKey::from_hex(pub_key) {
+    let P = match RistrettoPublicKey::from_hex(pub_key) {
         Ok(p) => p,
         Err(_) => {
             result.error = format!("{} is not a valid public key", pub_key);
@@ -194,9 +195,9 @@ pub fn check_signature(pub_nonce: &str, signature: &str, pub_key: &str, msg: &st
         },
     };
 
-    let sig = RistrettoSchnorr::new(pub_nonce, s);
+    let sig = RistrettoSchnorr::new(R, s);
     let msg = Blake256::digest(msg.as_bytes());
-    result.result = sig.verify_challenge(&pub_key, msg.as_slice());
+    result.result = sig.verify_challenge(&P, msg.as_slice());
     JsValue::from_serde(&result).unwrap()
 }
 
@@ -326,6 +327,7 @@ pub(crate) fn sign_comsig_with_key(
 }
 
 /// Checks the validity of a Schnorr signature
+#[allow(non_snake_case)]
 #[wasm_bindgen]
 pub fn check_comsig_signature(
     pub_nonce_commitment: &str,
@@ -336,7 +338,7 @@ pub fn check_comsig_signature(
 ) -> JsValue {
     let mut result = SignatureVerifyResult::default();
 
-    let p_nonce = match PedersenCommitment::from_hex(pub_nonce_commitment) {
+    let R = match PedersenCommitment::from_hex(pub_nonce_commitment) {
         Ok(n) => n,
         Err(_) => {
             result.error = format!("{} is not a valid public nonce", pub_nonce_commitment);
@@ -369,7 +371,7 @@ pub fn check_comsig_signature(
         },
     };
 
-    let sig = RistrettoComSig::new(p_nonce, u, v);
+    let sig = RistrettoComSig::new(R, u, v);
     let msg = Blake256::digest(msg.as_bytes());
     result.result = sig.verify_challenge(&public_commitment, msg.as_slice(), &factory);
     JsValue::from_serde(&result).unwrap()
