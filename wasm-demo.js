@@ -100,12 +100,14 @@ const proof = rp.create_proof(k, v);
 if (proof.error) {
     console.log(`Range proof error: ${proof.error}`);
 } else {
-    console.log(`Range proof: ${proof.proof}`);
-    // let is_valid = rp.verify(k, v, proof.proof);
-    // console.log("Should be valid:", is_valid);
-    //
-    // is_valid = rp.verify(k, BigInt(46), proof.proof);
-    // console.log("Should not be valid:", is_valid);
+    console.log(`Range proof: ${commitment.commitment} ${proof.proof}`);
+    let is_valid = rp.verify(commitment.commitment, proof.proof);
+    console.log("Should be valid:", is_valid);
+
+
+    let {commitment: bad_commit} = tari_crypto.commit(k, BigInt(46));
+    is_valid = rp.verify(bad_commit, proof.proof);
+    console.log("Should not be valid:", is_valid);
 
 }
 rp.free();
