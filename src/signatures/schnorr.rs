@@ -8,7 +8,7 @@ use std::{
     cmp::Ordering,
     ops::{Add, Mul},
 };
-use tari_utilities::{hex::Hex, ByteArray};
+use tari_utilities::ByteArray;
 use thiserror::Error;
 
 #[derive(Clone, Debug, Error, PartialEq, Eq, Deserialize, Serialize)]
@@ -130,7 +130,7 @@ where
 }
 
 /// Provide an efficient ordering algorithm for Schnorr signatures. It's probably not a good idea to implement `Ord`
-/// for secret keys, but in this instance, the signature is publicly known and is simply a scalar, so we use the hex
+/// for secret keys, but in this instance, the signature is publicly known and is simply a scalar, so we use the byte
 /// representation of the scalar as the canonical ordering metric. This conversion is done if and only if the public
 /// nonces are already equal, otherwise the public nonce ordering determines the SchnorrSignature order.
 impl<P, K> Ord for SchnorrSignature<P, K>
@@ -140,11 +140,7 @@ where
 {
     fn cmp(&self, other: &Self) -> Ordering {
         match self.public_nonce.cmp(&other.public_nonce) {
-            Ordering::Equal => {
-                let this = self.signature.to_hex();
-                let that = other.signature.to_hex();
-                this.cmp(&that)
-            },
+            Ordering::Equal => self.signature.as_bytes().cmp(&other.signature.as_bytes()),
             v => v,
         }
     }
