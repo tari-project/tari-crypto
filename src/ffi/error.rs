@@ -67,11 +67,8 @@ pub fn get_error_message(code: i32) -> &'static str {
 
 #[cfg(test)]
 mod test {
-    use std::{mem, ptr::null_mut};
-
-    use digest::generic_array::transmute;
-
     use super::*;
+    use std::ptr::null_mut;
 
     #[test]
     pub fn test_lookup_error_message_invalid_params() {

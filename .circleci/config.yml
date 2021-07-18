@@ -44,7 +44,7 @@ commands:
             - v6-cargo-cache-{{arch}}-{{checksum "rust-version"}}-<<parameters.release>>-{{checksum "Cargo.lock"}}
       - run:
           name: Tari Crypto tests
-          command: cargo test --all <<# parameters.release >>--release<</ parameters.release >>
+          command: cargo test --workspace --all-features <<# parameters.release >>--release<</ parameters.release >>
       - save_cache:
           paths:
             - /usr/local/cargo/registry

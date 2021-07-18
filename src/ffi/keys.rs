@@ -29,9 +29,11 @@ use crate::{
     },
 };
 use digest::Digest;
-use libc::c_char;
 use rand::rngs::OsRng;
-use std::{ffi::CStr, os::raw::c_int};
+use std::{
+    ffi::CStr,
+    os::raw::{c_char, c_int},
+};
 use tari_utilities::ByteArray;
 
 pub const KEY_LENGTH: usize = 32;
@@ -251,10 +253,8 @@ pub unsafe extern "C" fn verify_comsig(
 
 #[cfg(test)]
 mod test {
-    use curve25519_dalek::scalar::Scalar;
-    use rand::{CryptoRng, Rng};
-
     use super::*;
+    use curve25519_dalek::scalar::Scalar;
     use std::ptr::null_mut;
 
     #[test]
@@ -265,37 +265,24 @@ mod test {
         unsafe { assert_eq!(NULL_POINTER, random_keypair(null_mut(), &mut pub_key)) };
     }
 
-    // Mock for the randomness of the keys.
-    impl RistrettoSecretKey {
-        pub fn random<R>(_rng: &mut R) -> Self {
-            RistrettoSecretKey(Scalar::from_bits([1; 32]))
-        }
-    }
-
-    impl RistrettoPublicKey {
-        pub fn random_keypair<R: Rng + CryptoRng>(_rng: &mut R) -> (RistrettoSecretKey, Self) {
-            let k = RistrettoSecretKey(Scalar::from_bits([2; 32]));
-            let pk = RistrettoPublicKey::from_secret_key(&k);
-            (k, pk)
-        }
-    }
-
     #[test]
     pub fn test_random_keypair_with_valid_params() {
         let mut priv_key: KeyArray = [0; KEY_LENGTH];
+        let priv_key_before = priv_key.clone();
         let mut pub_key: KeyArray = [0; KEY_LENGTH];
 
-        // Public keys is null.
+        // Public keys is null. A new private key is set
         unsafe {
             random_keypair(&mut priv_key, null_mut());
         }
-        assert_eq!([1; 32], priv_key);
+        assert_ne!(priv_key, priv_key_before);
 
+        let priv_key_before = priv_key.clone();
         // Both are not null.
         unsafe {
             random_keypair(&mut priv_key, &mut pub_key);
         }
-        assert_eq!([2; 32], priv_key);
+        assert_ne!(priv_key, priv_key_before);
         assert_eq!(
             RistrettoPublicKey::from_secret_key(&RistrettoSecretKey(Scalar::from_bits(priv_key))).as_bytes(),
             pub_key
