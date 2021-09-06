@@ -213,11 +213,17 @@ pub struct RistrettoPublicKey {
 
 impl RistrettoPublicKey {
     // Private constructor
-    pub(crate) fn new_from_pk(pk: RistrettoPoint) -> RistrettoPublicKey {
+    pub(super) fn new_from_pk(pk: RistrettoPoint) -> RistrettoPublicKey {
         RistrettoPublicKey {
             point: pk,
             compressed: pk.compress(),
         }
+    }
+
+    pub(super) fn new_from_compressed(compressed: CompressedRistretto) -> Option<RistrettoPublicKey> {
+        compressed
+            .decompress()
+            .map(|point| RistrettoPublicKey { compressed, point })
     }
 }
 
@@ -332,12 +338,12 @@ impl ByteArray for RistrettoPublicKey {
         if bytes.len() != 32 {
             return Err(ByteArrayError::IncorrectLength);
         }
-        let pk = CompressedRistretto::from_slice(bytes);
-        match pk.decompress() {
+        let compressed = CompressedRistretto::from_slice(bytes);
+        match RistrettoPublicKey::new_from_compressed(compressed) {
+            Some(p) => Ok(p),
             None => Err(ByteArrayError::ConversionError(
                 "Invalid compressed Ristretto point".to_string(),
             )),
-            Some(p) => Ok(RistrettoPublicKey::new_from_pk(p)),
         }
     }
 
