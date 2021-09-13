@@ -83,7 +83,7 @@ impl TariScript {
         }
 
         // the script has finished but there was an open IfThen or Else!
-        if state.if_count > 0 || state.else_count > 0 {
+        if !state.if_stack.is_empty() {
             return Err(ScriptError::MissingOpcode);
         }
 
@@ -98,21 +98,12 @@ impl TariScript {
     }
 
     fn should_execute(&self, opcode: &Opcode, state: &ExecutionState) -> Result<bool, ScriptError> {
+        use Opcode::*;
         match opcode {
-            &Opcode::Else | &Opcode::EndIf => {
-                // if we're getting Else or EndIf before an IfThen then the script is invalid
-                if state.if_count == 0 {
-                    return Err(ScriptError::InvalidOpcode);
-                }
-                // if the opcode is Else or EndIf then execute it
-                // Else or EndIf will update the execution state
-                Ok(true)
-            },
-            _ => {
-                // otherwise continue either executing or skipping opcodes
-                // until reaching Else or Endif
-                Ok(state.executing)
-            },
+            // always execute these, they will update execution state
+            IfThen | Else | EndIf => Ok(true),
+            // otherwise keep calm and carry on
+            _ => Ok(state.executing),
         }
     }
 
@@ -297,51 +288,85 @@ impl TariScript {
     }
 
     fn handle_if_then(stack: &mut ExecutionStack, state: &mut ExecutionState) -> Result<(), ScriptError> {
-        let pred = stack.pop().ok_or(ScriptError::StackUnderflow)?;
-        match pred {
-            StackItem::Number(1) => {
-                // continue execution until Else opcode
-                state.executing = true;
-                state.if_count += 1;
-                Ok(())
-            },
-            StackItem::Number(0) => {
-                // skip execution until Else opcode
-                state.executing = false;
-                state.if_count += 1;
-                Ok(())
-            },
-            _ => Err(ScriptError::InvalidInput),
+        if state.executing {
+            let pred = stack.pop().ok_or(ScriptError::StackUnderflow)?;
+            match pred {
+                StackItem::Number(1) => {
+                    // continue execution until Else opcode
+                    state.executing = true;
+                    let if_state = IfState {
+                        branch: Branch::ExecuteIf,
+                        else_expected: true,
+                    };
+                    state.if_stack.push(if_state);
+                    Ok(())
+                },
+                StackItem::Number(0) => {
+                    // skip execution until Else opcode
+                    state.executing = false;
+                    let if_state = IfState {
+                        branch: Branch::ExecuteElse,
+                        else_expected: true,
+                    };
+                    state.if_stack.push(if_state);
+                    Ok(())
+                },
+                _ => Err(ScriptError::InvalidInput),
+            }
+        } else {
+            let if_state = IfState {
+                branch: Branch::NotExecuted,
+                else_expected: true,
+            };
+            state.if_stack.push(if_state);
+            Ok(())
         }
     }
 
     fn handle_else(state: &mut ExecutionState) -> Result<(), ScriptError> {
+        let if_state = state.if_stack.last_mut().ok_or(ScriptError::InvalidOpcode)?;
+
         // check to make sure Else is expected
-        // and not trying to execute more Else opcodes than IfThen
-        if state.if_count > 0 && state.else_count < state.if_count {
-            state.executing = !state.executing;
-            state.else_count += 1;
-            Ok(())
-        } else {
-            Err(ScriptError::InvalidOpcode)
+        if !if_state.else_expected {
+            return Err(ScriptError::InvalidOpcode);
         }
+
+        match if_state.branch {
+            Branch::NotExecuted => {
+                state.executing = false;
+            },
+            Branch::ExecuteIf => {
+                state.executing = false;
+            },
+            Branch::ExecuteElse => {
+                state.executing = true;
+            },
+        }
+        if_state.else_expected = false;
+        Ok(())
     }
 
     fn handle_end_if(state: &mut ExecutionState) -> Result<(), ScriptError> {
         // check to make sure EndIf is expected
-        // if_count may be greater than else_count when there are nested IfThen-Else-EndIf opcodes
-        if state.if_count > 0 && state.if_count >= state.else_count {
-            state.executing = true;
-            state.if_count -= 1;
-            if state.else_count > 0 {
-                state.else_count -= 1;
-            } else {
-                return Err(ScriptError::MissingOpcode);
-            }
-            Ok(())
-        } else {
-            Err(ScriptError::InvalidOpcode)
+        let if_state = state.if_stack.pop().ok_or(ScriptError::InvalidOpcode)?;
+
+        // check if we still expect an Else first
+        if if_state.else_expected {
+            return Err(ScriptError::MissingOpcode);
         }
+
+        match if_state.branch {
+            Branch::NotExecuted => {
+                state.executing = false;
+            },
+            Branch::ExecuteIf => {
+                state.executing = true;
+            },
+            Branch::ExecuteElse => {
+                state.executing = true;
+            },
+        }
+        Ok(())
     }
 
     /// Handle opcodes that push a hash to the stack. I'm not doing any length checks right now, so this should be
@@ -457,18 +482,29 @@ impl fmt::Display for TariScript {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+enum Branch {
+    NotExecuted,
+    ExecuteIf,
+    ExecuteElse,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct IfState {
+    branch: Branch,
+    else_expected: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 struct ExecutionState {
     executing: bool,
-    if_count: u16,
-    else_count: u16,
+    if_stack: Vec<IfState>,
 }
 
 impl Default for ExecutionState {
     fn default() -> Self {
         Self {
             executing: true,
-            if_count: 0,
-            else_count: 0,
+            if_stack: Vec::new(),
         }
     }
 }
@@ -568,8 +604,8 @@ mod test {
 
     #[test]
     fn op_if_then_else() {
+        // basic
         let script = script!(IfThen PushInt(420) Else PushInt(66) EndIf);
-
         let inputs = inputs!(1);
         let result = script.execute(&inputs);
         assert_eq!(result.unwrap(), Number(420));
@@ -591,21 +627,18 @@ mod test {
 
         // duplicate else
         let script = script!(IfThen PushInt(420) Else PushInt(66) Else PushInt(777) EndIf);
-
         let inputs = inputs!(0);
         let result = script.execute(&inputs);
         assert_eq!(result.unwrap_err(), ScriptError::InvalidOpcode);
 
         // unexpected else
         let script = script!(Else);
-
         let inputs = inputs!(0);
         let result = script.execute(&inputs);
         assert_eq!(result.unwrap_err(), ScriptError::InvalidOpcode);
 
         // unexpected endif
         let script = script!(EndIf);
-
         let inputs = inputs!(0);
         let result = script.execute(&inputs);
         assert_eq!(result.unwrap_err(), ScriptError::InvalidOpcode);
@@ -627,10 +660,8 @@ mod test {
         let inputs = inputs!(1);
         let result = script.execute(&inputs);
         assert_eq!(result.unwrap_err(), ScriptError::MissingOpcode);
-    }
 
-    #[test]
-    fn if_then_else_bug() {
+        // nested bug
         let script = script!(IfThen PushInt(111) Else PushZero IfThen PushInt(222) Else PushInt(333) EndIf EndIf);
         let inputs = inputs!(1);
         let result = script.execute(&inputs);
