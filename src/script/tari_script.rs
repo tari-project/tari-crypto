@@ -1031,4 +1031,59 @@ mod test {
             StackItem::PublicKey(p_bob)
         );
     }
+
+    #[test]
+    fn m_of_n_signatures() {
+        use crate::script::StackItem::PublicKey;
+        let mut rng = rand::thread_rng();
+        let (k_alice, p_alice) = RistrettoPublicKey::random_keypair(&mut rng);
+        let (k_bob, p_bob) = RistrettoPublicKey::random_keypair(&mut rng);
+        let (k_eve, _) = RistrettoPublicKey::random_keypair(&mut rng);
+        let r1 = RistrettoSecretKey::random(&mut rng);
+        let r2 = RistrettoSecretKey::random(&mut rng);
+        let r3 = RistrettoSecretKey::random(&mut rng);
+
+        let m = RistrettoSecretKey::random(&mut rng);
+        let msg = slice_to_boxed_message(m.as_bytes());
+
+        let s_alice = RistrettoSchnorr::sign(k_alice, r1, m.as_bytes()).unwrap();
+        let s_bob = RistrettoSchnorr::sign(k_bob, r2, m.as_bytes()).unwrap();
+        let s_eve = RistrettoSchnorr::sign(k_eve, r3, m.as_bytes()).unwrap();
+
+        // 1 of 2
+        use crate::script::Opcode::*;
+        let ops = vec![
+            Dup,
+            PushPubKey(Box::new(p_alice.clone())),
+            CheckSig(msg.clone()),
+            IfThen,
+            Drop,
+            PushPubKey(Box::new(p_alice.clone())),
+            Else,
+            PushPubKey(Box::new(p_bob.clone())),
+            CheckSig(msg),
+            IfThen,
+            PushPubKey(Box::new(p_bob.clone())),
+            Else,
+            Return,
+            EndIf,
+            EndIf,
+        ];
+        let script = TariScript::new(ops);
+
+        // alice
+        let inputs = inputs!(s_alice);
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, PublicKey(p_alice));
+
+        // bob
+        let inputs = inputs!(s_bob);
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, PublicKey(p_bob));
+
+        // eve
+        let inputs = inputs!(s_eve);
+        let result = script.execute(&inputs).unwrap_err();
+        assert_eq!(result, ScriptError::Return);
+    }
 }
