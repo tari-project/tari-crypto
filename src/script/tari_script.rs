@@ -630,6 +630,14 @@ mod test {
     }
 
     #[test]
+    fn if_then_else_bug() {
+        let script = script!(IfThen PushInt(111) Else PushZero IfThen PushInt(222) Else PushInt(333) EndIf EndIf);
+        let inputs = inputs!(1);
+        let result = script.execute(&inputs);
+        assert_eq!(result.unwrap(), Number(111));
+    }
+
+    #[test]
     fn op_check_height() {
         let inputs = ExecutionStack::default();
         let script = script!(CheckHeight(5));
