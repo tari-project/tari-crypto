@@ -18,7 +18,7 @@
 // pending updates to Dalek/Digest
 use crate::{
     common::Blake256,
-    ristretto::{RistrettoPublicKey, RistrettoSecretKey},
+    ristretto::{RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
     script::{
         error::ScriptError,
         op_codes::{slice_to_hash, Message, Opcode},
@@ -215,6 +215,14 @@ impl TariScript {
                 false => stack.push(Number(0)),
             },
             CheckSigVerify(msg) => match self.check_sig(stack, *msg.deref())? {
+                true => Ok(()),
+                false => Err(ScriptError::VerifyFailed),
+            },
+            CheckMultiSig(msg) => match self.check_multisig(stack, *msg.deref())? {
+                true => stack.push(Number(1)),
+                false => stack.push(Number(0)),
+            },
+            CheckMultiSigVerify(msg) => match self.check_multisig(stack, *msg.deref())? {
                 true => Ok(()),
                 false => Err(ScriptError::VerifyFailed),
             },
@@ -453,6 +461,55 @@ impl TariScript {
             (..) => Err(ScriptError::IncompatibleTypes),
         }
     }
+
+    fn check_multisig(&self, stack: &mut ExecutionStack, message: Message) -> Result<bool, ScriptError> {
+        use StackItem::*;
+        // get n
+        // must be gt 0
+        let n = match stack.pop().ok_or(ScriptError::StackUnderflow)? {
+            Number(n) if n > 0 => n as usize,
+            Number(_) => return Err(ScriptError::InvalidInput),
+            _ => return Err(ScriptError::IncompatibleTypes),
+        };
+        // pop n pubkeys
+        let public_keys = stack
+            .pop_num_items(n)?
+            .into_iter()
+            .map(|item| match item {
+                PublicKey(pk) => Ok(pk),
+                _ => Err(ScriptError::IncompatibleTypes),
+            })
+            .collect::<Result<Vec<RistrettoPublicKey>, ScriptError>>()?;
+
+        // get m
+        // must be gt 0 and lte n
+        let m = match stack.pop().ok_or(ScriptError::StackUnderflow)? {
+            Number(m) if m > 0 && m <= n as i64 => m as usize,
+            Number(_) => return Err(ScriptError::InvalidInput),
+            _ => return Err(ScriptError::IncompatibleTypes),
+        };
+        // pop m sigs
+        let signatures = stack
+            .pop_num_items(m)?
+            .into_iter()
+            .map(|item| match item {
+                Signature(s) => Ok(s),
+                _ => Err(ScriptError::IncompatibleTypes),
+            })
+            .collect::<Result<Vec<RistrettoSchnorr>, ScriptError>>()?;
+
+        let mut valid_sigs = 0;
+        for signature in signatures.iter() {
+            for public_key in public_keys.iter() {
+                if signature.verify_challenge(public_key, &message) {
+                    valid_sigs += 1;
+                    break;
+                }
+            }
+        }
+
+        Ok(valid_sigs == m)
+    }
 }
 
 impl Hex for TariScript {
@@ -518,7 +575,7 @@ mod test {
         ristretto::{pedersen::PedersenCommitment, RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
         script::{
             error::ScriptError,
-            op_codes::{slice_to_boxed_hash, slice_to_boxed_message, HashValue},
+            op_codes::{slice_to_boxed_hash, slice_to_boxed_message, HashValue, Message},
             ExecutionStack,
             ScriptContext,
             StackItem,
@@ -896,6 +953,313 @@ mod test {
         let inputs = inputs!(sig, pub_key);
         let err = script.execute(&inputs).unwrap_err();
         assert!(matches!(err, ScriptError::VerifyFailed));
+    }
+
+    fn multisig_data(
+        n: usize,
+    ) -> (
+        Box<Message>,
+        Vec<(RistrettoSecretKey, RistrettoPublicKey, RistrettoSchnorr)>,
+    ) {
+        let mut rng = rand::thread_rng();
+        let mut data = Vec::with_capacity(n);
+        let m = RistrettoSecretKey::random(&mut rng);
+        let msg = slice_to_boxed_message(m.as_bytes());
+
+        for _ in 0..n {
+            let (k, p) = RistrettoPublicKey::random_keypair(&mut rng);
+            let r = RistrettoSecretKey::random(&mut rng);
+            let s = RistrettoSchnorr::sign(k.clone(), r, m.as_bytes()).unwrap();
+            data.push((k, p, s));
+        }
+
+        (msg, data)
+    }
+
+    #[test]
+    fn check_multisig() {
+        use crate::script::StackItem::Number;
+        let mut rng = rand::thread_rng();
+        let (k_alice, p_alice) = RistrettoPublicKey::random_keypair(&mut rng);
+        let (k_bob, p_bob) = RistrettoPublicKey::random_keypair(&mut rng);
+        let (k_eve, _) = RistrettoPublicKey::random_keypair(&mut rng);
+        let (k_carol, p_carol) = RistrettoPublicKey::random_keypair(&mut rng);
+        let r1 = RistrettoSecretKey::random(&mut rng);
+        let r2 = RistrettoSecretKey::random(&mut rng);
+        let r3 = RistrettoSecretKey::random(&mut rng);
+        let r4 = RistrettoSecretKey::random(&mut rng);
+        let m = RistrettoSecretKey::random(&mut rng);
+        let s_alice = RistrettoSchnorr::sign(k_alice, r1, m.as_bytes()).unwrap();
+        let s_bob = RistrettoSchnorr::sign(k_bob, r2, m.as_bytes()).unwrap();
+        let s_eve = RistrettoSchnorr::sign(k_eve, r3, m.as_bytes()).unwrap();
+        let s_carol = RistrettoSchnorr::sign(k_carol, r4, m.as_bytes()).unwrap();
+        let msg = slice_to_boxed_message(m.as_bytes());
+
+        // 1 of 2
+        let script = script!(PushInt(1) PushPubKey(Box::new(p_alice.clone())) PushPubKey(Box::new(p_bob.clone())) PushInt(2) CheckMultiSig(msg.clone()));
+
+        let inputs = inputs!(s_alice.clone());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(1));
+        let inputs = inputs!(s_bob.clone());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(1));
+        let inputs = inputs!(s_eve.clone());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(0));
+
+        // 2 of 2
+        let script = script!(PushInt(2) PushPubKey(Box::new(p_alice.clone())) PushPubKey(Box::new(p_bob.clone())) PushInt(2) CheckMultiSig(msg.clone()));
+
+        let inputs = inputs!(s_alice.clone(), s_bob.clone());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(1));
+        let script = script!(PushInt(2) PushPubKey(Box::new(p_alice.clone())) PushPubKey(Box::new(p_bob.clone())) PushInt(2) CheckMultiSig(msg.clone()));
+        let inputs = inputs!(s_eve.clone(), s_bob.clone());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(0));
+
+        // 1 of 3
+        let script = script!(PushInt(1) PushPubKey(Box::new(p_alice.clone())) PushPubKey(Box::new(p_bob.clone())) PushPubKey(Box::new(p_carol.clone())) PushInt(3) CheckMultiSig(msg.clone()));
+        let inputs = inputs!(s_alice.clone());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(1));
+        let inputs = inputs!(s_bob.clone());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(1));
+        let inputs = inputs!(s_carol.clone());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(1));
+        let inputs = inputs!(s_eve.clone());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(0));
+
+        // 2 of 3
+        let script = script!(PushInt(2) PushPubKey(Box::new(p_alice.clone())) PushPubKey(Box::new(p_bob.clone())) PushPubKey(Box::new(p_carol.clone())) PushInt(3) CheckMultiSig(msg.clone()));
+        let inputs = inputs!(s_alice.clone(), s_bob.clone());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(1));
+        let inputs = inputs!(s_alice.clone(), s_carol.clone());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(1));
+        let inputs = inputs!(s_carol.clone(), s_bob.clone());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(1));
+        let inputs = inputs!(s_carol.clone(), s_eve.clone());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(0));
+
+        // 3 of 3
+        let script = script!(PushInt(3) PushPubKey(Box::new(p_alice.clone())) PushPubKey(Box::new(p_bob.clone())) PushPubKey(Box::new(p_carol.clone())) PushInt(3) CheckMultiSig(msg.clone()));
+        let inputs = inputs!(s_alice.clone(), s_bob.clone(), s_carol.clone());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(1));
+        let inputs = inputs!(s_eve.clone(), s_bob.clone(), s_carol.clone());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(0));
+        let inputs = inputs!(s_eve.clone(), s_bob.clone());
+        let err = script.execute(&inputs).unwrap_err();
+        assert_eq!(err, ScriptError::StackUnderflow);
+
+        // errors
+        let script = script!(PushInt(0) PushPubKey(Box::new(p_alice.clone())) PushPubKey(Box::new(p_bob.clone())) PushInt(2) CheckMultiSig(msg.clone()));
+        let inputs = inputs!(s_alice.clone());
+        let err = script.execute(&inputs).unwrap_err();
+        assert_eq!(err, ScriptError::InvalidInput);
+        let script = script!(PushInt(1) PushPubKey(Box::new(p_alice.clone())) PushPubKey(Box::new(p_bob.clone())) PushInt(0) CheckMultiSig(msg.clone()));
+        let inputs = inputs!(s_alice.clone());
+        let err = script.execute(&inputs).unwrap_err();
+        assert_eq!(err, ScriptError::InvalidInput);
+        let script = script!(PushInt(2) PushPubKey(Box::new(p_alice.clone())) PushInt(1) CheckMultiSig(msg.clone()));
+        let inputs = inputs!(s_alice.clone());
+        let err = script.execute(&inputs).unwrap_err();
+        assert_eq!(err, ScriptError::InvalidInput);
+
+        // 3 of 4
+        let (msg, data) = multisig_data(4);
+        use crate::script::op_codes::Opcode::*;
+        let ops = vec![
+            PushInt(3),
+            PushPubKey(Box::new(data[0].1.clone())),
+            PushPubKey(Box::new(data[1].1.clone())),
+            PushPubKey(Box::new(data[2].1.clone())),
+            PushPubKey(Box::new(data[3].1.clone())),
+            PushInt(4),
+            CheckMultiSig(msg),
+        ];
+        let script = TariScript::new(ops);
+        let inputs = inputs!(data[0].2.clone(), data[1].2.clone(), data[2].2.clone());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(1));
+
+        // 5 of 7
+        let (msg, data) = multisig_data(7);
+        let ops = vec![
+            PushInt(5),
+            PushPubKey(Box::new(data[0].1.clone())),
+            PushPubKey(Box::new(data[1].1.clone())),
+            PushPubKey(Box::new(data[2].1.clone())),
+            PushPubKey(Box::new(data[3].1.clone())),
+            PushPubKey(Box::new(data[4].1.clone())),
+            PushPubKey(Box::new(data[5].1.clone())),
+            PushPubKey(Box::new(data[6].1.clone())),
+            PushInt(7),
+            CheckMultiSig(msg),
+        ];
+        let script = TariScript::new(ops);
+        let inputs = inputs!(
+            data[0].2.clone(),
+            data[1].2.clone(),
+            data[2].2.clone(),
+            data[3].2.clone(),
+            data[4].2.clone()
+        );
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(1));
+    }
+
+    #[test]
+    fn check_multisig_verify() {
+        use crate::script::StackItem::Number;
+        let mut rng = rand::thread_rng();
+        let (k_alice, p_alice) = RistrettoPublicKey::random_keypair(&mut rng);
+        let (k_bob, p_bob) = RistrettoPublicKey::random_keypair(&mut rng);
+        let (k_eve, _) = RistrettoPublicKey::random_keypair(&mut rng);
+        let (k_carol, p_carol) = RistrettoPublicKey::random_keypair(&mut rng);
+        let r1 = RistrettoSecretKey::random(&mut rng);
+        let r2 = RistrettoSecretKey::random(&mut rng);
+        let r3 = RistrettoSecretKey::random(&mut rng);
+        let r4 = RistrettoSecretKey::random(&mut rng);
+        let m = RistrettoSecretKey::random(&mut rng);
+        let s_alice = RistrettoSchnorr::sign(k_alice, r1, m.as_bytes()).unwrap();
+        let s_bob = RistrettoSchnorr::sign(k_bob, r2, m.as_bytes()).unwrap();
+        let s_eve = RistrettoSchnorr::sign(k_eve, r3, m.as_bytes()).unwrap();
+        let s_carol = RistrettoSchnorr::sign(k_carol, r4, m.as_bytes()).unwrap();
+        let msg = slice_to_boxed_message(m.as_bytes());
+
+        // 1 of 2
+        let script = script!(PushInt(1) PushPubKey(Box::new(p_alice.clone())) PushPubKey(Box::new(p_bob.clone())) PushInt(2) CheckMultiSigVerify(msg.clone()));
+
+        let inputs = inputs!(Number(1), s_alice.clone());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(1));
+        let inputs = inputs!(Number(1), s_bob.clone());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(1));
+        let inputs = inputs!(Number(1), s_eve.clone());
+        let err = script.execute(&inputs).unwrap_err();
+        assert_eq!(err, ScriptError::VerifyFailed);
+
+        // 2 of 2
+        let script = script!(PushInt(2) PushPubKey(Box::new(p_alice.clone())) PushPubKey(Box::new(p_bob.clone())) PushInt(2) CheckMultiSigVerify(msg.clone()));
+
+        let inputs = inputs!(Number(1), s_alice.clone(), s_bob.clone());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(1));
+        let script = script!(PushInt(2) PushPubKey(Box::new(p_alice.clone())) PushPubKey(Box::new(p_bob.clone())) PushInt(2) CheckMultiSigVerify(msg.clone()));
+        let inputs = inputs!(Number(1), s_eve.clone(), s_bob.clone());
+        let err = script.execute(&inputs).unwrap_err();
+        assert_eq!(err, ScriptError::VerifyFailed);
+
+        // 1 of 3
+        let script = script!(PushInt(1) PushPubKey(Box::new(p_alice.clone())) PushPubKey(Box::new(p_bob.clone())) PushPubKey(Box::new(p_carol.clone())) PushInt(3) CheckMultiSigVerify(msg.clone()));
+        let inputs = inputs!(Number(1), s_alice.clone());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(1));
+        let inputs = inputs!(Number(1), s_bob.clone());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(1));
+        let inputs = inputs!(Number(1), s_carol.clone());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(1));
+        let inputs = inputs!(Number(1), s_eve.clone());
+        let err = script.execute(&inputs).unwrap_err();
+        assert_eq!(err, ScriptError::VerifyFailed);
+
+        // 2 of 3
+        let script = script!(PushInt(2) PushPubKey(Box::new(p_alice.clone())) PushPubKey(Box::new(p_bob.clone())) PushPubKey(Box::new(p_carol.clone())) PushInt(3) CheckMultiSigVerify(msg.clone()));
+        let inputs = inputs!(Number(1), s_alice.clone(), s_bob.clone());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(1));
+        let inputs = inputs!(Number(1), s_alice.clone(), s_carol.clone());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(1));
+        let inputs = inputs!(Number(1), s_carol.clone(), s_bob.clone());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(1));
+        let inputs = inputs!(Number(1), s_carol.clone(), s_eve.clone());
+        let err = script.execute(&inputs).unwrap_err();
+        assert_eq!(err, ScriptError::VerifyFailed);
+
+        // 3 of 3
+        let script = script!(PushInt(3) PushPubKey(Box::new(p_alice.clone())) PushPubKey(Box::new(p_bob.clone())) PushPubKey(Box::new(p_carol.clone())) PushInt(3) CheckMultiSigVerify(msg.clone()));
+        let inputs = inputs!(Number(1), s_alice.clone(), s_bob.clone(), s_carol.clone());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(1));
+        let inputs = inputs!(Number(1), s_eve.clone(), s_bob.clone(), s_carol.clone());
+        let err = script.execute(&inputs).unwrap_err();
+        assert_eq!(err, ScriptError::VerifyFailed);
+        let inputs = inputs!(Number(1), s_eve.clone(), s_bob.clone());
+        let err = script.execute(&inputs).unwrap_err();
+        assert_eq!(err, ScriptError::IncompatibleTypes);
+
+        // errors
+        let script = script!(PushInt(0) PushPubKey(Box::new(p_alice.clone())) PushPubKey(Box::new(p_bob.clone())) PushInt(2) CheckMultiSigVerify(msg.clone()));
+        let inputs = inputs!(s_alice.clone());
+        let err = script.execute(&inputs).unwrap_err();
+        assert_eq!(err, ScriptError::InvalidInput);
+        let script = script!(PushInt(1) PushPubKey(Box::new(p_alice.clone())) PushPubKey(Box::new(p_bob.clone())) PushInt(0) CheckMultiSigVerify(msg.clone()));
+        let inputs = inputs!(s_alice.clone());
+        let err = script.execute(&inputs).unwrap_err();
+        assert_eq!(err, ScriptError::InvalidInput);
+        let script =
+            script!(PushInt(2) PushPubKey(Box::new(p_alice.clone())) PushInt(1) CheckMultiSigVerify(msg.clone()));
+        let inputs = inputs!(s_alice.clone());
+        let err = script.execute(&inputs).unwrap_err();
+        assert_eq!(err, ScriptError::InvalidInput);
+
+        // 3 of 4
+        let (msg, data) = multisig_data(4);
+        use crate::script::op_codes::Opcode::*;
+        let ops = vec![
+            PushInt(3),
+            PushPubKey(Box::new(data[0].1.clone())),
+            PushPubKey(Box::new(data[1].1.clone())),
+            PushPubKey(Box::new(data[2].1.clone())),
+            PushPubKey(Box::new(data[3].1.clone())),
+            PushInt(4),
+            CheckMultiSigVerify(msg),
+        ];
+        let script = TariScript::new(ops);
+        let inputs = inputs!(Number(1), data[0].2.clone(), data[1].2.clone(), data[2].2.clone());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(1));
+
+        // 5 of 7
+        let (msg, data) = multisig_data(7);
+        let ops = vec![
+            PushInt(5),
+            PushPubKey(Box::new(data[0].1.clone())),
+            PushPubKey(Box::new(data[1].1.clone())),
+            PushPubKey(Box::new(data[2].1.clone())),
+            PushPubKey(Box::new(data[3].1.clone())),
+            PushPubKey(Box::new(data[4].1.clone())),
+            PushPubKey(Box::new(data[5].1.clone())),
+            PushPubKey(Box::new(data[6].1.clone())),
+            PushInt(7),
+            CheckMultiSigVerify(msg),
+        ];
+        let script = TariScript::new(ops);
+        let inputs = inputs!(
+            Number(1),
+            data[0].2.clone(),
+            data[1].2.clone(),
+            data[2].2.clone(),
+            data[3].2.clone(),
+            data[4].2.clone()
+        );
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(1));
     }
 
     #[test]

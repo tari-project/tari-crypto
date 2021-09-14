@@ -112,6 +112,8 @@ pub const OP_OR: u8 = 0x65;
 // Opcode constants: Cryptographic Operations
 pub const OP_CHECK_SIG: u8 = 0xac;
 pub const OP_CHECK_SIG_VERIFY: u8 = 0xad;
+pub const OP_CHECK_MULTI_SIG: u8 = 0xae;
+pub const OP_CHECK_MULTI_SIG_VERIFY: u8 = 0xaf;
 pub const OP_HASH_BLAKE256: u8 = 0xb0;
 pub const OP_HASH_SHA256: u8 = 0xb1;
 pub const OP_HASH_SHA3: u8 = 0xb2;
@@ -225,6 +227,16 @@ pub enum Opcode {
     /// Identical to CheckSig, except that nothing is pushed to the stack if the signature is valid, and the operation
     /// fails with VERIFY_FAILED if the signature is invalid.
     CheckSigVerify(Box<Message>),
+    /// Pop the number `n` indicating the number of allowed spenders, and then pop `n` spender public keys off the
+    /// stack. Then pop the number `m` indicating the number of required spending signatures, and then pop `m`
+    /// signatures from the stack provided as inputs to the script. If `m` signatures of the possible `n` public keys
+    /// sign the challenge message, push 1 to the stack, otherwise push 0. Fails with INVALID_SCRIPT_DATA if the Msg is
+    /// not a valid 32-byte value. Fails with EMPTY_STACK if the stack has too few items. Fails with INVALID_INPUT
+    /// if the popped elements are not of the correct types, of if `m` or `n` are 0 or if `m` is greater than `n`.
+    CheckMultiSig(Box<Message>),
+    /// Identical to CheckMultiSig, except that nothing is pushed to the stack if the signature is valid, and the
+    /// operation fails with VERIFY_FAILED if any of the signatures are invalid.
+    CheckMultiSigVerify(Box<Message>),
 
     // Miscellaneous
     /// Always fails with VERIFY_FAILED.
@@ -343,6 +355,20 @@ impl Opcode {
                 let msg = slice_to_boxed_message(&bytes[1..33]);
                 Ok((CheckSigVerify(msg), &bytes[33..]))
             },
+            OP_CHECK_MULTI_SIG => {
+                if bytes.len() < 33 {
+                    return Err(ScriptError::InvalidData);
+                }
+                let msg = slice_to_boxed_message(&bytes[1..33]);
+                Ok((CheckMultiSig(msg), &bytes[33..]))
+            },
+            OP_CHECK_MULTI_SIG_VERIFY => {
+                if bytes.len() < 33 {
+                    return Err(ScriptError::InvalidData);
+                }
+                let msg = slice_to_boxed_message(&bytes[1..33]);
+                Ok((CheckMultiSigVerify(msg), &bytes[33..]))
+            },
             OP_RETURN => Ok((Return, &bytes[1..])),
             OP_IF_THEN => Ok((IfThen, &bytes[1..])),
             OP_ELSE => Ok((Else, &bytes[1..])),
@@ -412,6 +438,14 @@ impl Opcode {
                 array.push(OP_CHECK_SIG_VERIFY);
                 array.extend_from_slice(msg.deref());
             },
+            CheckMultiSig(msg) => {
+                array.push(OP_CHECK_MULTI_SIG);
+                array.extend_from_slice(msg.deref());
+            },
+            CheckMultiSigVerify(msg) => {
+                array.push(OP_CHECK_MULTI_SIG_VERIFY);
+                array.extend_from_slice(msg.deref());
+            },
             Return => array.push(OP_RETURN),
             IfThen => array.push(OP_IF_THEN),
             Else => array.push(OP_ELSE),
@@ -454,6 +488,8 @@ impl fmt::Display for Opcode {
             HashSha3 => fmt.write_str("HashSha3"),
             CheckSig(msg) => fmt.write_str(&format!("CheckSig({})", (*msg).to_hex())),
             CheckSigVerify(msg) => fmt.write_str(&format!("CheckSigVerify({})", (*msg).to_hex())),
+            CheckMultiSig(msg) => fmt.write_str(&format!("CheckMultiSig({})", (*msg).to_hex())),
+            CheckMultiSigVerify(msg) => fmt.write_str(&format!("CheckMultiSigVerify({})", (*msg).to_hex())),
             Return => fmt.write_str("Return"),
             IfThen => fmt.write_str("IfThen"),
             Else => fmt.write_str("Else"),
@@ -674,6 +710,41 @@ mod test {
             Opcode::CheckSigVerify(Box::new(msg.clone())),
             OP_CHECK_SIG_VERIFY,
             "CheckSigVerify(6c9cb4d3e57351462122310fa22c90b1e6dfb528d64615363d1261a75da3e401)",
+        );
+    }
+
+    #[test]
+    fn check_multisig() {
+        fn test_checkmultisig(op: Opcode, val: u8, display: &str) {
+            // Serialise
+            assert!(matches!(Opcode::read_next(&[val]), Err(ScriptError::InvalidData)));
+            let msg = &[
+                val, 108, 156, 180, 211, 229, 115, 81, 70, 33, 34, 49, 15, 162, 44, 144, 177, 230, 223, 181, 40, 214,
+                70, 21, 54, 61, 18, 97, 167, 93, 163, 228, 1,
+            ];
+            let (opcode, rem) = Opcode::read_next(msg).unwrap();
+            assert_eq!(opcode, op);
+            assert!(rem.is_empty());
+            // Deserialise
+            let mut arr = vec![];
+            op.to_bytes(&mut arr);
+            assert_eq!(arr, msg);
+            // Format
+            assert_eq!(format!("{}", op).as_str(), display);
+        }
+        let msg = &[
+            108, 156, 180, 211, 229, 115, 81, 70, 33, 34, 49, 15, 162, 44, 144, 177, 230, 223, 181, 40, 214, 70, 21,
+            54, 61, 18, 97, 167, 93, 163, 228, 1,
+        ];
+        test_checkmultisig(
+            Opcode::CheckMultiSig(Box::new(msg.clone())),
+            OP_CHECK_MULTI_SIG,
+            "CheckMultiSig(6c9cb4d3e57351462122310fa22c90b1e6dfb528d64615363d1261a75da3e401)",
+        );
+        test_checkmultisig(
+            Opcode::CheckMultiSigVerify(Box::new(msg.clone())),
+            OP_CHECK_MULTI_SIG_VERIFY,
+            "CheckMultiSigVerify(6c9cb4d3e57351462122310fa22c90b1e6dfb528d64615363d1261a75da3e401)",
         );
     }
 
