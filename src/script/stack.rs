@@ -243,14 +243,14 @@ impl ExecutionStack {
 
     /// Return a binary array representation of the input stack
     pub fn as_bytes(&self) -> Vec<u8> {
-        self.items.iter().fold(Vec::with_capacity(512), |mut bytes, item| {
+        self.items.iter().fold(Vec::new(), |mut bytes, item| {
             item.to_bytes(&mut bytes);
             bytes
         })
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, ScriptError> {
-        let mut items = Vec::with_capacity(512);
+        let mut items = Vec::new();
         let mut byte_str = bytes;
         while !byte_str.is_empty() {
             match StackItem::read_next(byte_str) {

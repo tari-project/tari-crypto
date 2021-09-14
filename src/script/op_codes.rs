@@ -270,7 +270,7 @@ pub enum Opcode {
 
 impl Opcode {
     pub fn parse(bytes: &[u8]) -> Result<Vec<Opcode>, ScriptError> {
-        let mut script = Vec::with_capacity(512);
+        let mut script = Vec::new();
         let mut bytes_copy = bytes;
 
         while !bytes_copy.is_empty() {

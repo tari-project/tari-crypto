@@ -110,7 +110,7 @@ impl TariScript {
     }
 
     pub fn as_bytes(&self) -> Vec<u8> {
-        self.script.iter().fold(Vec::with_capacity(512), |mut bytes, op| {
+        self.script.iter().fold(Vec::new(), |mut bytes, op| {
             op.to_bytes(&mut bytes);
             bytes
         })
