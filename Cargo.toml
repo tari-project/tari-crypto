@@ -17,8 +17,8 @@ digest = "0.9.0"
 rand = { version = "0.8", default-features = false }
 getrandom = { version = "0.2.3", default-features = false, optional = true }
 clear_on_drop = "=0.2.4"
-curve25519-dalek = { package = "curve25519-dalek-ng", version = "4", default-features = false, features = ["u64_backend", "serde", "alloc"] }
-bulletproofs = {version = "4.0.0", package="tari_bulletproofs"}
+curve25519-dalek = { package = "curve25519-dalek-ng", version = "4.1", default-features = false, features = ["u64_backend", "serde", "alloc"] }
+bulletproofs = { version = "4.1", package="tari_bulletproofs", git = "https://github.com/tari-project/bulletproofs", branch = "main" } # todo: update when 4.1 pushed to crates.io
 merlin = { version = "3", default-features = false }
 sha2 = "0.9.5"
 sha3 = "0.9"
@@ -41,13 +41,10 @@ cbindgen = "0.17.0"
 
 [features]
 default = ["no_cc"]
-# Note: avx2 still requires a nightly compiler as of 01/07/2021
-# The nightly compiler must be older than 2021-06-03 to avoid the
-# #![cfg_attr(feature = "nightly", feature(external_doc))]
-#                                          ^^^^^^^^^^^^ feature has been removed
-# feature error on subtle-ng
-avx2 = ["curve25519-dalek/avx2_backend", "bulletproofs/avx2_backend"]
-wasm = ["wasm-bindgen",  "getrandom/js"]
+simd_backend = ["curve25519-dalek/simd_backend", "bulletproofs/simd_backend"]
+simd = ["simd_backend"]
+avx2 = ["simd_backend"] # deprecated alias for simd_backend
+wasm = ["wasm-bindgen", "getrandom/js"]
 ffi = []
 no_cc_nightly = ["clear_on_drop/nightly"]
 no_cc = ["clear_on_drop/no_cc"]
