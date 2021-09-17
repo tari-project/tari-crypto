@@ -230,7 +230,6 @@ impl ExecutionStack {
     /// order (ie. bottom first), otherwise returns an error.
     pub fn pop_num_items(&mut self, num_items: usize) -> Result<Vec<StackItem>, ScriptError> {
         let stack_size = self.size();
-        let num_items = num_items as usize;
 
         if stack_size < num_items {
             Err(ScriptError::StackUnderflow)

@@ -24,6 +24,8 @@ use super::ScriptError;
 pub type HashValue = [u8; 32];
 pub type Message = [u8; 32];
 
+const PUBLIC_KEY_LENGTH: usize = 32;
+
 /// Convert a slice into a HashValue.
 ///
 /// # Panics
@@ -54,6 +56,24 @@ pub fn slice_to_message(slice: &[u8]) -> Message {
 /// Convert a slice into a Boxed Message
 pub fn slice_to_boxed_message(slice: &[u8]) -> Box<Message> {
     Box::new(slice_to_message(slice))
+}
+
+/// Convert a slice into a vector of Public Keys.
+pub fn slice_to_vec_pubkeys(slice: &[u8], num: usize) -> Result<Vec<RistrettoPublicKey>, ScriptError> {
+    if slice.len() < num * PUBLIC_KEY_LENGTH {
+        return Err(ScriptError::InvalidData);
+    }
+
+    let mut public_keys = Vec::with_capacity(num);
+
+    for i in 0..num {
+        let start = i * PUBLIC_KEY_LENGTH;
+        let end = (i + 1) * PUBLIC_KEY_LENGTH;
+        let pk = RistrettoPublicKey::from_bytes(&slice[start..end])?;
+        public_keys.push(pk);
+    }
+
+    Ok(public_keys)
 }
 
 /// Convert a slice of little endian bytes into a u64.
@@ -227,16 +247,12 @@ pub enum Opcode {
     /// Identical to CheckSig, except that nothing is pushed to the stack if the signature is valid, and the operation
     /// fails with VERIFY_FAILED if the signature is invalid.
     CheckSigVerify(Box<Message>),
-    /// Pop the number `n` indicating the number of allowed spenders, and then pop `n` spender public keys off the
-    /// stack. Then pop the number `m` indicating the number of required spending signatures, and then pop `m`
-    /// signatures from the stack provided as inputs to the script. If `m` signatures of the possible `n` public keys
-    /// sign the challenge message, push 1 to the stack, otherwise push 0. Fails with INVALID_SCRIPT_DATA if the Msg is
-    /// not a valid 32-byte value. Fails with EMPTY_STACK if the stack has too few items. Fails with INVALID_INPUT
-    /// if the popped elements are not of the correct types, of if `m` or `n` are 0 or if `m` is greater than `n`.
-    CheckMultiSig(Box<Message>),
-    /// Identical to CheckMultiSig, except that nothing is pushed to the stack if the signature is valid, and the
+    /// Pop m signatures from the stack. If m signatures out of the provided n public keys sign the 32-byte message,
+    /// push 1 to the stack, otherwise push 0.
+    CheckMultiSig(u8, u8, Vec<RistrettoPublicKey>, Box<Message>),
+    /// Identical to CheckMultiSig, except that nothing is pushed to the stack if the m signatures are valid, and the
     /// operation fails with VERIFY_FAILED if any of the signatures are invalid.
-    CheckMultiSigVerify(Box<Message>),
+    CheckMultiSigVerify(u8, u8, Vec<RistrettoPublicKey>, Box<Message>),
 
     // Miscellaneous
     /// Always fails with VERIFY_FAILED.
@@ -356,18 +372,30 @@ impl Opcode {
                 Ok((CheckSigVerify(msg), &bytes[33..]))
             },
             OP_CHECK_MULTI_SIG => {
-                if bytes.len() < 33 {
+                if bytes.len() < 3 {
                     return Err(ScriptError::InvalidData);
                 }
-                let msg = slice_to_boxed_message(&bytes[1..33]);
-                Ok((CheckMultiSig(msg), &bytes[33..]))
+                let m = &bytes[1];
+                let n = &bytes[2];
+                let num = *n as usize;
+                let len = 3 + num * PUBLIC_KEY_LENGTH;
+                let keys = slice_to_vec_pubkeys(&bytes[3..len], num)?;
+                let end = len + 32;
+                let msg = slice_to_boxed_message(&bytes[len..end]);
+                Ok((CheckMultiSig(*m, *n, keys, msg), &bytes[end..]))
             },
             OP_CHECK_MULTI_SIG_VERIFY => {
-                if bytes.len() < 33 {
+                if bytes.len() < 3 {
                     return Err(ScriptError::InvalidData);
                 }
-                let msg = slice_to_boxed_message(&bytes[1..33]);
-                Ok((CheckMultiSigVerify(msg), &bytes[33..]))
+                let m = &bytes[1];
+                let n = &bytes[2];
+                let num = *n as usize;
+                let len = 3 + num * PUBLIC_KEY_LENGTH;
+                let keys = slice_to_vec_pubkeys(&bytes[3..len], num)?;
+                let end = len + 32;
+                let msg = slice_to_boxed_message(&bytes[len..end]);
+                Ok((CheckMultiSigVerify(*m, *n, keys, msg), &bytes[end..]))
             },
             OP_RETURN => Ok((Return, &bytes[1..])),
             OP_IF_THEN => Ok((IfThen, &bytes[1..])),
@@ -438,12 +466,22 @@ impl Opcode {
                 array.push(OP_CHECK_SIG_VERIFY);
                 array.extend_from_slice(msg.deref());
             },
-            CheckMultiSig(msg) => {
+            CheckMultiSig(m, n, public_keys, msg) => {
                 array.push(OP_CHECK_MULTI_SIG);
+                array.push(*m);
+                array.push(*n);
+                for public_key in public_keys {
+                    array.extend(public_key.to_vec());
+                }
                 array.extend_from_slice(msg.deref());
             },
-            CheckMultiSigVerify(msg) => {
+            CheckMultiSigVerify(m, n, public_keys, msg) => {
                 array.push(OP_CHECK_MULTI_SIG_VERIFY);
+                array.push(*m);
+                array.push(*n);
+                for public_key in public_keys {
+                    array.extend(public_key.to_vec());
+                }
                 array.extend_from_slice(msg.deref());
             },
             Return => array.push(OP_RETURN),
@@ -488,8 +526,26 @@ impl fmt::Display for Opcode {
             HashSha3 => fmt.write_str("HashSha3"),
             CheckSig(msg) => fmt.write_str(&format!("CheckSig({})", (*msg).to_hex())),
             CheckSigVerify(msg) => fmt.write_str(&format!("CheckSigVerify({})", (*msg).to_hex())),
-            CheckMultiSig(msg) => fmt.write_str(&format!("CheckMultiSig({})", (*msg).to_hex())),
-            CheckMultiSigVerify(msg) => fmt.write_str(&format!("CheckMultiSigVerify({})", (*msg).to_hex())),
+            CheckMultiSig(m, n, public_keys, msg) => {
+                let keys: Vec<String> = public_keys.iter().map(|p| p.to_hex()).collect();
+                fmt.write_str(&format!(
+                    "CheckMultiSig({}, {}, [{}], {})",
+                    *m,
+                    *n,
+                    keys.join(", "),
+                    (*msg).to_hex()
+                ))
+            },
+            CheckMultiSigVerify(m, n, public_keys, msg) => {
+                let keys: Vec<String> = public_keys.iter().map(|p| p.to_hex()).collect();
+                fmt.write_str(&format!(
+                    "CheckMultiSigVerify({}, {}, [{}], {})",
+                    *m,
+                    *n,
+                    keys.join(", "),
+                    (*msg).to_hex()
+                ))
+            },
             Return => fmt.write_str("Return"),
             IfThen => fmt.write_str("IfThen"),
             Else => fmt.write_str("Else"),
@@ -718,17 +774,20 @@ mod test {
         fn test_checkmultisig(op: Opcode, val: u8, display: &str) {
             // Serialise
             assert!(matches!(Opcode::read_next(&[val]), Err(ScriptError::InvalidData)));
-            let msg = &[
-                val, 108, 156, 180, 211, 229, 115, 81, 70, 33, 34, 49, 15, 162, 44, 144, 177, 230, 223, 181, 40, 214,
-                70, 21, 54, 61, 18, 97, 167, 93, 163, 228, 1,
+            let bytes = &[
+                val, 1, 2, 156, 139, 197, 249, 13, 34, 17, 145, 116, 142, 141, 215, 104, 111, 9, 225, 17, 75, 75, 173,
+                164, 195, 103, 237, 88, 174, 25, 156, 81, 235, 16, 11, 86, 233, 240, 24, 177, 56, 186, 132, 53, 33,
+                179, 36, 58, 41, 216, 23, 48, 195, 164, 194, 81, 8, 177, 8, 177, 202, 71, 194, 19, 45, 181, 105, 108,
+                156, 180, 211, 229, 115, 81, 70, 33, 34, 49, 15, 162, 44, 144, 177, 230, 223, 181, 40, 214, 70, 21, 54,
+                61, 18, 97, 167, 93, 163, 228, 1,
             ];
-            let (opcode, rem) = Opcode::read_next(msg).unwrap();
+            let (opcode, rem) = Opcode::read_next(bytes).unwrap();
             assert_eq!(opcode, op);
             assert!(rem.is_empty());
             // Deserialise
             let mut arr = vec![];
             op.to_bytes(&mut arr);
-            assert_eq!(arr, msg);
+            assert_eq!(arr, bytes);
             // Format
             assert_eq!(format!("{}", op).as_str(), display);
         }
@@ -736,15 +795,26 @@ mod test {
             108, 156, 180, 211, 229, 115, 81, 70, 33, 34, 49, 15, 162, 44, 144, 177, 230, 223, 181, 40, 214, 70, 21,
             54, 61, 18, 97, 167, 93, 163, 228, 1,
         ];
+        let p1 = "9c8bc5f90d221191748e8dd7686f09e1114b4bada4c367ed58ae199c51eb100b";
+        let p2 = "56e9f018b138ba843521b3243a29d81730c3a4c25108b108b1ca47c2132db569";
+        let keys = vec![
+            RistrettoPublicKey::from_hex(p1).unwrap(),
+            RistrettoPublicKey::from_hex(p2).unwrap(),
+        ];
+
         test_checkmultisig(
-            Opcode::CheckMultiSig(Box::new(msg.clone())),
+            Opcode::CheckMultiSig(1, 2, keys.clone(), Box::new(msg.clone())),
             OP_CHECK_MULTI_SIG,
-            "CheckMultiSig(6c9cb4d3e57351462122310fa22c90b1e6dfb528d64615363d1261a75da3e401)",
+            "CheckMultiSig(1, 2, [9c8bc5f90d221191748e8dd7686f09e1114b4bada4c367ed58ae199c51eb100b, \
+             56e9f018b138ba843521b3243a29d81730c3a4c25108b108b1ca47c2132db569], \
+             6c9cb4d3e57351462122310fa22c90b1e6dfb528d64615363d1261a75da3e401)",
         );
         test_checkmultisig(
-            Opcode::CheckMultiSigVerify(Box::new(msg.clone())),
+            Opcode::CheckMultiSigVerify(1, 2, keys, Box::new(msg.clone())),
             OP_CHECK_MULTI_SIG_VERIFY,
-            "CheckMultiSigVerify(6c9cb4d3e57351462122310fa22c90b1e6dfb528d64615363d1261a75da3e401)",
+            "CheckMultiSigVerify(1, 2, [9c8bc5f90d221191748e8dd7686f09e1114b4bada4c367ed58ae199c51eb100b, \
+             56e9f018b138ba843521b3243a29d81730c3a4c25108b108b1ca47c2132db569], \
+             6c9cb4d3e57351462122310fa22c90b1e6dfb528d64615363d1261a75da3e401)",
         );
     }
 
@@ -841,5 +911,18 @@ mod test {
         test_opcode(Opcode::Add, "Add");
         test_opcode(Opcode::Sub, "Sub");
         test_opcode(Opcode::Return, "Return");
+    }
+
+    #[test]
+    fn test_slice_to_vec_pubkeys() {
+        let key =
+            RistrettoPublicKey::from_hex("6c9cb4d3e57351462122310fa22c90b1e6dfb528d64615363d1261a75da3e401").unwrap();
+        let bytes = key.as_bytes();
+        let vec = [bytes, bytes, bytes].concat();
+        let slice = vec.as_bytes();
+        let vec = slice_to_vec_pubkeys(slice, 3).unwrap();
+        for pk in vec {
+            assert_eq!(key, pk);
+        }
     }
 }
