@@ -47,6 +47,8 @@ macro_rules! script {
     }}
 }
 
+const MAX_MULTISIG_LIMIT: u8 = 32;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TariScript {
     script: Vec<Opcode>,
@@ -474,7 +476,7 @@ impl TariScript {
         public_keys: &Vec<RistrettoPublicKey>,
         message: Message,
     ) -> Result<bool, ScriptError> {
-        if m == 0 || n == 0 || m > n {
+        if m == 0 || n == 0 || m > n || n > MAX_MULTISIG_LIMIT {
             return Err(ScriptError::InvalidData);
         }
         // pop m sigs
@@ -1088,6 +1090,17 @@ mod test {
         let ops = vec![CheckMultiSig(2, 1, keys, msg.clone())];
         let script = TariScript::new(ops);
         let inputs = inputs!(s_alice.clone());
+        let err = script.execute(&inputs).unwrap_err();
+        assert_eq!(err, ScriptError::InvalidData);
+
+        // max n is 32
+        let (msg, data) = multisig_data(33);
+        let keys = data.iter().map(|(_, p, _)| p.clone()).collect();
+        let sigs: Vec<RistrettoSchnorr> = data.iter().take(17).map(|(_, _, s)| s.clone()).collect();
+        let ops = vec![CheckMultiSig(17, 33, keys, msg.clone())];
+        let script = TariScript::new(ops);
+        let items = sigs.into_iter().map(|s| StackItem::Signature(s)).collect();
+        let inputs = ExecutionStack::new(items);
         let err = script.execute(&inputs).unwrap_err();
         assert_eq!(err, ScriptError::InvalidData);
 
