@@ -1019,6 +1019,13 @@ mod test {
         let result = script.execute(&inputs).unwrap();
         assert_eq!(result, Number(0));
 
+        // 2 of 2 - don't allow same sig to sign twice
+        let script = script!(PushInt(2) PushPubKey(Box::new(p_alice.clone())) PushPubKey(Box::new(p_bob.clone())) PushInt(2) CheckMultiSig(msg.clone()));
+
+        let inputs = inputs!(s_alice.clone(), s_alice.clone());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(0));
+
         // 1 of 3
         let script = script!(PushInt(1) PushPubKey(Box::new(p_alice.clone())) PushPubKey(Box::new(p_bob.clone())) PushPubKey(Box::new(p_carol.clone())) PushInt(3) CheckMultiSig(msg.clone()));
         let inputs = inputs!(s_alice.clone());
