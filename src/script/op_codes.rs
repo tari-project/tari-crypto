@@ -372,30 +372,12 @@ impl Opcode {
                 Ok((CheckSigVerify(msg), &bytes[33..]))
             },
             OP_CHECK_MULTI_SIG => {
-                if bytes.len() < 3 {
-                    return Err(ScriptError::InvalidData);
-                }
-                let m = &bytes[1];
-                let n = &bytes[2];
-                let num = *n as usize;
-                let len = 3 + num * PUBLIC_KEY_LENGTH;
-                let keys = slice_to_vec_pubkeys(&bytes[3..len], num)?;
-                let end = len + 32;
-                let msg = slice_to_boxed_message(&bytes[len..end]);
-                Ok((CheckMultiSig(*m, *n, keys, msg), &bytes[end..]))
+                let (m, n, keys, msg, end) = Opcode::read_multisig_args(&bytes)?;
+                Ok((CheckMultiSig(m, n, keys, msg), &bytes[end..]))
             },
             OP_CHECK_MULTI_SIG_VERIFY => {
-                if bytes.len() < 3 {
-                    return Err(ScriptError::InvalidData);
-                }
-                let m = &bytes[1];
-                let n = &bytes[2];
-                let num = *n as usize;
-                let len = 3 + num * PUBLIC_KEY_LENGTH;
-                let keys = slice_to_vec_pubkeys(&bytes[3..len], num)?;
-                let end = len + 32;
-                let msg = slice_to_boxed_message(&bytes[len..end]);
-                Ok((CheckMultiSigVerify(*m, *n, keys, msg), &bytes[end..]))
+                let (m, n, keys, msg, end) = Opcode::read_multisig_args(&bytes)?;
+                Ok((CheckMultiSigVerify(m, n, keys, msg), &bytes[end..]))
             },
             OP_RETURN => Ok((Return, &bytes[1..])),
             OP_IF_THEN => Ok((IfThen, &bytes[1..])),
@@ -403,6 +385,27 @@ impl Opcode {
             OP_END_IF => Ok((EndIf, &bytes[1..])),
             _ => Err(ScriptError::InvalidOpcode),
         }
+    }
+
+    fn read_multisig_args(bytes: &[u8]) -> Result<(u8, u8, Vec<RistrettoPublicKey>, Box<Message>, usize), ScriptError> {
+        if bytes.len() < 3 {
+            return Err(ScriptError::InvalidData);
+        }
+        let m = &bytes[1];
+        let n = &bytes[2];
+        let num = *n as usize;
+        let len = 3 + num * PUBLIC_KEY_LENGTH;
+        if bytes.len() < len {
+            return Err(ScriptError::InvalidData);
+        }
+        let keys = slice_to_vec_pubkeys(&bytes[3..len], num)?;
+        let end = len + 32;
+        if bytes.len() < end {
+            return Err(ScriptError::InvalidData);
+        }
+        let msg = slice_to_boxed_message(&bytes[len..end]);
+
+        Ok((*m, *n, keys, msg, end))
     }
 
     /// Convert an opcode into its binary representation and append it to the array. The function returns the byte slice
