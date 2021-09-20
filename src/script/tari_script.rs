@@ -31,7 +31,7 @@ use crate::{
 use digest::Digest;
 use sha2::Sha256;
 use sha3::Sha3_256;
-use std::{cmp::Ordering, convert::TryFrom, fmt, ops::Deref};
+use std::{cmp::Ordering, collections::HashSet, convert::TryFrom, fmt, ops::Deref};
 use tari_utilities::{
     hex::{from_hex, to_hex, Hex, HexError},
     ByteArray,
@@ -491,11 +491,13 @@ impl TariScript {
 
         let mut valid_signatures = 0;
         let mut key_signed = vec![false; public_keys.len()];
-        for (i, public_key) in public_keys.iter().enumerate() {
-            for signature in signatures.iter() {
-                if !key_signed[i] && signature.verify_challenge(public_key, &message) {
+        let mut sig_used = HashSet::new();
+        for (i, pk) in public_keys.iter().enumerate() {
+            for s in signatures.iter() {
+                if !sig_used.contains(s) && !key_signed[i] && s.verify_challenge(pk, &message) {
                     valid_signatures += 1;
                     key_signed[i] = true;
+                    sig_used.insert(s);
                     break;
                 }
             }
@@ -981,11 +983,13 @@ mod test {
         let r2 = RistrettoSecretKey::random(&mut rng);
         let r3 = RistrettoSecretKey::random(&mut rng);
         let r4 = RistrettoSecretKey::random(&mut rng);
+        let r5 = RistrettoSecretKey::random(&mut rng);
         let m = RistrettoSecretKey::random(&mut rng);
-        let s_alice = RistrettoSchnorr::sign(k_alice, r1, m.as_bytes()).unwrap();
+        let s_alice = RistrettoSchnorr::sign(k_alice.clone(), r1, m.as_bytes()).unwrap();
         let s_bob = RistrettoSchnorr::sign(k_bob, r2, m.as_bytes()).unwrap();
         let s_eve = RistrettoSchnorr::sign(k_eve, r3, m.as_bytes()).unwrap();
         let s_carol = RistrettoSchnorr::sign(k_carol, r4, m.as_bytes()).unwrap();
+        let s_alice2 = RistrettoSchnorr::sign(k_alice, r5, m.as_bytes()).unwrap();
         let msg = slice_to_boxed_message(m.as_bytes());
 
         // 1 of 2
@@ -1055,6 +1059,18 @@ mod test {
         let inputs = inputs!(s_carol.clone(), s_eve.clone());
         let result = script.execute(&inputs).unwrap();
         assert_eq!(result, Number(0));
+
+        // check that sigs are only counted once
+        let keys = vec![p_alice.clone(), p_alice.clone(), p_bob.clone()];
+        let ops = vec![CheckMultiSig(2, 3, keys, msg.clone())];
+        let script = TariScript::new(ops);
+
+        let inputs = inputs!(s_alice.clone(), s_alice.clone());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(0));
+        let inputs = inputs!(s_alice.clone(), s_alice2.clone());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(1));
 
         // 3 of 3
         let keys = vec![p_alice.clone(), p_bob.clone(), p_carol.clone()];
