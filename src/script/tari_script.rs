@@ -480,8 +480,9 @@ impl TariScript {
             return Err(ScriptError::InvalidData);
         }
         // pop m sigs
+        let m = m as usize;
         let signatures = stack
-            .pop_num_items(m.into())?
+            .pop_num_items(m)?
             .into_iter()
             .map(|item| match item {
                 StackItem::Signature(s) => Ok(s),
@@ -489,21 +490,23 @@ impl TariScript {
             })
             .collect::<Result<Vec<RistrettoSchnorr>, ScriptError>>()?;
 
-        let mut valid_signatures = 0;
         let mut key_signed = vec![false; public_keys.len()];
-        let mut sig_used = HashSet::new();
-        for (i, pk) in public_keys.iter().enumerate() {
-            for s in signatures.iter() {
-                if !sig_used.contains(s) && !key_signed[i] && s.verify_challenge(pk, &message) {
-                    valid_signatures += 1;
+        let mut sig_set = HashSet::new();
+
+        for s in signatures.iter() {
+            for (i, pk) in public_keys.iter().enumerate() {
+                if !sig_set.contains(s) && !key_signed[i] && s.verify_challenge(pk, &message) {
                     key_signed[i] = true;
-                    sig_used.insert(s);
+                    sig_set.insert(s);
                     break;
                 }
             }
+            if !sig_set.contains(s) {
+                return Ok(false);
+            }
         }
 
-        Ok(valid_signatures == m)
+        Ok(sig_set.len() == m)
     }
 }
 
@@ -1061,10 +1064,13 @@ mod test {
         assert_eq!(result, Number(0));
 
         // check that sigs are only counted once
-        let keys = vec![p_alice.clone(), p_alice.clone(), p_bob.clone()];
+        let keys = vec![p_alice.clone(), p_bob.clone(), p_alice.clone()];
         let ops = vec![CheckMultiSig(2, 3, keys, msg.clone())];
         let script = TariScript::new(ops);
 
+        let inputs = inputs!(s_alice.clone(), s_carol.clone());
+        let result = script.execute(&inputs).unwrap();
+        assert_eq!(result, Number(0));
         let inputs = inputs!(s_alice.clone(), s_alice.clone());
         let result = script.execute(&inputs).unwrap();
         assert_eq!(result, Number(0));

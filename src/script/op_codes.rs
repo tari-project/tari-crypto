@@ -393,14 +393,11 @@ impl Opcode {
         let n = &bytes[2];
         let num = *n as usize;
         let len = 3 + num * PUBLIC_KEY_LENGTH;
-        if bytes.len() < len {
-            return Err(ScriptError::InvalidData);
-        }
-        let keys = slice_to_vec_pubkeys(&bytes[3..len], num)?;
         let end = len + MESSAGE_LENGTH;
         if bytes.len() < end {
             return Err(ScriptError::InvalidData);
         }
+        let keys = slice_to_vec_pubkeys(&bytes[3..len], num)?;
         let msg = slice_to_boxed_message(&bytes[len..end]);
 
         Ok((*m, *n, keys, msg, end))
