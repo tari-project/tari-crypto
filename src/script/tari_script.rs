@@ -39,10 +39,10 @@ use tari_utilities::{
 
 #[macro_export]
 macro_rules! script {
-    ($($opcode:ident$(($var:expr))?) +) => {{
+    ($($opcode:ident$(($($var:expr),+))?) +) => {{
         use $crate::script::TariScript;
         use $crate::script::Opcode;
-        let script = vec![$(Opcode::$opcode $(($var))?),+];
+        let script = vec![$(Opcode::$opcode $(($($var),+))?),+];
         TariScript::new(script)
     }}
 }
@@ -1097,9 +1097,8 @@ mod test {
         let (msg, data) = multisig_data(33);
         let keys = data.iter().map(|(_, p, _)| p.clone()).collect();
         let sigs: Vec<RistrettoSchnorr> = data.iter().take(17).map(|(_, _, s)| s.clone()).collect();
-        let ops = vec![CheckMultiSig(17, 33, keys, msg.clone())];
-        let script = TariScript::new(ops);
-        let items = sigs.into_iter().map(|s| StackItem::Signature(s)).collect();
+        let script = script!(CheckMultiSig(17, 33, keys, msg.clone()));
+        let items = sigs.into_iter().map(StackItem::Signature).collect();
         let inputs = ExecutionStack::new(items);
         let err = script.execute(&inputs).unwrap_err();
         assert_eq!(err, ScriptError::InvalidData);
