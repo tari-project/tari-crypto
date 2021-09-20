@@ -17,14 +17,15 @@
 
 use crate::ristretto::RistrettoPublicKey;
 use std::{fmt, ops::Deref};
-use tari_utilities::{hex::Hex, ByteArray};
+use tari_utilities::{hex::Hex, ByteArray, ByteArrayError};
 
 use super::ScriptError;
 
 pub type HashValue = [u8; 32];
-pub type Message = [u8; 32];
+pub type Message = [u8; MESSAGE_LENGTH];
 
 const PUBLIC_KEY_LENGTH: usize = 32;
+const MESSAGE_LENGTH: usize = 32;
 
 /// Convert a slice into a HashValue.
 ///
@@ -48,7 +49,7 @@ pub fn slice_to_boxed_hash(slice: &[u8]) -> Box<HashValue> {
 ///
 /// The function does not check slice for length at all.  You need to check this / guarantee it yourself.
 pub fn slice_to_message(slice: &[u8]) -> Message {
-    let mut msg = [0u8; 32];
+    let mut msg = [0u8; MESSAGE_LENGTH];
     msg.copy_from_slice(slice);
     msg
 }
@@ -64,14 +65,11 @@ pub fn slice_to_vec_pubkeys(slice: &[u8], num: usize) -> Result<Vec<RistrettoPub
         return Err(ScriptError::InvalidData);
     }
 
-    let mut public_keys = Vec::with_capacity(num);
-
-    for i in 0..num {
-        let start = i * PUBLIC_KEY_LENGTH;
-        let end = (i + 1) * PUBLIC_KEY_LENGTH;
-        let pk = RistrettoPublicKey::from_bytes(&slice[start..end])?;
-        public_keys.push(pk);
-    }
+    let public_keys = slice
+        .chunks_exact(PUBLIC_KEY_LENGTH)
+        .take(num)
+        .map(RistrettoPublicKey::from_bytes)
+        .collect::<Result<Vec<RistrettoPublicKey>, ByteArrayError>>()?;
 
     Ok(public_keys)
 }
@@ -399,7 +397,7 @@ impl Opcode {
             return Err(ScriptError::InvalidData);
         }
         let keys = slice_to_vec_pubkeys(&bytes[3..len], num)?;
-        let end = len + 32;
+        let end = len + MESSAGE_LENGTH;
         if bytes.len() < end {
             return Err(ScriptError::InvalidData);
         }
@@ -470,18 +468,14 @@ impl Opcode {
                 array.extend_from_slice(msg.deref());
             },
             CheckMultiSig(m, n, public_keys, msg) => {
-                array.push(OP_CHECK_MULTI_SIG);
-                array.push(*m);
-                array.push(*n);
+                array.extend_from_slice(&[OP_CHECK_MULTI_SIG, *m, *n]);
                 for public_key in public_keys {
                     array.extend(public_key.to_vec());
                 }
                 array.extend_from_slice(msg.deref());
             },
             CheckMultiSigVerify(m, n, public_keys, msg) => {
-                array.push(OP_CHECK_MULTI_SIG_VERIFY);
-                array.push(*m);
-                array.push(*n);
+                array.extend_from_slice(&[OP_CHECK_MULTI_SIG_VERIFY, *m, *n]);
                 for public_key in public_keys {
                     array.extend(public_key.to_vec());
                 }
@@ -926,6 +920,27 @@ mod test {
         let vec = slice_to_vec_pubkeys(slice, 3).unwrap();
         for pk in vec {
             assert_eq!(key, pk);
+        }
+    }
+
+    #[test]
+    fn test_read_multisig_args() {
+        let key =
+            RistrettoPublicKey::from_hex("6c9cb4d3e57351462122310fa22c90b1e6dfb528d64615363d1261a75da3e401").unwrap();
+        let bytes = key.as_bytes();
+        let message = &[
+            108, 156, 180, 211, 229, 115, 81, 70, 33, 34, 49, 15, 162, 44, 144, 177, 230, 223, 181, 40, 214, 70, 21,
+            54, 61, 18, 97, 167, 93, 163, 228, 1,
+        ];
+        let vec = [&[OP_CHECK_MULTI_SIG, 1, 2], bytes, bytes, message].concat();
+        let slice = vec.as_bytes();
+        let (m, n, keys, msg, end) = Opcode::read_multisig_args(&slice).unwrap();
+        assert_eq!(m, 1);
+        assert_eq!(n, 2);
+        assert_eq!(*msg, *message);
+        assert_eq!(end, vec.len());
+        for p in keys {
+            assert_eq!(key, p);
         }
     }
 }
