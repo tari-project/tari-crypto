@@ -58,7 +58,7 @@ where
         for<'b> &'b K: Mul<&'a P, Output = P>,
         for<'b> &'b P: Add<P, Output = P>,
     {
-        let e = match K::from_bytes(&challenge) {
+        let e = match K::from_bytes(challenge) {
             Ok(e) => e,
             Err(_) => return false,
         };
@@ -140,7 +140,7 @@ where
 {
     fn cmp(&self, other: &Self) -> Ordering {
         match self.public_nonce.cmp(&other.public_nonce) {
-            Ordering::Equal => self.signature.as_bytes().cmp(&other.signature.as_bytes()),
+            Ordering::Equal => self.signature.as_bytes().cmp(other.signature.as_bytes()),
             v => v,
         }
     }

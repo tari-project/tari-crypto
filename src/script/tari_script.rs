@@ -473,7 +473,7 @@ impl TariScript {
         stack: &mut ExecutionStack,
         m: u8,
         n: u8,
-        public_keys: &Vec<RistrettoPublicKey>,
+        public_keys: &[RistrettoPublicKey],
         message: Message,
     ) -> Result<bool, ScriptError> {
         if m == 0 || n == 0 || m > n || n > MAX_MULTISIG_LIMIT {

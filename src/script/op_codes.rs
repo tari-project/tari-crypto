@@ -26,6 +26,7 @@ pub type Message = [u8; MESSAGE_LENGTH];
 
 const PUBLIC_KEY_LENGTH: usize = 32;
 const MESSAGE_LENGTH: usize = 32;
+type MultiSigArgs = (u8, u8, Vec<RistrettoPublicKey>, Box<Message>, usize);
 
 /// Convert a slice into a HashValue.
 ///
@@ -370,11 +371,11 @@ impl Opcode {
                 Ok((CheckSigVerify(msg), &bytes[33..]))
             },
             OP_CHECK_MULTI_SIG => {
-                let (m, n, keys, msg, end) = Opcode::read_multisig_args(&bytes)?;
+                let (m, n, keys, msg, end) = Opcode::read_multisig_args(bytes)?;
                 Ok((CheckMultiSig(m, n, keys, msg), &bytes[end..]))
             },
             OP_CHECK_MULTI_SIG_VERIFY => {
-                let (m, n, keys, msg, end) = Opcode::read_multisig_args(&bytes)?;
+                let (m, n, keys, msg, end) = Opcode::read_multisig_args(bytes)?;
                 Ok((CheckMultiSigVerify(m, n, keys, msg), &bytes[end..]))
             },
             OP_RETURN => Ok((Return, &bytes[1..])),
@@ -385,7 +386,7 @@ impl Opcode {
         }
     }
 
-    fn read_multisig_args(bytes: &[u8]) -> Result<(u8, u8, Vec<RistrettoPublicKey>, Box<Message>, usize), ScriptError> {
+    fn read_multisig_args(bytes: &[u8]) -> Result<MultiSigArgs, ScriptError> {
         if bytes.len() < 3 {
             return Err(ScriptError::InvalidData);
         }

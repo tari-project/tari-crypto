@@ -60,7 +60,7 @@ use tari_utilities::{hex::Hex, ByteArray, ByteArrayError, ExtendBytes, Hashable}
 /// let _k2 = RistrettoSecretKey::from_hex(&"100000002000000030000000040000000");
 /// let _k3 = RistrettoSecretKey::random(&mut rng);
 /// ```
-#[derive(Eq, Clone, Debug)]
+#[derive(Eq, Clone, Debug, Default)]
 pub struct RistrettoSecretKey(pub(crate) Scalar);
 
 const SCALAR_LENGTH: usize = 32;
@@ -75,14 +75,6 @@ impl SecretKey for RistrettoSecretKey {
     /// Return a random secret key on the `ristretto255` curve using the supplied CSPRNG.
     fn random<R: Rng + CryptoRng>(rng: &mut R) -> Self {
         RistrettoSecretKey(Scalar::random(rng))
-    }
-}
-
-//----------------------------------    Ristretto Secret Key Default   -----------------------------------------------//
-
-impl Default for RistrettoSecretKey {
-    fn default() -> Self {
-        RistrettoSecretKey(Scalar::default())
     }
 }
 
@@ -268,7 +260,7 @@ impl Hashable for RistrettoPublicKey {
 impl ExtendBytes for RistrettoPublicKey {
     fn append_raw_bytes(&self, buf: &mut Vec<u8>) {
         let bytes = self.as_bytes();
-        buf.extend_from_slice(&bytes);
+        buf.extend_from_slice(bytes);
     }
 }
 

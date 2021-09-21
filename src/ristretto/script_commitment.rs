@@ -114,17 +114,10 @@ impl ScriptCommitment {
 /// let c = scf.script_to_pedersen(&sc);
 /// assert!(scf.open_script::<Blake256>(&k, value, &script, &c));
 /// ```
+
+#[derive(Default)]
 pub struct ScriptCommitmentFactory {
     factory: PedersenCommitmentFactory,
-}
-
-/// Return a script commitment factory using the default generators, G, and the first NUMS value for H.
-impl Default for ScriptCommitmentFactory {
-    fn default() -> Self {
-        ScriptCommitmentFactory {
-            factory: PedersenCommitmentFactory::default(),
-        }
-    }
 }
 
 impl ScriptCommitmentFactory {
