@@ -24,6 +24,11 @@ use std::{
 /// Looks up the error message associated with the given error code.
 ///
 /// This function returns 0 on successful execution, or an error code on a failure.
+///
+/// # Safety
+/// Returns -1 if `buffer` is null.
+/// The *caller* must manage memory, this function will return an error if the memory allocated in `buffer` is too small
+/// for the error message.
 #[no_mangle]
 pub unsafe extern "C" fn lookup_error_message(code: c_int, buffer: *mut c_char, length: c_int) -> c_int {
     if buffer.is_null() {

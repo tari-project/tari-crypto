@@ -131,7 +131,7 @@ where
         for<'b> &'b HomomorphicCommitment<P>: Add<&'b HomomorphicCommitment<P>, Output = HomomorphicCommitment<P>>,
         C: HomomorphicCommitmentFactory<P = P>,
     {
-        let e = match K::from_bytes(&challenge) {
+        let e = match K::from_bytes(challenge) {
             Ok(e) => e,
             Err(_) => return false,
         };
@@ -243,15 +243,15 @@ where
     K: SecretKey,
 {
     fn cmp(&self, other: &Self) -> Ordering {
-        match self.public_nonce().cmp(&other.public_nonce()) {
+        match self.public_nonce().cmp(other.public_nonce()) {
             Ordering::Equal => {
                 let this_u = self.u().as_bytes();
                 let that_u = other.u().as_bytes();
-                match this_u.cmp(&that_u) {
+                match this_u.cmp(that_u) {
                     Ordering::Equal => {
                         let this = self.v().as_bytes();
                         let that = other.v().as_bytes();
-                        this.cmp(&that)
+                        this.cmp(that)
                     },
                     v => v,
                 }

@@ -207,7 +207,7 @@ impl ExecutionStack {
     /// Pops n + 1 items from the stack. Checks if the last popped item matches any of the first n items. Returns an
     /// error if all n + 1 items aren't of the same variant, or if there are not n + 1 items on the stack.
     pub fn pop_n_plus_one_contains(&mut self, n: u8) -> Result<bool, ScriptError> {
-        let items = self.pop_num_items(n)?;
+        let items = self.pop_num_items(n as usize)?;
         let item = self.pop().ok_or(ScriptError::StackUnderflow)?;
 
         // check that all popped items are of the same variant
@@ -228,9 +228,8 @@ impl ExecutionStack {
 
     /// Pops the top n items in the stack. If the stack has at least n items, `pop_num_items` returns the items in stack
     /// order (ie. bottom first), otherwise returns an error.
-    pub fn pop_num_items(&mut self, num_items: u8) -> Result<Vec<StackItem>, ScriptError> {
+    pub fn pop_num_items(&mut self, num_items: usize) -> Result<Vec<StackItem>, ScriptError> {
         let stack_size = self.size();
-        let num_items = num_items as usize;
 
         if stack_size < num_items {
             Err(ScriptError::StackUnderflow)

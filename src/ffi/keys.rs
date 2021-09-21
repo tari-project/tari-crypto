@@ -41,8 +41,9 @@ pub const KEY_LENGTH: usize = 32;
 type KeyArray = [u8; KEY_LENGTH];
 
 /// Generate a new key pair and copies the values into the provided arrays.
-///
 /// If `pub_key` is null, then only a private key is generated.
+///
+/// # Safety
 /// The *caller* must manage memory for the results. Besides checking for null values, this function assumes that at
 /// least `KEY_LENGTH` bytes have been allocated in `priv_key` and `pub_key`.
 #[no_mangle]
@@ -62,6 +63,9 @@ pub unsafe extern "C" fn random_keypair(priv_key: *mut KeyArray, pub_key: *mut K
 }
 
 /// Generate a Schnorr signature (s, R) using the provided private key and challenge (k, e).
+///
+/// # Safety
+/// If any args are null then the function returns -1
 #[no_mangle]
 pub unsafe extern "C" fn sign(
     priv_key: *const KeyArray,
@@ -92,6 +96,9 @@ pub unsafe extern "C" fn sign(
 }
 
 /// Verify that a Schnorr signature (s, R) is valid for the provided public key and challenge (P, e).
+///
+/// # Safety
+/// If any args are null then the function returns false, and sets `err_code` to -1
 #[no_mangle]
 pub unsafe extern "C" fn verify(
     pub_key: *const KeyArray,
@@ -135,6 +142,11 @@ pub unsafe extern "C" fn verify(
 }
 
 /// Generate a Pedersen commitment (C) using the provided value and spending key (a, x).
+///
+/// # Safety
+/// If any args are null the function returns the value of NULL_POINTER (-1)
+/// The *caller* must manage memory for the result, this function assumes that at least `KEY_LENGTH` bytes have been
+/// allocated in `commitment`
 #[no_mangle]
 pub unsafe extern "C" fn commitment(
     value: *const KeyArray,
@@ -159,6 +171,11 @@ pub unsafe extern "C" fn commitment(
 }
 
 /// Generate a commitment signature (R, u, v) using the provided value, spending key and challenge (a, x, e).
+///
+/// # Safety
+/// If any args are null the function returns -1.
+/// The *caller* must manage memory for the results, this function assumes that at least `KEY_LENGTH` bytes have been
+/// allocated in `public_nonce`, `signature_u`, and `signature_v`.
 #[no_mangle]
 pub unsafe extern "C" fn sign_comsig(
     secret_a: *const KeyArray,
@@ -204,6 +221,9 @@ pub unsafe extern "C" fn sign_comsig(
 }
 
 /// Verify that a commitment signature (R, u, v) is valid for the provided commitment and challenge (C, e).
+///
+/// # Safety
+/// If any args are null the function returns false and sets `err_code` to -1
 #[no_mangle]
 pub unsafe extern "C" fn verify_comsig(
     commitment: *const KeyArray,

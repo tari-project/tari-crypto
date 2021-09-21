@@ -88,7 +88,7 @@ impl RangeProofService for DalekRangeProofService {
     }
 
     fn verify(&self, proof: &Self::P, commitment: &PedersenCommitment) -> bool {
-        let rp = DalekProof::from_bytes(&proof).map_err(|_| RangeProofError::InvalidProof);
+        let rp = DalekProof::from_bytes(proof).map_err(|_| RangeProofError::InvalidProof);
         if rp.is_err() {
             return false;
         }
@@ -141,7 +141,7 @@ impl RangeProofService for DalekRangeProofService {
         rewind_public_key: &RistrettoPublicKey,
         rewind_blinding_public_key: &RistrettoPublicKey,
     ) -> Result<RewindResult, RangeProofError> {
-        let rp = DalekProof::from_bytes(&proof).map_err(|_| RangeProofError::InvalidProof)?;
+        let rp = DalekProof::from_bytes(proof).map_err(|_| RangeProofError::InvalidProof)?;
 
         let mut pt = Transcript::new(b"tari");
         let rewind_nonce_1 =
@@ -175,7 +175,7 @@ impl RangeProofService for DalekRangeProofService {
         rewind_key: &RistrettoSecretKey,
         rewind_blinding_key: &RistrettoSecretKey,
     ) -> Result<FullRewindResult<RistrettoSecretKey>, RangeProofError> {
-        let rp = DalekProof::from_bytes(&proof).map_err(|_| RangeProofError::InvalidProof)?;
+        let rp = DalekProof::from_bytes(proof).map_err(|_| RangeProofError::InvalidProof)?;
 
         let mut pt = Transcript::new(b"tari");
         let rewind_public_key = RistrettoPublicKey::from_secret_key(rewind_key);

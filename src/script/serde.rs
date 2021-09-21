@@ -60,7 +60,7 @@ impl<'de> Visitor<'de> for ScriptVisitor {
 
     fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
     where E: Error {
-        TariScript::from_bytes(&v).map_err(|e| E::custom(e.to_string()))
+        TariScript::from_bytes(v).map_err(|e| E::custom(e.to_string()))
     }
 
     fn visit_borrowed_bytes<E>(self, v: &'de [u8]) -> Result<Self::Value, E>
