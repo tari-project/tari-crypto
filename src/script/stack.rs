@@ -26,7 +26,7 @@ use tari_utilities::{
     hex::{from_hex, to_hex, Hex, HexError},
     ByteArray,
 };
-pub const MAX_STACK_SIZE: usize = 256;
+pub const MAX_STACK_SIZE: usize = 255;
 
 #[macro_export]
 macro_rules! inputs {
@@ -250,18 +250,18 @@ impl ExecutionStack {
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, ScriptError> {
-        let mut items = Vec::new();
+        let mut stack = ExecutionStack { items: Vec::new() };
         let mut byte_str = bytes;
         while !byte_str.is_empty() {
             match StackItem::read_next(byte_str) {
                 Some((item, b)) => {
-                    items.push(item);
+                    stack.push(item)?;
                     byte_str = b;
                 },
                 None => return Err(ScriptError::InvalidInput),
             }
         }
-        Ok(ExecutionStack { items })
+        Ok(stack)
     }
 
     /// Pushes the item onto the top of the stack. This function will only error if the new stack size exceeds the
