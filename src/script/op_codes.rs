@@ -20,13 +20,14 @@ use std::{fmt, ops::Deref};
 use tari_utilities::{hex::Hex, ByteArray, ByteArrayError};
 
 use super::ScriptError;
+use crate::ristretto::ristretto_keys::CompressedRistrettoPublicKey;
 
 pub type HashValue = [u8; 32];
 pub type Message = [u8; MESSAGE_LENGTH];
 
 const PUBLIC_KEY_LENGTH: usize = 32;
 const MESSAGE_LENGTH: usize = 32;
-type MultiSigArgs = (u8, u8, Vec<RistrettoPublicKey>, Box<Message>, usize);
+type MultiSigArgs = (u8, u8, Vec<CompressedRistrettoPublicKey>, Box<Message>, usize);
 
 /// Convert a slice into a HashValue.
 ///
@@ -61,7 +62,7 @@ pub fn slice_to_boxed_message(slice: &[u8]) -> Box<Message> {
 }
 
 /// Convert a slice into a vector of Public Keys.
-pub fn slice_to_vec_pubkeys(slice: &[u8], num: usize) -> Result<Vec<RistrettoPublicKey>, ScriptError> {
+pub fn slice_to_vec_pubkeys(slice: &[u8], num: usize) -> Result<Vec<CompressedRistrettoPublicKey>, ScriptError> {
     if slice.len() < num * PUBLIC_KEY_LENGTH {
         return Err(ScriptError::InvalidData);
     }
@@ -69,8 +70,8 @@ pub fn slice_to_vec_pubkeys(slice: &[u8], num: usize) -> Result<Vec<RistrettoPub
     let public_keys = slice
         .chunks_exact(PUBLIC_KEY_LENGTH)
         .take(num)
-        .map(RistrettoPublicKey::from_bytes)
-        .collect::<Result<Vec<RistrettoPublicKey>, ByteArrayError>>()?;
+        .map(CompressedRistrettoPublicKey::from_bytes)
+        .collect::<Result<Vec<CompressedRistrettoPublicKey>, ByteArrayError>>()?;
 
     Ok(public_keys)
 }
@@ -181,7 +182,7 @@ pub enum Opcode {
     /// Push the associated 32-byte value onto the stack. It will be interpreted as a public key or a commitment. Fails
     /// with INVALID_SCRIPT_DATA if HashValue is not a valid 32 byte sequence Fails with STACK_OVERFLOW if the stack
     /// would exceed the max stack height.
-    PushPubKey(Box<RistrettoPublicKey>),
+    PushPubKey(Box<CompressedRistrettoPublicKey>),
     /// Drops the top stack item. Fails with EMPTY_STACK if the stack is empty.
     Drop,
     /// Duplicates the top stack item. Fails with EMPTY_STACK if the stack is empty. Fails with STACK_OVERFLOW if the
@@ -248,10 +249,10 @@ pub enum Opcode {
     CheckSigVerify(Box<Message>),
     /// Pop m signatures from the stack. If m signatures out of the provided n public keys sign the 32-byte message,
     /// push 1 to the stack, otherwise push 0.
-    CheckMultiSig(u8, u8, Vec<RistrettoPublicKey>, Box<Message>),
+    CheckMultiSig(u8, u8, Vec<CompressedRistrettoPublicKey>, Box<Message>),
     /// Identical to CheckMultiSig, except that nothing is pushed to the stack if the m signatures are valid, and the
     /// operation fails with VERIFY_FAILED if any of the signatures are invalid.
-    CheckMultiSigVerify(u8, u8, Vec<RistrettoPublicKey>, Box<Message>),
+    CheckMultiSigVerify(u8, u8, Vec<CompressedRistrettoPublicKey>, Box<Message>),
 
     // Miscellaneous
     /// Always fails with VERIFY_FAILED.
@@ -325,7 +326,7 @@ impl Opcode {
                 if bytes.len() < 33 {
                     return Err(ScriptError::InvalidData);
                 }
-                let p = RistrettoPublicKey::from_bytes(&bytes[1..33])?;
+                let p = CompressedRistrettoPublicKey::from_bytes(&bytes[1..33])?;
                 Ok((PushPubKey(Box::new(p)), &bytes[33..]))
             },
             OP_DROP => Ok((Drop, &bytes[1..])),

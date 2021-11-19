@@ -18,7 +18,14 @@
 use std::convert::TryFrom;
 
 use crate::{
-    ristretto::{pedersen::PedersenCommitment, RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
+    ristretto::{
+        pedersen::PedersenCommitment,
+        ristretto_keys::CompressedRistrettoPublicKey,
+        ristretto_sig::CompressedRistrettoSchnorr,
+        RistrettoPublicKey,
+        RistrettoSchnorr,
+        RistrettoSecretKey,
+    },
     script::{error::ScriptError, op_codes::HashValue},
 };
 use serde::{Deserialize, Serialize};
@@ -26,6 +33,7 @@ use tari_utilities::{
     hex::{from_hex, to_hex, Hex, HexError},
     ByteArray,
 };
+
 pub const MAX_STACK_SIZE: usize = 256;
 
 #[macro_export]
@@ -58,9 +66,9 @@ pub const TYPE_SIG: u8 = 5;
 pub enum StackItem {
     Number(i64),
     Hash(HashValue),
-    Commitment(PedersenCommitment),
-    PublicKey(RistrettoPublicKey),
-    Signature(RistrettoSchnorr),
+    Commitment(CompressedRistrettoPublicKey),
+    PublicKey(CompressedRistrettoPublicKey),
+    Signature(CompressedRistrettoSchnorr),
 }
 
 impl StackItem {
@@ -130,7 +138,7 @@ impl StackItem {
         if b.len() < 32 {
             return None;
         }
-        let c = PedersenCommitment::from_bytes(&b[..32]).ok()?;
+        let c = CompressedRistrettoPublicKey::from_bytes(&b[..32]).ok()?;
         Some((StackItem::Commitment(c), &b[32..]))
     }
 
@@ -138,7 +146,7 @@ impl StackItem {
         if b.len() < 32 {
             return None;
         }
-        let p = RistrettoPublicKey::from_bytes(&b[..32]).ok()?;
+        let p = CompressedRistrettoPublicKey::from_bytes(&b[..32]).ok()?;
         Some((StackItem::PublicKey(p), &b[32..]))
     }
 
@@ -146,17 +154,17 @@ impl StackItem {
         if b.len() < 64 {
             return None;
         }
-        let r = RistrettoPublicKey::from_bytes(&b[..32]).ok()?;
+        let r = CompressedRistrettoPublicKey::from_bytes(&b[..32]).ok()?;
         let s = RistrettoSecretKey::from_bytes(&b[32..64]).ok()?;
-        let sig = RistrettoSchnorr::new(r, s);
+        let sig = CompressedRistrettoSchnorr::new(r, s);
         Some((StackItem::Signature(sig), &b[64..]))
     }
 }
 
 stack_item_from!(i64 => Number);
-stack_item_from!(PedersenCommitment => Commitment);
-stack_item_from!(RistrettoPublicKey => PublicKey);
-stack_item_from!(RistrettoSchnorr => Signature);
+// stack_item_from!(CompressedRistrettoPublicKey => Commitment);
+stack_item_from!(CompressedRistrettoPublicKey => PublicKey);
+stack_item_from!(CompressedRistrettoSchnorr => Signature);
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExecutionStack {

@@ -61,35 +61,6 @@ where P: PublicKey
     }
 }
 
-impl<P> ByteArray for HomomorphicCommitment<P>
-where P: PublicKey
-{
-    fn from_bytes(bytes: &[u8]) -> Result<Self, ByteArrayError> {
-        let p = P::from_bytes(bytes)?;
-        Ok(Self(p))
-    }
-
-    fn as_bytes(&self) -> &[u8] {
-        self.0.as_bytes()
-    }
-}
-
-impl<P> PartialOrd for HomomorphicCommitment<P>
-where P: PublicKey
-{
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.0.cmp(&other.0))
-    }
-}
-
-impl<P> Ord for HomomorphicCommitment<P>
-where P: PublicKey
-{
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.0.cmp(&other.0)
-    }
-}
-
 /// Add two commitments together. Note! There is no check that the bases are equal.
 impl<'b, P> Add for &'b HomomorphicCommitment<P>
 where
@@ -141,12 +112,6 @@ where
     fn mul(self, rhs: &'b K) -> HomomorphicCommitment<P> {
         let p = rhs * &self.0;
         HomomorphicCommitment::<P>::from_public_key(&p)
-    }
-}
-
-impl<P: PublicKey> Hash for HomomorphicCommitment<P> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write(self.as_bytes())
     }
 }
 

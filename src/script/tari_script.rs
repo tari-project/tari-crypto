@@ -18,7 +18,14 @@
 // pending updates to Dalek/Digest
 use crate::{
     common::Blake256,
-    ristretto::{RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
+    keys::CompressedPublicKey,
+    ristretto::{
+        ristretto_keys::CompressedRistrettoPublicKey,
+        ristretto_sig::CompressedRistrettoSchnorr,
+        RistrettoPublicKey,
+        RistrettoSchnorr,
+        RistrettoSecretKey,
+    },
     script::{
         error::ScriptError,
         op_codes::{slice_to_hash, Message, Opcode},
@@ -161,7 +168,7 @@ impl TariScript {
     }
 
     /// Calculate the message hash that CHECKSIG uses to verify signatures
-    pub fn script_message(&self, pub_key: &RistrettoPublicKey) -> Result<RistrettoSecretKey, ScriptError> {
+    pub fn script_message(&self, pub_key: &CompressedRistrettoPublicKey) -> Result<RistrettoSecretKey, ScriptError> {
         let b = Blake256::new()
             .chain(pub_key.as_bytes())
             .chain(&self.as_bytes())
@@ -221,13 +228,31 @@ impl TariScript {
                 false => Err(ScriptError::VerifyFailed),
             },
             CheckMultiSig(m, n, public_keys, msg) => {
-                match self.check_multisig(stack, *m, *n, public_keys, *msg.deref())? {
+                match self.check_multisig(
+                    stack,
+                    *m,
+                    *n,
+                    &public_keys
+                        .iter()
+                        .map(|c| c.decompress().unwrap())
+                        .collect::<Vec<RistrettoPublicKey>>(),
+                    *msg.deref(),
+                )? {
                     true => stack.push(Number(1)),
                     false => stack.push(Number(0)),
                 }
             },
             CheckMultiSigVerify(m, n, public_keys, msg) => {
-                match self.check_multisig(stack, *m, *n, public_keys, *msg.deref())? {
+                match self.check_multisig(
+                    stack,
+                    *m,
+                    *n,
+                    &public_keys
+                        .iter()
+                        .map(|c| c.decompress().unwrap())
+                        .collect::<Vec<RistrettoPublicKey>>(),
+                    *msg.deref(),
+                )? {
                     true => Ok(()),
                     false => Err(ScriptError::VerifyFailed),
                 }
@@ -426,9 +451,21 @@ impl TariScript {
         let two = stack.pop().ok_or(ScriptError::StackUnderflow)?;
         match (top, two) {
             (Number(v1), Number(v2)) => stack.push(Number(v1.checked_add(v2).ok_or(ScriptError::ValueExceedsBounds)?)),
-            (Commitment(c1), Commitment(c2)) => stack.push(Commitment(&c1 + &c2)),
-            (PublicKey(p1), PublicKey(p2)) => stack.push(PublicKey(&p1 + &p2)),
-            (Signature(s1), Signature(s2)) => stack.push(Signature(&s1 + &s2)),
+            (Commitment(c1), Commitment(c2)) => stack.push(Commitment(
+                (&c1.decompress().ok_or(ScriptError::InvalidData)? +
+                    &c2.decompress().ok_or(ScriptError::InvalidData)?)
+                    .compress(),
+            )),
+            (PublicKey(p1), PublicKey(p2)) => stack.push(PublicKey(
+                (&p1.decompress().ok_or(ScriptError::InvalidData)? +
+                    &p2.decompress().ok_or(ScriptError::InvalidData)?)
+                    .compress(),
+            )),
+            (Signature(s1), Signature(s2)) => stack.push(Signature(
+                (&s1.decompress().ok_or(ScriptError::InvalidData)? +
+                    &s2.decompress().ok_or(ScriptError::InvalidData)?)
+                    .compress(),
+            )),
             (_, _) => Err(ScriptError::IncompatibleTypes),
         }
     }
@@ -439,7 +476,11 @@ impl TariScript {
         let two = stack.pop().ok_or(ScriptError::StackUnderflow)?;
         match (top, two) {
             (Number(v1), Number(v2)) => stack.push(Number(v2.checked_sub(v1).ok_or(ScriptError::ValueExceedsBounds)?)),
-            (Commitment(c1), Commitment(c2)) => stack.push(Commitment(&c2 - &c1)),
+            (Commitment(c1), Commitment(c2)) => stack.push(Commitment(
+                (&c2.decompress().ok_or(ScriptError::InvalidData)? -
+                    &c1.decompress().ok_or(ScriptError::InvalidData)?)
+                    .compress(),
+            )),
             (..) => Err(ScriptError::IncompatibleTypes),
         }
     }
@@ -463,7 +504,10 @@ impl TariScript {
         let pk = stack.pop().ok_or(ScriptError::StackUnderflow)?;
         let sig = stack.pop().ok_or(ScriptError::StackUnderflow)?;
         match (pk, sig) {
-            (PublicKey(p), Signature(s)) => Ok(s.verify_challenge(&p, &message)),
+            (PublicKey(p), Signature(s)) => Ok(s
+                .decompress()
+                .ok_or(ScriptError::InvalidData)?
+                .verify_challenge(&p.decompress().ok_or(ScriptError::InvalidData)?, &message)),
             (..) => Err(ScriptError::IncompatibleTypes),
         }
     }
@@ -485,23 +529,23 @@ impl TariScript {
             .pop_num_items(m)?
             .into_iter()
             .map(|item| match item {
-                StackItem::Signature(s) => Ok(s),
+                StackItem::Signature(s) => Ok((s.clone(), s.decompress().ok_or(ScriptError::InvalidData)?)),
                 _ => Err(ScriptError::IncompatibleTypes),
             })
-            .collect::<Result<Vec<RistrettoSchnorr>, ScriptError>>()?;
+            .collect::<Result<Vec<(CompressedRistrettoSchnorr, RistrettoSchnorr)>, ScriptError>>()?;
 
         let mut key_signed = vec![false; public_keys.len()];
         let mut sig_set = HashSet::new();
 
-        for s in signatures.iter() {
+        for (compressed_sig, sig) in signatures.iter() {
             for (i, pk) in public_keys.iter().enumerate() {
-                if !sig_set.contains(s) && !key_signed[i] && s.verify_challenge(pk, &message) {
+                if !sig_set.contains(compressed_sig) && !key_signed[i] && sig.verify_challenge(pk, &message) {
                     key_signed[i] = true;
-                    sig_set.insert(s);
+                    sig_set.insert(compressed_sig);
                     break;
                 }
             }
-            if !sig_set.contains(s) {
+            if !sig_set.contains(compressed_sig) {
                 return Ok(false);
             }
         }

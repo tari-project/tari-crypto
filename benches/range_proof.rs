@@ -30,11 +30,20 @@ use tari_crypto::{
     ristretto::{
         dalek_range_proof::DalekRangeProofService,
         pedersen::{PedersenCommitment, PedersenCommitmentFactory},
+        CompressedRistrettoPublicKey,
+        RistrettoPublicKey,
         RistrettoSecretKey,
     },
 };
 
-fn setup(n: usize) -> (DalekRangeProofService, RistrettoSecretKey, u64, PedersenCommitment) {
+fn setup(
+    n: usize,
+) -> (
+    DalekRangeProofService,
+    RistrettoSecretKey,
+    u64,
+    CompressedRistrettoPublicKey,
+) {
     let mut rng = thread_rng();
     let base = PedersenCommitmentFactory::default();
     let prover = DalekRangeProofService::new(n, &base).unwrap();
@@ -42,7 +51,7 @@ fn setup(n: usize) -> (DalekRangeProofService, RistrettoSecretKey, u64, Pedersen
     let n_max = 1u64 << (n as u64 - 1);
     let v = rng.gen_range(1..n_max);
     let c = base.commit_value(&k, v);
-    (prover, k, v, c)
+    (prover, k, v, c.as_public_key().compress())
 }
 
 pub fn generate_rangeproof(c: &mut Criterion) {

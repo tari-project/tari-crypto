@@ -22,7 +22,7 @@
 
 use crate::{
     commitment::HomomorphicCommitment,
-    keys::{PublicKey, SecretKey},
+    keys::{CompressedPublicKey, PublicKey, SecretKey},
 };
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -49,6 +49,7 @@ pub trait RangeProofService {
     type P: Sized;
     type K: SecretKey;
     type PK: PublicKey<K = Self::K>;
+    type CPK: CompressedPublicKey<Self::PK>;
 
     /// Construct a new range proof for the given secret key and value. The resulting proof will be sufficient
     /// evidence that the prover knows the secret key and value, and that the value lies in the range determined by
@@ -57,7 +58,7 @@ pub trait RangeProofService {
 
     /// Verify the range proof against the given commitment. If this function returns true, it attests to the
     /// commitment having a value in the range [0; 2^64-1] and that the prover knew both the value and private key.
-    fn verify(&self, proof: &Self::P, commitment: &HomomorphicCommitment<Self::PK>) -> bool;
+    fn verify(&self, proof: &Self::P, commitment: &Self::CPK) -> bool;
 
     /// Return the maximum range of the range proof as a power of 2. i.e. if the maximum range is 2^64, this function
     /// returns 64.
@@ -79,9 +80,9 @@ pub trait RangeProofService {
     fn rewind_proof_value_only(
         &self,
         proof: &Self::P,
-        commitment: &HomomorphicCommitment<Self::PK>,
-        rewind_public_key: &Self::PK,
-        rewind_blinding_public_key: &Self::PK,
+        commitment: &Self::CPK,
+        rewind_public_key: &Self::CPK,
+        rewind_blinding_public_key: &Self::CPK,
     ) -> Result<RewindResult, RangeProofError>;
 
     /// Fully rewind a rewindable range proof to reveal the committed value, blinding factor and the 19 byte proof
@@ -89,7 +90,7 @@ pub trait RangeProofService {
     fn rewind_proof_commitment_data(
         &self,
         proof: &Self::P,
-        commitment: &HomomorphicCommitment<Self::PK>,
+        commitment: &Self::CPK,
         rewind_key: &Self::K,
         rewind_blinding_key: &Self::K,
     ) -> Result<FullRewindResult<Self::K>, RangeProofError>;

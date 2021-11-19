@@ -27,7 +27,7 @@
 
 use rand::{CryptoRng, Rng};
 use serde::{de::DeserializeOwned, ser::Serialize};
-use std::ops::Add;
+use std::{convert::TryFrom, ops::Add};
 use tari_utilities::ByteArray;
 
 /// A trait specifying common behaviour for representing `SecretKey`s. Specific elliptic curve
@@ -55,15 +55,11 @@ pub trait SecretKey: ByteArray + Clone + PartialEq + Eq + Add<Output = Self> + D
 /// implementations need to implement this trait for them to be used in Tari.
 ///
 /// See [SecretKey](trait.SecretKey.html) for an example.
-pub trait PublicKey:
-    ByteArray + Add<Output = Self> + Clone + PartialOrd + Ord + Default + Serialize + DeserializeOwned
-{
+pub trait PublicKey: Add<Output = Self> + Clone + Default + PartialEq + Eq {
     type K: SecretKey;
     /// Calculate the public key associated with the given secret key. This should not fail; if a
     /// failure does occur (implementation error?), the function will panic.
     fn from_secret_key(k: &Self::K) -> Self;
-
-    fn key_length() -> usize;
 
     fn batch_mul(scalars: &[Self::K], points: &[Self]) -> Self;
 
@@ -74,8 +70,19 @@ pub trait PublicKey:
     }
 }
 
+/// Some implementations of public keys have different, compact representations that can be serialized.
+/// There is usually some overhead in compressing/decompressing, so you may want to use this trait
+/// when you don't need to add or perform ECC operations on the keys, for example, reading and displaying
+/// the public key
+pub trait CompressedPublicKey<PK: PublicKey>:
+    ByteArray + Clone + PartialOrd + Ord + Default + Serialize + DeserializeOwned + From<PK>
+{
+    fn key_length() -> usize;
+    fn decompress(&self) -> Option<PK>;
+}
+
 /// This trait provides a common mechanism to calculate a shared secret using the private and public key of two parties
-pub trait DiffieHellmanSharedSecret: ByteArray + Clone + PartialEq + Eq + Add<Output = Self> + Default {
+pub trait DiffieHellmanSharedSecret: Clone + PartialEq + Eq + Add<Output = Self> + Default {
     type PK: PublicKey;
     /// Generate a shared secret from one party's private key and another party's public key
     fn shared_secret(k: &<Self::PK as PublicKey>::K, pk: &Self::PK) -> Self::PK;

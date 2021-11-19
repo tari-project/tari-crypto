@@ -33,9 +33,9 @@ pub mod utils;
 
 // Re-export
 pub use self::{
-    ristretto_com_sig::RistrettoComSig,
-    ristretto_keys::{RistrettoPublicKey, RistrettoSecretKey},
-    ristretto_sig::RistrettoSchnorr,
+    ristretto_com_sig::{CompressedRistrettoComSig, RistrettoComSig},
+    ristretto_keys::{CompressedRistrettoPublicKey, RistrettoPublicKey, RistrettoSecretKey},
+    ristretto_sig::{CompressedRistrettoSchnorr, RistrettoSchnorr},
 };
 
 // test modules

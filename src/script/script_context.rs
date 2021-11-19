@@ -15,7 +15,10 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use crate::{ristretto::pedersen::PedersenCommitment, script::op_codes::HashValue};
+use crate::{
+    ristretto::{pedersen::PedersenCommitment, ristretto_keys::CompressedRistrettoPublicKey},
+    script::op_codes::HashValue,
+};
 
 /// Contextual data for use in Tari scripts. The context will typically be unambiguously and deterministically
 /// populated by nodes that are executing the script.
@@ -26,11 +29,11 @@ pub struct ScriptContext {
     /// The hash of the previous block's hash
     prev_block_hash: HashValue,
     /// The commitment of the UTXO that is attached to this script
-    commitment: PedersenCommitment,
+    commitment: CompressedRistrettoPublicKey,
 }
 
 impl ScriptContext {
-    pub fn new(height: u64, prev_hash: &HashValue, com: &PedersenCommitment) -> Self {
+    pub fn new(height: u64, prev_hash: &HashValue, com: &CompressedRistrettoPublicKey) -> Self {
         ScriptContext {
             block_height: height,
             prev_block_hash: *prev_hash,
@@ -47,7 +50,7 @@ impl ScriptContext {
         &self.prev_block_hash
     }
 
-    pub fn commitment(&self) -> &PedersenCommitment {
+    pub fn commitment(&self) -> &CompressedRistrettoPublicKey {
         &self.commitment
     }
 }

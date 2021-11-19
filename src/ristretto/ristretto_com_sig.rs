@@ -21,8 +21,15 @@
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use crate::{
-    ristretto::{RistrettoPublicKey, RistrettoSecretKey},
-    signatures::CommitmentSignature,
+    commitment::HomomorphicCommitment,
+    keys::CompressedPublicKey,
+    ristretto::{CompressedRistrettoPublicKey, RistrettoPublicKey, RistrettoSecretKey},
+    signatures::{CommitmentSignature, CompressedCommitmentSignature},
+    tari_utilities::{
+        hex::{Hex, HexError},
+        ByteArray,
+        ByteArrayError,
+    },
 };
 
 /// # A Commitment signature implementation on Ristretto
@@ -96,6 +103,57 @@ use crate::{
 /// ```
 
 pub type RistrettoComSig = CommitmentSignature<RistrettoPublicKey, RistrettoSecretKey>;
+pub type CompressedRistrettoComSig =
+    CompressedCommitmentSignature<CompressedRistrettoPublicKey, RistrettoPublicKey, RistrettoSecretKey>;
+
+impl RistrettoComSig {
+    pub fn compress(&self) -> CompressedRistrettoComSig {
+        CompressedRistrettoComSig::new(
+            self.public_nonce().as_public_key().compress(),
+            self.u().clone(),
+            self.v().clone(),
+        )
+    }
+}
+
+impl CompressedRistrettoComSig {
+    pub fn decompress(&self) -> Option<RistrettoComSig> {
+        self.public_nonce().decompress().map(|s| {
+            RistrettoComSig::new(
+                HomomorphicCommitment::from_public_key(&s),
+                self.u().clone(),
+                self.v().clone(),
+            )
+        })
+    }
+}
+// impl CompressedRistrettoComSig {
+//     pub fn from_hex(s : &str) -> Result<Self, HexError> {
+//        let public_nonce = CompressedRistrettoPublicKey::from_hex(&s[0..64])?;
+//         let u = RistrettoSecretKey::from_hex(&s[64..128])?;
+//         let v = RistrettoSecretKey::from_hex(&s[128..192])?;
+//         Ok(Self::new(
+//             public_nonce,u,v
+//         ))
+//     }
+//
+//     pub fn as_bytes(&self) -> &[u8] {
+//
+//     }
+// }
+
+// impl ByteArray for CompressedRistrettoComSig {
+//     fn from_bytes(bytes: &[u8]) -> Result<Self, ByteArrayError> {
+//         let nonce = CompressedRistrettoPublicKey::from_bytes(&bytes[0..32])?;
+//         let u = RistrettoSecretKey::from_bytes(&bytes[32..64])?;
+//         let v = RistrettoSecretKey::from_bytes(&bytes[64..96])?;
+//         Ok(CompressedRistrettoComSig::new(nonce, u, v))
+//     }
+//
+//     fn as_bytes(&self) -> &[u8] {
+//         self.raw_bytes.as_slice()
+//     }
+// }
 
 #[cfg(test)]
 mod test {

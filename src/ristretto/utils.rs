@@ -45,7 +45,7 @@ pub fn sign<D: Digest>(
     let mut rng = rand::thread_rng();
     let (nonce, public_nonce) = RistrettoPublicKey::random_keypair(&mut rng);
     let message = D::new()
-        .chain(public_nonce.as_bytes())
+        .chain(public_nonce.compress().as_bytes())
         .chain(message)
         .finalize()
         .to_vec();

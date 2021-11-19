@@ -20,9 +20,9 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use crate::keys::{PublicKey, SecretKey};
+use crate::keys::{CompressedPublicKey, PublicKey, SecretKey};
 use digest::Digest;
-use std::{ops::Mul, prelude::v1::Vec};
+use std::{marker::PhantomData, ops::Mul, prelude::v1::Vec};
 use thiserror::Error;
 
 //----------------------------------------------   Constants       ------------------------------------------------//
@@ -31,6 +31,8 @@ pub const MAX_SIGNATURES: usize = 32768; // If you need more, call customer supp
 //----------------------------------------------   Error Codes     ------------------------------------------------//
 #[derive(Clone, Debug, Error, PartialEq, Eq)]
 pub enum MuSigError {
+    #[error("The key provided was not a valid public key")]
+    InvalidPublicKey,
     #[error("The number of public nonces must match the number of public keys in the joint key")]
     MismatchedNonces,
     #[error("The number of partial signatures must match the number of public keys in the joint key")]
@@ -76,34 +78,38 @@ pub enum MuSigError {
 /// $$
 /// Concrete implementations of JointKey will also need to implement the MultiScalarMul trait, which allows them to
 /// provide implementation-specific optimisations for dot-product operations.
-pub struct JointKey<P, K>
+pub struct JointKey<PK, CPK, K>
 where
     K: SecretKey,
-    P: PublicKey<K = K>,
+    PK: PublicKey<K = K>,
+    CPK: CompressedPublicKey<PK>,
 {
-    pub_keys: Vec<P>,
+    pub_keys: Vec<CPK>,
     musig_scalars: Vec<K>,
     common: K,
-    joint_pub_key: P,
+    joint_pub_key: CPK,
+    p: PhantomData<PK>,
 }
 
-pub struct JointKeyBuilder<P, K>
+pub struct JointKeyBuilder<PK, CPK, K>
 where
     K: SecretKey,
-    P: PublicKey<K = K>,
+    PK: PublicKey<K = K>,
+    CPK: CompressedPublicKey<PK>,
 {
     num_signers: usize,
-    pub_keys: Vec<P>,
+    pub_keys: Vec<(CPK, PK)>,
 }
 
-impl<K, P> JointKeyBuilder<P, K>
+impl<K, PK, CPK> JointKeyBuilder<PK, CPK, K>
 where
-    K: SecretKey + Mul<P, Output = P>,
-    P: PublicKey<K = K>,
+    K: SecretKey + Mul<PK, Output = PK>,
+    PK: PublicKey<K = K>,
+    CPK: CompressedPublicKey<PK>,
 {
     /// Create a new JointKey instance containing no participant keys, or return `TooManyParticipants` if n exceeds
     /// `MAX_SIGNATURES`
-    pub fn new(n: usize) -> Result<JointKeyBuilder<P, K>, MuSigError> {
+    pub fn new(n: usize) -> Result<JointKeyBuilder<PK, CPK, K>, MuSigError> {
         if n > MAX_SIGNATURES {
             return Err(MuSigError::TooManyParticipants);
         }
@@ -122,7 +128,7 @@ where
     }
 
     /// Add a participant signer's public key to the JointKey
-    pub fn add_key(&mut self, pub_key: P) -> Result<usize, MuSigError> {
+    pub fn add_key(&mut self, pub_key: CPK) -> Result<usize, MuSigError> {
         if self.key_exists(&pub_key) {
             return Err(MuSigError::DuplicatePubKey);
         }
@@ -131,13 +137,14 @@ where
         if n >= self.num_signers {
             return Err(MuSigError::TooManyParticipants);
         }
-        self.pub_keys.push(pub_key);
+        let decompressed = pub_key.decompress().ok_or(MuSigError::InvalidPublicKey)?;
+        self.pub_keys.push((pub_key, decompressed));
         Ok(self.pub_keys.len())
     }
 
     /// Checks whether the given public key is in the participants list
-    pub fn key_exists(&self, key: &P) -> bool {
-        self.pub_keys.iter().any(|v| v == key)
+    pub fn key_exists(&self, key: &CPK) -> bool {
+        self.pub_keys.iter().any(|v| &v.0 == key)
     }
 
     /// Checks whether the number of pub_keys is equal to `num_signers`
@@ -146,7 +153,7 @@ where
     }
 
     /// Add all the keys in `keys` to the participant list.
-    pub fn add_keys<T: IntoIterator<Item = P>>(&mut self, keys: T) -> Result<usize, MuSigError> {
+    pub fn add_keys<T: IntoIterator<Item = CPK>>(&mut self, keys: T) -> Result<usize, MuSigError> {
         for k in keys {
             self.add_key(k)?;
         }
@@ -154,19 +161,27 @@ where
     }
 
     /// Produce a sorted, immutable joint Musig public key from the gathered set of conventional public keys
-    pub fn build<D: Digest>(mut self) -> Result<JointKey<P, K>, MuSigError> {
+    pub fn build<D: Digest>(mut self) -> Result<JointKey<PK, CPK, K>, MuSigError> {
         if !self.is_full() {
             return Err(MuSigError::NotEnoughParticipants);
         }
         self.sort_keys();
         let common = self.calculate_common::<D>();
         let musig_scalars = self.calculate_musig_scalars::<D>(&common);
-        let joint_pub_key = JointKeyBuilder::calculate_joint_key::<D>(&musig_scalars, &self.pub_keys);
+
+        let (compressed, uncompressed) = self.pub_keys.into_iter().fold((vec![], vec![]), |output, (cpk, pk)| {
+            let mut output = output;
+            output.0.push(cpk);
+            output.1.push(pk);
+            output
+        });
+        let joint_pub_key = JointKeyBuilder::<PK, CPK, K>::calculate_joint_key::<D>(&musig_scalars, &uncompressed);
         Ok(JointKey {
-            pub_keys: self.pub_keys,
+            pub_keys: compressed,
             musig_scalars,
-            joint_pub_key,
+            joint_pub_key: CPK::from(joint_pub_key),
             common,
+            p: Default::default(),
         })
     }
 
@@ -178,7 +193,7 @@ where
     fn calculate_common<D: Digest>(&self) -> K {
         let mut common = D::new();
         for k in self.pub_keys.iter() {
-            common = common.chain(k.as_bytes());
+            common = common.chain(k.0.as_bytes());
         }
         K::from_bytes(&common.finalize())
             .expect("Could not calculate Scalar from hash value. Your crypto/hash combination might be inconsistent")
@@ -189,7 +204,7 @@ where
     /// If the SecretKey implementation cannot construct a valid key from the given hash, the function will panic.
     /// You should ensure that the SecretKey constructor protects against failures and that the hash digest given
     /// produces a byte array of the correct length.
-    fn calculate_partial_key<D: Digest>(common: &[u8], pubkey: &P) -> K {
+    fn calculate_partial_key<D: Digest>(common: &[u8], pubkey: &CPK) -> K {
         let k = D::new().chain(common).chain(pubkey.as_bytes()).finalize();
         K::from_bytes(&k)
             .expect("Could not calculate Scalar from hash value. Your crypto/hash combination might be inconsistent")
@@ -199,32 +214,33 @@ where
     /// implementation used to construct the joint key.
     /// **NB:** Sorting the keys will, usually, change the value of the joint key!
     fn sort_keys(&mut self) {
-        self.pub_keys.sort_unstable();
+        self.pub_keys.sort_by(|a, b| a.0.cmp(&b.0));
     }
 
     /// Utility function that produces the vector of MuSig private key modifiers, \\( a_i = H(\ell || P_i) \\)
     fn calculate_musig_scalars<D: Digest>(&self, common: &K) -> Vec<K> {
         self.pub_keys
             .iter()
-            .map(|p| JointKeyBuilder::calculate_partial_key::<D>(common.as_bytes(), p))
+            .map(|(p, _)| JointKeyBuilder::calculate_partial_key::<D>(common.as_bytes(), p))
             .collect()
     }
 
     /// Calculate the value of the Joint MuSig public key. **NB**: you should usually sort the participant's keys
     /// before calculating the joint key.
-    fn calculate_joint_key<D: Digest>(scalars: &[K], pub_keys: &[P]) -> P {
-        P::batch_mul(scalars, pub_keys)
+    fn calculate_joint_key<D: Digest>(scalars: &[K], pub_keys: &[PK]) -> PK {
+        PK::batch_mul(scalars, pub_keys)
     }
 }
 
-impl<P, K> JointKey<P, K>
+impl<PK, CPK, K> JointKey<PK, CPK, K>
 where
     K: SecretKey,
-    P: PublicKey<K = K>,
+    PK: PublicKey<K = K>,
+    CPK: CompressedPublicKey<PK>,
 {
     /// Return the index of the given key in the joint key participants list. If the key isn't in the list, returns
     /// `Err(ParticipantNotFound)`
-    pub fn index_of(&self, pubkey: &P) -> Result<usize, MuSigError> {
+    pub fn index_of(&self, pubkey: &CPK) -> Result<usize, MuSigError> {
         match self.pub_keys.binary_search(pubkey) {
             Ok(i) => Ok(i),
             Err(_) => Err(MuSigError::ParticipantNotFound),
@@ -237,7 +253,7 @@ where
     }
 
     #[inline]
-    pub fn get_pub_keys(&self, index: usize) -> &P {
+    pub fn get_pub_keys(&self, index: usize) -> &CPK {
         &self.pub_keys[index]
     }
 
@@ -252,7 +268,7 @@ where
     }
 
     #[inline]
-    pub fn get_joint_pubkey(&self) -> &P {
+    pub fn get_joint_pubkey(&self) -> &CPK {
         &self.joint_pub_key
     }
 }

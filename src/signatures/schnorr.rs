@@ -2,10 +2,12 @@
 //! This module defines generic traits for handling the digital signature operations, agnostic
 //! of the underlying elliptic curve implementation
 
-use crate::keys::{PublicKey, SecretKey};
+use crate::keys::{CompressedPublicKey, PublicKey, SecretKey};
 use serde::{Deserialize, Serialize};
 use std::{
     cmp::Ordering,
+    hash::{Hash, Hasher},
+    marker::PhantomData,
     ops::{Add, Mul},
 };
 use tari_utilities::ByteArray;
@@ -17,8 +19,54 @@ pub enum SchnorrSignatureError {
     InvalidChallenge,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
+pub struct CompressedSchnorrSignature<CPK, PK, K> {
+    public_nonce: CPK,
+    signature: K,
+    #[serde(skip)]
+    phantom: PhantomData<PK>,
+}
+
+impl<CPK, PK, K> CompressedSchnorrSignature<CPK, PK, K>
+where
+    K: SecretKey,
+    PK: PublicKey<K = K>,
+    CPK: CompressedPublicKey<PK>,
+{
+    pub fn new(public_nonce: CPK, signature: K) -> Self {
+        Self {
+            public_nonce,
+            signature,
+            phantom: PhantomData,
+        }
+    }
+
+    pub fn get_signature(&self) -> &K {
+        &self.signature
+    }
+
+    pub fn get_public_nonce(&self) -> &CPK {
+        &self.public_nonce
+    }
+}
+
+impl<CPK: Hash + PartialEq, PK, K: Hash + PartialEq> Hash for CompressedSchnorrSignature<CPK, PK, K> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.public_nonce.hash(state);
+        self.signature.hash(state);
+    }
+}
+
+impl<CPK: Hash + PartialEq, PK, K: Hash + PartialEq> PartialEq for CompressedSchnorrSignature<CPK, PK, K> {
+    fn eq(&self, other: &Self) -> bool {
+        self.public_nonce.eq(&other.public_nonce) && self.signature.eq(&other.signature)
+    }
+}
+
+impl<CPK: Hash + PartialEq, PK, K: Hash + PartialEq> Eq for CompressedSchnorrSignature<CPK, PK, K> {}
+
 #[allow(non_snake_case)]
-#[derive(PartialEq, Eq, Copy, Debug, Clone, Serialize, Deserialize, Hash)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct SchnorrSignature<P, K> {
     public_nonce: P,
     signature: K,
@@ -133,10 +181,11 @@ where
 /// for secret keys, but in this instance, the signature is publicly known and is simply a scalar, so we use the byte
 /// representation of the scalar as the canonical ordering metric. This conversion is done if and only if the public
 /// nonces are already equal, otherwise the public nonce ordering determines the SchnorrSignature order.
-impl<P, K> Ord for SchnorrSignature<P, K>
+impl<CPK, P, K> Ord for CompressedSchnorrSignature<CPK, P, K>
 where
-    P: Eq + Ord,
-    K: Eq + ByteArray,
+    CPK: Eq + Ord + Hash,
+    P: Eq,
+    K: Eq + ByteArray + Hash,
 {
     fn cmp(&self, other: &Self) -> Ordering {
         match self.public_nonce.cmp(&other.public_nonce) {
@@ -146,10 +195,11 @@ where
     }
 }
 
-impl<P, K> PartialOrd for SchnorrSignature<P, K>
+impl<CPK, P, K> PartialOrd for CompressedSchnorrSignature<CPK, P, K>
 where
-    P: Eq + Ord,
-    K: Eq + ByteArray,
+    CPK: Eq + Ord + Hash,
+    P: Eq,
+    K: Eq + ByteArray + Hash,
 {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))

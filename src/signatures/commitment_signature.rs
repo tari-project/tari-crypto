@@ -26,12 +26,14 @@
 
 use crate::{
     commitment::{HomomorphicCommitment, HomomorphicCommitmentFactory},
-    keys::{PublicKey, SecretKey},
+    keys::{CompressedPublicKey, PublicKey, SecretKey},
+    tari_utilities::ByteArrayError,
 };
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{
     cmp::Ordering,
     hash::{Hash, Hasher},
+    marker::PhantomData,
     ops::{Add, Mul},
 };
 use tari_utilities::ByteArray;
@@ -64,7 +66,7 @@ pub enum CommitmentSignatureError {
 ///   S = v*H + u*G          ... (Pedersen commitment of the publicly known private signature keys)
 ///   S =? R + e.C           ... (final verification)
 #[allow(non_snake_case)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct CommitmentSignature<P, K> {
     public_nonce: HomomorphicCommitment<P>,
     u: K,
@@ -178,15 +180,6 @@ where
     pub fn public_nonce(&self) -> &HomomorphicCommitment<P> {
         &self.public_nonce
     }
-
-    /// Returns a canonical byte representation of the commitment signature
-    pub fn to_vec(&self) -> Vec<u8> {
-        let mut buf = Vec::with_capacity(P::key_length() + K::key_length() + K::key_length());
-        buf.extend_from_slice(self.public_nonce().as_bytes());
-        buf.extend_from_slice(self.u().as_bytes());
-        buf.extend_from_slice(self.v().as_bytes());
-        buf
-    }
 }
 
 impl<'a, 'b, P, K> Add<&'b CommitmentSignature<P, K>> for &'a CommitmentSignature<P, K>
@@ -233,44 +226,6 @@ where
     }
 }
 
-/// Provide an efficient ordering algorithm for Commitment signatures. It's probably not a good idea to implement `Ord`
-/// for secret keys, but in this instance, the signature is publicly known and is simply a scalar, so we use the bytes
-/// representation of the scalar as the canonical ordering metric. This conversion is done if and only if the public
-/// nonces are already equal, otherwise the public nonce ordering determines the CommitmentSignature order.
-impl<P, K> Ord for CommitmentSignature<P, K>
-where
-    P: PublicKey<K = K>,
-    K: SecretKey,
-{
-    fn cmp(&self, other: &Self) -> Ordering {
-        match self.public_nonce().cmp(other.public_nonce()) {
-            Ordering::Equal => {
-                let this_u = self.u().as_bytes();
-                let that_u = other.u().as_bytes();
-                match this_u.cmp(that_u) {
-                    Ordering::Equal => {
-                        let this = self.v().as_bytes();
-                        let that = other.v().as_bytes();
-                        this.cmp(that)
-                    },
-                    v => v,
-                }
-            },
-            v => v,
-        }
-    }
-}
-
-impl<P, K> PartialOrd for CommitmentSignature<P, K>
-where
-    P: PublicKey<K = K>,
-    K: SecretKey,
-{
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
 impl<P, K> PartialEq for CommitmentSignature<P, K>
 where
     P: PublicKey<K = K>,
@@ -288,12 +243,82 @@ where
 {
 }
 
-impl<P, K> Hash for CommitmentSignature<P, K>
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct CompressedCommitmentSignature<CPK, PK, K>
 where
-    P: PublicKey<K = K>,
+    CPK: CompressedPublicKey<PK>,
+    PK: PublicKey<K = K>,
     K: SecretKey,
 {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write(&self.to_vec())
+    public_nonce: CPK,
+    u: K,
+    v: K,
+    // Double the memory, but as_bytes() requires a reference
+    raw_bytes: Vec<u8>,
+    // Remove if possible
+    phantom: PhantomData<PK>,
+}
+
+impl<CPK, PK, K> CompressedCommitmentSignature<CPK, PK, K>
+where
+    CPK: CompressedPublicKey<PK>,
+    PK: PublicKey<K = K>,
+    K: SecretKey,
+{
+    pub fn new(public_nonce: CPK, u: K, v: K) -> Self {
+        let mut raw_bytes = Vec::from(public_nonce.as_bytes());
+        raw_bytes.extend(u.as_bytes());
+        raw_bytes.extend(v.as_bytes());
+        Self {
+            public_nonce,
+            u,
+            v,
+            raw_bytes,
+            phantom: Default::default(),
+        }
+    }
+
+    pub fn public_nonce(&self) -> &CPK {
+        &self.public_nonce
+    }
+
+    pub fn u(&self) -> &K {
+        &self.u
+    }
+
+    pub fn v(&self) -> &K {
+        &self.v
+    }
+}
+
+impl<CPK, PK, K> ByteArray for CompressedCommitmentSignature<CPK, PK, K>
+where
+    CPK: CompressedPublicKey<PK>,
+    PK: PublicKey<K = K>,
+    K: SecretKey,
+{
+    fn from_bytes(bytes: &[u8]) -> Result<Self, ByteArrayError> {
+        if bytes.is_empty() {
+            return Ok(Default::default());
+        }
+        let mut end = CPK::key_length();
+        let public_nonce = CPK::from_bytes(&bytes[0..end])?;
+        let mut start = end;
+        end += K::key_length();
+        let u = K::from_bytes(&bytes[start..end])?;
+        start = end;
+        end += K::key_length();
+        let v = K::from_bytes(&bytes[start..end])?;
+        Ok(Self {
+            public_nonce,
+            u,
+            v,
+            raw_bytes: Vec::from(bytes),
+            phantom: PhantomData::default(),
+        })
+    }
+
+    fn as_bytes(&self) -> &[u8] {
+        self.raw_bytes.as_slice()
     }
 }

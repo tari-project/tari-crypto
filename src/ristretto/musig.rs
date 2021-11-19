@@ -21,9 +21,16 @@
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use crate::{
+    keys::CompressedPublicKey,
     musig::{JointKey, JointKeyBuilder, MuSigError},
-    ristretto::{RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
-    signatures::SchnorrSignature,
+    ristretto::{
+        ristretto_keys::CompressedRistrettoPublicKey,
+        ristretto_sig::CompressedRistrettoSchnorr,
+        RistrettoPublicKey,
+        RistrettoSchnorr,
+        RistrettoSecretKey,
+    },
+    signatures::{CompressedSchnorrSignature, SchnorrSignature},
 };
 use digest::Digest;
 use std::marker::PhantomData;
@@ -31,8 +38,8 @@ use tari_utilities::{fixed_set::FixedSet, ByteArray};
 
 //-----------------------------------------  Constants and aliases    ------------------------------------------------//
 
-type JKBuilder = JointKeyBuilder<RistrettoPublicKey, RistrettoSecretKey>;
-type JointPubKey = JointKey<RistrettoPublicKey, RistrettoSecretKey>;
+type JKBuilder = JointKeyBuilder<RistrettoPublicKey, CompressedRistrettoPublicKey, RistrettoSecretKey>;
+type JointPubKey = JointKey<RistrettoPublicKey, CompressedRistrettoPublicKey, RistrettoSecretKey>;
 type MessageHash = Vec<u8>;
 type MessageHashSlice = [u8];
 
@@ -176,7 +183,7 @@ impl<D: Digest> RistrettoMuSig<D> {
 
     /// Return the index of the public key in the MuSig ceremony. If were still collecting public keys, the state has
     /// been finalised, or the pub_key isn't in the list, then None is returned.
-    pub fn index_of(&self, pub_key: &RistrettoPublicKey) -> Option<usize> {
+    pub fn index_of(&self, pub_key: &CompressedRistrettoPublicKey) -> Option<usize> {
         let joint_key = match &self.state {
             MuSigState::NonceHashCollection(s) => &s.joint_key,
             MuSigState::NonceCollection(s) => &s.joint_key,
@@ -189,7 +196,7 @@ impl<D: Digest> RistrettoMuSig<D> {
     /// Add a public key to the MuSig ceremony. Public keys can only be added in the `Initialization` state and the
     /// MuSig state will only progress to the next state (nonce hash collection) once exactly `n` unique public keys
     /// have been added.
-    pub fn add_public_key(self, key: &RistrettoPublicKey) -> Self {
+    pub fn add_public_key(self, key: &CompressedRistrettoPublicKey) -> Self {
         let key = key.clone();
         self.handle_event(MuSigEvent::AddKey(key))
     }
@@ -202,7 +209,7 @@ impl<D: Digest> RistrettoMuSig<D> {
 
     /// Adds a Round 1 public nonce commitment to the MuSig state. Once _n_ commitments have been collected, the
     /// MuSig state will automatically switch to nonce collection.
-    pub fn add_nonce_commitment(self, pub_key: &RistrettoPublicKey, commitment: MessageHash) -> Self {
+    pub fn add_nonce_commitment(self, pub_key: &CompressedRistrettoPublicKey, commitment: MessageHash) -> Self {
         self.handle_event(MuSigEvent::AddNonceHash(pub_key, commitment))
     }
 
@@ -210,7 +217,7 @@ impl<D: Digest> RistrettoMuSig<D> {
     /// ceremonies. This risk is mitigated by the MuSig object taking ownership of the nonce, meaning that you need
     /// to explicitly call `clone()` on your nonce if you want to use it elsewhere.
     /// The MuSig state will automatically switch to `SignatureCollection` once _n_ valid nonces have been collected.
-    pub fn add_nonce(self, pub_key: &RistrettoPublicKey, nonce: RistrettoPublicKey) -> Self {
+    pub fn add_nonce(self, pub_key: &CompressedRistrettoPublicKey, nonce: CompressedRistrettoPublicKey) -> Self {
         self.handle_event(MuSigEvent::AddNonce(pub_key, nonce))
     }
 
@@ -246,7 +253,7 @@ impl<D: Digest> RistrettoMuSig<D> {
 
     /// Once all public keys have been collected, this function returns a reference to the joint public key as
     /// defined by the MuSig algorithm. If public keys are still being collected, this returns None.
-    pub fn get_aggregated_public_key(&self) -> Option<&RistrettoPublicKey> {
+    pub fn get_aggregated_public_key(&self) -> Option<&CompressedRistrettoPublicKey> {
         match &self.state {
             MuSigState::NonceHashCollection(s) => Some(s.joint_key.get_joint_pubkey()),
             MuSigState::NonceCollection(s) => Some(s.joint_key.get_joint_pubkey()),
@@ -256,7 +263,7 @@ impl<D: Digest> RistrettoMuSig<D> {
         }
     }
 
-    fn get_public_nonce(&self, index: usize) -> Option<&RistrettoPublicKey> {
+    fn get_public_nonce(&self, index: usize) -> Option<&CompressedRistrettoPublicKey> {
         match &self.state {
             MuSigState::SignatureCollection(s) => s.public_nonces.get_item(index),
             _ => None,
@@ -267,22 +274,22 @@ impl<D: Digest> RistrettoMuSig<D> {
     /// the secret key and secret nonce supplied.
     pub fn calculate_partial_signature(
         &self,
-        pub_key: &RistrettoPublicKey,
+        pub_key: &CompressedRistrettoPublicKey,
         secret: &RistrettoSecretKey,
         nonce: &RistrettoSecretKey,
-    ) -> Option<RistrettoSchnorr> {
+    ) -> Option<CompressedRistrettoSchnorr> {
         let index = self.index_of(pub_key)?;
         let pub_nonce = self.get_public_nonce(index)?;
         let ai = self.get_musig_scalar(pub_key)?;
         let e = self.get_challenge()?;
         let s = nonce + ai * e * secret;
-        let sig = SchnorrSignature::new(pub_nonce.clone(), s);
+        let sig = CompressedSchnorrSignature::new(pub_nonce.clone(), s);
         Some(sig)
     }
 
     /// Once all public keys have been collected, this function returns a reference to the joint public key as
     /// defined by the MuSig algorithm. If public keys are still being collected, this returns None.
-    pub fn get_musig_scalar(&self, pub_key: &RistrettoPublicKey) -> Option<&RistrettoSecretKey> {
+    pub fn get_musig_scalar(&self, pub_key: &CompressedRistrettoPublicKey) -> Option<&RistrettoSecretKey> {
         let jk = match &self.state {
             MuSigState::NonceHashCollection(s) => &s.joint_key,
             MuSigState::NonceCollection(s) => &s.joint_key,
@@ -346,14 +353,14 @@ impl<D: Digest> RistrettoMuSig<D> {
 /// The set of possible input events that can occur during the MuSig signature aggregation protocol.
 pub enum MuSigEvent<'a> {
     /// This event is used to add a new public key to the pool of participant keys
-    AddKey(RistrettoPublicKey),
+    AddKey(CompressedRistrettoPublicKey),
     /// Provides the message to be signed for the MuSig protocol
     SetMessage(MessageHash),
     /// This event is used by participants to commit the the public nonce that they will be using the signature
     /// aggregation ceremony
-    AddNonceHash(&'a RistrettoPublicKey, MessageHash),
+    AddNonceHash(&'a CompressedRistrettoPublicKey, MessageHash),
     /// This event is used to add a public nonce to the pool of nonces for a particular signing ceremony
-    AddNonce(&'a RistrettoPublicKey, RistrettoPublicKey),
+    AddNonce(&'a CompressedRistrettoPublicKey, CompressedRistrettoPublicKey),
     /// In the 3rd round of MuSig, participants provide their partial signatures, after which any party can
     /// calculate the aggregated signature.
     AddPartialSig(Box<RistrettoSchnorr>, bool),
@@ -393,7 +400,7 @@ impl Initialization {
         })
     }
 
-    pub fn add_pubkey<D: Digest>(mut self, key: RistrettoPublicKey) -> MuSigState {
+    pub fn add_pubkey<D: Digest>(mut self, key: CompressedRistrettoPublicKey) -> MuSigState {
         match self.joint_key_builder.add_key(key) {
             Ok(_) => {
                 if self.joint_key_builder.is_full() {
@@ -434,7 +441,7 @@ impl NonceHashCollection {
         }
     }
 
-    fn add_nonce_hash<D: Digest>(mut self, pub_key: &RistrettoPublicKey, hash: MessageHash) -> MuSigState {
+    fn add_nonce_hash<D: Digest>(mut self, pub_key: &CompressedRistrettoPublicKey, hash: MessageHash) -> MuSigState {
         match self.joint_key.index_of(pub_key) {
             Ok(i) => {
                 self.nonce_hashes.set_item(i, hash);
@@ -460,7 +467,7 @@ impl NonceHashCollection {
 struct NonceCollection {
     joint_key: JointPubKey,
     nonce_hashes: FixedSet<MessageHash>,
-    public_nonces: FixedSet<RistrettoPublicKey>,
+    public_nonces: FixedSet<CompressedRistrettoPublicKey>,
     message: Option<MessageHash>,
 }
 
@@ -475,13 +482,17 @@ impl NonceCollection {
         }
     }
 
-    fn is_valid_nonce<D: Digest>(nonce: &RistrettoPublicKey, expected: &MessageHashSlice) -> bool {
+    fn is_valid_nonce<D: Digest>(nonce: &CompressedRistrettoPublicKey, expected: &MessageHashSlice) -> bool {
         let calc = D::digest(nonce.as_bytes()).to_vec();
         &calc[..] == expected
     }
 
     // We definitely want to consume `nonce` here to discourage nonce re-use
-    fn add_nonce<D: Digest>(mut self, pub_key: &RistrettoPublicKey, nonce: RistrettoPublicKey) -> MuSigState {
+    fn add_nonce<D: Digest>(
+        mut self,
+        pub_key: &CompressedRistrettoPublicKey,
+        nonce: CompressedRistrettoPublicKey,
+    ) -> MuSigState {
         match self.joint_key.index_of(pub_key) {
             Ok(i) => {
                 // Check that the nonce matches the commitment
@@ -519,7 +530,7 @@ impl NonceCollection {
 
 struct SignatureCollection {
     joint_key: JointPubKey,
-    public_nonces: FixedSet<RistrettoPublicKey>,
+    public_nonces: FixedSet<CompressedRistrettoPublicKey>,
     partial_signatures: FixedSet<RistrettoSchnorr>,
     challenge: RistrettoSecretKey,
 }
@@ -527,7 +538,13 @@ struct SignatureCollection {
 impl SignatureCollection {
     fn new<D: Digest>(init: NonceCollection) -> SignatureCollection {
         let n = init.joint_key.size();
-        let agg_nonce = init.public_nonces.sum().unwrap();
+        let agg_nonces: Vec<RistrettoPublicKey> = init
+            .public_nonces
+            .iter()
+            .filter_map(|c| c.and_then(|c| c.decompress()))
+            .collect();
+        let agg_nonce = agg_nonces.iter().fold(RistrettoPublicKey::default(), |a, b| a + b);
+        let agg_nonce = agg_nonce.compress();
         let message = init.message.unwrap();
         let challenge =
             SignatureCollection::calculate_challenge::<D>(&agg_nonce, init.joint_key.get_joint_pubkey(), &message);
@@ -540,8 +557,8 @@ impl SignatureCollection {
     }
 
     fn calculate_challenge<D: Digest>(
-        r_agg: &RistrettoPublicKey,
-        p_agg: &RistrettoPublicKey,
+        r_agg: &CompressedRistrettoPublicKey,
+        p_agg: &CompressedRistrettoPublicKey,
         m: &MessageHashSlice,
     ) -> RistrettoSecretKey {
         let e = D::new()
@@ -555,7 +572,7 @@ impl SignatureCollection {
     fn validate_partial_signature<D: Digest>(&self, index: usize, signature: &RistrettoSchnorr) -> bool {
         // s_i = r_i + a_i k_i e, so
         // s_i.G = R_i + a_i P_i e
-        let pub_key = self.joint_key.get_pub_keys(index);
+        let pub_key = self.joint_key.get_pub_keys(index).decompress().unwrap();
         let a_i = self.joint_key.get_musig_scalar(index);
         let p = a_i * pub_key;
         let e = &self.challenge;
@@ -578,7 +595,7 @@ impl SignatureCollection {
     }
 
     fn add_partial_signature<D: Digest>(self, signature: RistrettoSchnorr, validate: bool) -> MuSigState {
-        match self.public_nonces.search(signature.get_public_nonce()) {
+        match self.public_nonces.search(&signature.get_public_nonce().compress()) {
             None => MuSigState::Failed(MuSigError::ParticipantNotFound),
             Some(i) => {
                 if validate && !self.validate_partial_signature::<D>(i, &signature) {

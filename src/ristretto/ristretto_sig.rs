@@ -21,8 +21,9 @@
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use crate::{
-    ristretto::{RistrettoPublicKey, RistrettoSecretKey},
-    signatures::SchnorrSignature,
+    keys::CompressedPublicKey,
+    ristretto::{ristretto_keys::CompressedRistrettoPublicKey, RistrettoPublicKey, RistrettoSecretKey},
+    signatures::{CompressedSchnorrSignature, SchnorrSignature},
 };
 
 /// # A Schnorr signature implementation on Ristretto
@@ -97,6 +98,22 @@ use crate::{
 /// assert!(sig.verify_challenge(&P, &e));
 /// ```
 pub type RistrettoSchnorr = SchnorrSignature<RistrettoPublicKey, RistrettoSecretKey>;
+pub type CompressedRistrettoSchnorr =
+    CompressedSchnorrSignature<CompressedRistrettoPublicKey, RistrettoPublicKey, RistrettoSecretKey>;
+
+impl CompressedSchnorrSignature<CompressedRistrettoPublicKey, RistrettoPublicKey, RistrettoSecretKey> {
+    pub fn decompress(&self) -> Option<RistrettoSchnorr> {
+        self.get_public_nonce()
+            .decompress()
+            .map(|pn| RistrettoSchnorr::new(pn, self.get_signature().clone()))
+    }
+}
+
+impl RistrettoSchnorr {
+    pub fn compress(&self) -> CompressedRistrettoSchnorr {
+        CompressedRistrettoSchnorr::new(self.get_public_nonce().compress(), self.get_signature().clone())
+    }
+}
 
 #[cfg(test)]
 mod test {

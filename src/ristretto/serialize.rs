@@ -41,9 +41,17 @@
 //!   }
 //! ```
 
-use crate::ristretto::{RistrettoPublicKey, RistrettoSecretKey};
+use crate::{
+    ristretto::{
+        ristretto_com_sig::CompressedRistrettoComSig,
+        ristretto_keys::CompressedRistrettoPublicKey,
+        RistrettoPublicKey,
+        RistrettoSecretKey,
+    },
+    signatures::CompressedCommitmentSignature,
+};
 use serde::{
-    de::{self, Visitor},
+    de::{self, MapAccess, SeqAccess, Visitor},
     Deserialize,
     Deserializer,
     Serialize,
@@ -52,34 +60,34 @@ use serde::{
 use std::fmt;
 use tari_utilities::{byte_array::ByteArray, hex::Hex};
 
-impl<'de> Deserialize<'de> for RistrettoPublicKey {
+impl<'de> Deserialize<'de> for CompressedRistrettoPublicKey {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where D: Deserializer<'de> {
-        struct RistrettoPubKeyVisitor;
+        struct CompressedRistrettoPubKeyVisitor;
 
-        impl<'de> Visitor<'de> for RistrettoPubKeyVisitor {
-            type Value = RistrettoPublicKey;
+        impl<'de> Visitor<'de> for CompressedRistrettoPubKeyVisitor {
+            type Value = CompressedRistrettoPublicKey;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
                 formatter.write_str("a public key in binary format")
             }
 
-            fn visit_bytes<E>(self, v: &[u8]) -> Result<RistrettoPublicKey, E>
+            fn visit_bytes<E>(self, v: &[u8]) -> Result<CompressedRistrettoPublicKey, E>
             where E: de::Error {
-                RistrettoPublicKey::from_bytes(v).map_err(E::custom)
+                CompressedRistrettoPublicKey::from_bytes(v).map_err(E::custom)
             }
         }
 
         if deserializer.is_human_readable() {
             let s = String::deserialize(deserializer)?;
-            RistrettoPublicKey::from_hex(&s).map_err(de::Error::custom)
+            CompressedRistrettoPublicKey::from_hex(&s).map_err(de::Error::custom)
         } else {
-            deserializer.deserialize_bytes(RistrettoPubKeyVisitor)
+            deserializer.deserialize_bytes(CompressedRistrettoPubKeyVisitor)
         }
     }
 }
 
-impl Serialize for RistrettoPublicKey {
+impl Serialize for CompressedRistrettoPublicKey {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where S: Serializer {
         if serializer.is_human_readable() {
@@ -118,6 +126,93 @@ impl<'de> Deserialize<'de> for RistrettoSecretKey {
 }
 
 impl Serialize for RistrettoSecretKey {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where S: Serializer {
+        if serializer.is_human_readable() {
+            self.to_hex().serialize(serializer)
+        } else {
+            serializer.serialize_bytes(self.as_bytes())
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for CompressedRistrettoComSig {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where D: Deserializer<'de> {
+        #[derive(Deserialize)]
+        #[serde(field_identifier, rename_all = "snake_case")]
+        enum Field {
+            PublicNonce,
+            U,
+            V,
+        }
+
+        struct CompressedRistrettoComSigVisitor;
+
+        impl<'de> Visitor<'de> for CompressedRistrettoComSigVisitor {
+            type Value = CompressedRistrettoComSig;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a public key in binary format, followed by 2 secret keys in binary form")
+            }
+
+            fn visit_bytes<E>(self, v: &[u8]) -> Result<CompressedRistrettoComSig, E>
+            where E: de::Error {
+                if v.is_empty() {
+                    return Ok(Default::default());
+                }
+                if v.len() != 96 {
+                    return Err(E::invalid_length(v.len(), &"a vector of length 96"));
+                }
+                let public_nonce = CompressedRistrettoPublicKey::from_bytes(&v[0..32]).map_err(E::custom)?;
+                let u = RistrettoSecretKey::from_bytes(&v[32..64]).map_err(E::custom)?;
+                let v = RistrettoSecretKey::from_bytes(&v[64..96]).map_err(E::custom)?;
+                Ok(CompressedRistrettoComSig::new(public_nonce, u, v))
+            }
+
+            fn visit_map<V>(self, mut map: V) -> Result<CompressedRistrettoComSig, V::Error>
+            where V: MapAccess<'de> {
+                let mut public_nonce = None;
+                let mut u = None;
+                let mut v = None;
+                while let Some(key) = map.next_key()? {
+                    match key {
+                        Field::PublicNonce => {
+                            if public_nonce.is_some() {
+                                return Err(de::Error::duplicate_field("public_nonce"));
+                            }
+                            public_nonce = Some(map.next_value()?);
+                        },
+                        Field::U => {
+                            if u.is_some() {
+                                return Err(de::Error::duplicate_field("u"));
+                            }
+                            u = Some(map.next_value()?);
+                        },
+                        Field::V => {
+                            if v.is_some() {
+                                return Err(de::Error::duplicate_field("v"));
+                            }
+                            v = Some(map.next_value()?);
+                        },
+                    }
+                }
+                let public_nonce = public_nonce.ok_or_else(|| de::Error::missing_field("public_nonce"))?;
+                let u = u.ok_or_else(|| de::Error::missing_field("u"))?;
+                let v = v.ok_or_else(|| de::Error::missing_field("v"))?;
+                Ok(CompressedRistrettoComSig::new(public_nonce, u, v))
+            }
+        }
+
+        if deserializer.is_human_readable() {
+            deserializer.deserialize_map(CompressedRistrettoComSigVisitor)
+        } else {
+            deserializer.deserialize_bytes(CompressedRistrettoComSigVisitor)
+        }
+    }
+}
+
+impl Serialize for CompressedRistrettoComSig {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where S: Serializer {
         if serializer.is_human_readable() {

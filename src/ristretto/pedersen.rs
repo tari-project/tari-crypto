@@ -65,13 +65,13 @@ impl HomomorphicCommitmentFactory for PedersenCommitmentFactory {
 
     fn commit(&self, k: &RistrettoSecretKey, v: &RistrettoSecretKey) -> PedersenCommitment {
         let c = RistrettoPoint::multiscalar_mul(&[v.0, k.0], &[self.H, self.G]);
-        HomomorphicCommitment(RistrettoPublicKey::new_from_pk(c))
+        HomomorphicCommitment(RistrettoPublicKey::new(c))
     }
 
     fn zero(&self) -> PedersenCommitment {
         let zero = Scalar::zero();
         let c = RistrettoPoint::multiscalar_mul(&[zero, zero], &[self.H, self.G]);
-        HomomorphicCommitment(RistrettoPublicKey::new_from_pk(c))
+        HomomorphicCommitment(RistrettoPublicKey::new(c))
     }
 
     fn open(&self, k: &RistrettoSecretKey, v: &RistrettoSecretKey, commitment: &PedersenCommitment) -> bool {
@@ -100,7 +100,7 @@ where T: Borrow<PedersenCommitment>
             let commitment = c.borrow();
             total += (commitment.0).point
         }
-        let sum = RistrettoPublicKey::new_from_pk(total);
+        let sum = RistrettoPublicKey::new(total);
         HomomorphicCommitment(sum)
     }
 }

@@ -21,7 +21,7 @@
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //! The Tari-compatible implementation of Ristretto based on the curve25519-dalek implementation
-use crate::keys::{DiffieHellmanSharedSecret, PublicKey, SecretKey};
+use crate::keys::{CompressedPublicKey, DiffieHellmanSharedSecret, PublicKey, SecretKey};
 use blake2::Blake2b;
 use clear_on_drop::clear::Clear;
 use curve25519_dalek::{
@@ -130,7 +130,7 @@ impl<'a, 'b> Mul<&'b RistrettoPublicKey> for &'a RistrettoSecretKey {
 
     fn mul(self, rhs: &'b RistrettoPublicKey) -> RistrettoPublicKey {
         let p = &self.0 * &rhs.point;
-        RistrettoPublicKey::new_from_pk(p)
+        RistrettoPublicKey::new(p)
     }
 }
 
@@ -197,25 +197,19 @@ impl From<u64> for RistrettoSecretKey {
 /// let sk = RistrettoSecretKey::random(&mut rng);
 /// let _p3 = RistrettoPublicKey::from_secret_key(&sk);
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Default, Debug)]
 pub struct RistrettoPublicKey {
     pub(crate) point: RistrettoPoint,
-    pub(crate) compressed: CompressedRistretto,
 }
 
 impl RistrettoPublicKey {
     // Private constructor
-    pub(super) fn new_from_pk(pk: RistrettoPoint) -> RistrettoPublicKey {
-        RistrettoPublicKey {
-            point: pk,
-            compressed: pk.compress(),
-        }
+    pub(super) fn new(pk: RistrettoPoint) -> RistrettoPublicKey {
+        RistrettoPublicKey { point: pk }
     }
 
-    pub(super) fn new_from_compressed(compressed: CompressedRistretto) -> Option<RistrettoPublicKey> {
-        compressed
-            .decompress()
-            .map(|point| RistrettoPublicKey { compressed, point })
+    pub fn compress(&self) -> CompressedRistrettoPublicKey {
+        CompressedRistrettoPublicKey::from(self.clone())
     }
 }
 
@@ -225,18 +219,14 @@ impl PublicKey for RistrettoPublicKey {
     /// Generates a new Public key from the given secret key
     fn from_secret_key(k: &Self::K) -> RistrettoPublicKey {
         let pk = &k.0 * &RISTRETTO_BASEPOINT_TABLE;
-        RistrettoPublicKey::new_from_pk(pk)
-    }
-
-    fn key_length() -> usize {
-        PUBLIC_KEY_LENGTH
+        RistrettoPublicKey::new(pk)
     }
 
     fn batch_mul(scalars: &[Self::K], points: &[Self]) -> Self {
-        let p: Vec<&RistrettoPoint> = points.iter().map(|p| &p.point).collect();
-        let s: Vec<&Scalar> = scalars.iter().map(|k| &k.0).collect();
+        let p = points.iter().map(|p| &p.point);
+        let s = scalars.iter().map(|k| &k.0);
         let p = RistrettoPoint::multiscalar_mul(s, p);
-        RistrettoPublicKey::new_from_pk(p)
+        RistrettoPublicKey::new(p)
     }
 }
 
@@ -249,45 +239,67 @@ impl DiffieHellmanSharedSecret for RistrettoPublicKey {
     }
 }
 
+#[derive(Clone, Default)]
+pub struct CompressedRistrettoPublicKey {
+    pub(crate) compressed: CompressedRistretto,
+}
+
+impl CompressedRistrettoPublicKey {
+    pub fn new(compressed: CompressedRistretto) -> Self {
+        Self { compressed }
+    }
+}
+
+impl From<RistrettoPublicKey> for CompressedRistrettoPublicKey {
+    fn from(source: RistrettoPublicKey) -> Self {
+        Self {
+            compressed: source.point.compress(),
+        }
+    }
+}
+
+impl CompressedPublicKey<RistrettoPublicKey> for CompressedRistrettoPublicKey {
+    fn key_length() -> usize {
+        PUBLIC_KEY_LENGTH
+    }
+
+    fn decompress(&self) -> Option<RistrettoPublicKey> {
+        self.compressed.decompress().map(|pk| RistrettoPublicKey::new(pk))
+    }
+}
+
 // Requires custom Hashable implementation for RistrettoPublicKey as CompressedRistretto doesnt implement this trait
-impl Hashable for RistrettoPublicKey {
+impl Hashable for CompressedRistrettoPublicKey {
     fn hash(&self) -> Vec<u8> {
         Blake2b::digest(self.as_bytes()).to_vec()
     }
 }
 
-// Requires custom Extendbytes implementation for RistrettoPublicKey as CompressedRistretto doesnt implement this trait
-impl ExtendBytes for RistrettoPublicKey {
+// Requires custom Extendbytes implementation for CompressedRistrettoPublicKey as CompressedRistretto doesnt implement
+// this trait
+impl ExtendBytes for CompressedRistrettoPublicKey {
     fn append_raw_bytes(&self, buf: &mut Vec<u8>) {
         let bytes = self.as_bytes();
         buf.extend_from_slice(bytes);
     }
 }
 
-impl Hash for RistrettoPublicKey {
+impl Hash for CompressedRistrettoPublicKey {
     /// Require the implementation of the Hash trait for Hashmaps
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.as_bytes().hash(state);
     }
 }
 
-//----------------------------------    Ristretto Public Key Default   -----------------------------------------------//
-
-impl Default for RistrettoPublicKey {
-    fn default() -> Self {
-        RistrettoPublicKey::new_from_pk(RistrettoPoint::default())
-    }
-}
-
 //------------------------------------ PublicKey Display impl ---------------------------------------------//
 
-impl fmt::Display for RistrettoPublicKey {
+impl fmt::Display for CompressedRistrettoPublicKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.to_hex())
     }
 }
 
-impl fmt::Debug for RistrettoPublicKey {
+impl fmt::Debug for CompressedRistrettoPublicKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.to_hex())
     }
@@ -305,13 +317,21 @@ impl PartialEq for RistrettoPublicKey {
 
 impl Eq for RistrettoPublicKey {}
 
-impl PartialOrd for RistrettoPublicKey {
-    fn partial_cmp(&self, other: &RistrettoPublicKey) -> Option<Ordering> {
+impl PartialEq for CompressedRistrettoPublicKey {
+    fn eq(&self, other: &Self) -> bool {
+        self.compressed == other.compressed
+    }
+}
+
+impl Eq for CompressedRistrettoPublicKey {}
+
+impl PartialOrd for CompressedRistrettoPublicKey {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.compressed.to_bytes().partial_cmp(&other.compressed.to_bytes())
     }
 }
 
-impl Ord for RistrettoPublicKey {
+impl Ord for CompressedRistrettoPublicKey {
     fn cmp(&self, other: &Self) -> Ordering {
         self.compressed.to_bytes().cmp(&other.compressed.to_bytes())
     }
@@ -319,24 +339,19 @@ impl Ord for RistrettoPublicKey {
 
 //---------------------------------- PublicKey ByteArray implementation  ---------------------------------------------//
 
-impl ByteArray for RistrettoPublicKey {
+impl ByteArray for CompressedRistrettoPublicKey {
     /// Create a new `RistrettoPublicKey` instance form the given byte array. The constructor returns errors under
     /// the following circumstances:
     /// * The byte array is not exactly 32 bytes
     /// * The byte array does not represent a valid (compressed) point on the ristretto255 curve
-    fn from_bytes(bytes: &[u8]) -> Result<RistrettoPublicKey, ByteArrayError>
+    fn from_bytes(bytes: &[u8]) -> Result<CompressedRistrettoPublicKey, ByteArrayError>
     where Self: Sized {
         // Check the length here, because The Ristretto constructor panics rather than returning an error
         if bytes.len() != 32 {
             return Err(ByteArrayError::IncorrectLength);
         }
         let compressed = CompressedRistretto::from_slice(bytes);
-        match RistrettoPublicKey::new_from_compressed(compressed) {
-            Some(p) => Ok(p),
-            None => Err(ByteArrayError::ConversionError(
-                "Invalid compressed Ristretto point".to_string(),
-            )),
-        }
+        Ok(CompressedRistrettoPublicKey::new(compressed))
     }
 
     /// Return the little-endian byte array representation of the compressed public key
@@ -352,7 +367,7 @@ impl<'a, 'b> Add<&'b RistrettoPublicKey> for &'a RistrettoPublicKey {
 
     fn add(self, rhs: &'b RistrettoPublicKey) -> RistrettoPublicKey {
         let p_sum = &self.point + &rhs.point;
-        RistrettoPublicKey::new_from_pk(p_sum)
+        RistrettoPublicKey::new(p_sum)
     }
 }
 
@@ -361,7 +376,7 @@ impl<'a, 'b> Sub<&'b RistrettoPublicKey> for &'a RistrettoPublicKey {
 
     fn sub(self, rhs: &RistrettoPublicKey) -> RistrettoPublicKey {
         let p_sum = &self.point - &rhs.point;
-        RistrettoPublicKey::new_from_pk(p_sum)
+        RistrettoPublicKey::new(p_sum)
     }
 }
 
@@ -370,7 +385,7 @@ impl<'a, 'b> Mul<&'b RistrettoSecretKey> for &'a RistrettoPublicKey {
 
     fn mul(self, rhs: &'b RistrettoSecretKey) -> RistrettoPublicKey {
         let p = &rhs.0 * &self.point;
-        RistrettoPublicKey::new_from_pk(p)
+        RistrettoPublicKey::new(p)
     }
 }
 
@@ -424,8 +439,8 @@ impl From<&RistrettoPublicKey> for RistrettoPoint {
     }
 }
 
-impl From<RistrettoPublicKey> for CompressedRistretto {
-    fn from(pk: RistrettoPublicKey) -> Self {
+impl From<CompressedRistrettoPublicKey> for CompressedRistretto {
+    fn from(pk: CompressedRistrettoPublicKey) -> Self {
         pk.compressed
     }
 }

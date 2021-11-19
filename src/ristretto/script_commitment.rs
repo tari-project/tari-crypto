@@ -19,6 +19,7 @@ use crate::{
     commitment::HomomorphicCommitmentFactory,
     ristretto::{
         pedersen::{PedersenCommitment, PedersenCommitmentFactory},
+        ristretto_keys::CompressedRistrettoPublicKey,
         RistrettoSecretKey,
     },
     script::{HashValue, TariScript},
@@ -133,7 +134,11 @@ impl ScriptCommitmentFactory {
             return Err(ScriptCommitmentError::InvalidDigestLength);
         }
         let commitment = self.factory.commit_value(key, value);
-        let adj_blinding_factor = ScriptCommitmentFactory::adjusted_blinding_factor::<D>(key, &commitment, script)?;
+        let adj_blinding_factor = ScriptCommitmentFactory::adjusted_blinding_factor::<D>(
+            key,
+            &commitment.as_public_key().compress(),
+            script,
+        )?;
         let script_hash = script
             .as_hash::<D>()
             .map_err(|_| ScriptCommitmentError::InvalidDigestLength)?;
@@ -168,7 +173,7 @@ impl ScriptCommitmentFactory {
     /// Returns the adjusted blinding factor, _k + H(C||s)_
     fn adjusted_blinding_factor<D: Digest>(
         key: &RistrettoSecretKey,
-        c: &PedersenCommitment,
+        c: &CompressedRistrettoPublicKey,
         s: &TariScript,
     ) -> Result<RistrettoSecretKey, ScriptCommitmentError> {
         let script_hash = s
