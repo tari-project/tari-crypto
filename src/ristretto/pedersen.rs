@@ -98,7 +98,7 @@ where T: Borrow<PedersenCommitment>
         let mut total = RistrettoPoint::default();
         for c in iter {
             let commitment = c.borrow();
-            total += (commitment.0).point
+            total += RistrettoPoint::from(&commitment.0);
         }
         let sum = RistrettoPublicKey::new_from_pk(total);
         HomomorphicCommitment(sum)

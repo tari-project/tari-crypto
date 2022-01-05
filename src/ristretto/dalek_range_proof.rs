@@ -95,7 +95,7 @@ impl RangeProofService for DalekRangeProofService {
         let rp = rp.unwrap();
         let mut pt = Transcript::new(b"tari");
         let c = &commitment.0;
-        rp.verify_single(&self.bp_gens, &self.pc_gens, &mut pt, &c.compressed, self.range)
+        rp.verify_single(&self.bp_gens, &self.pc_gens, &mut pt, c.compressed(), self.range)
             .is_ok()
     }
 
@@ -145,16 +145,16 @@ impl RangeProofService for DalekRangeProofService {
 
         let mut pt = Transcript::new(b"tari");
         let rewind_nonce_1 =
-            get_rewind_nonce_from_pub_key(&rewind_public_key.compressed, &commitment.as_public_key().compressed);
+            get_rewind_nonce_from_pub_key(rewind_public_key.compressed(), commitment.as_public_key().compressed());
         let rewind_nonce_2 = get_rewind_nonce_from_pub_key(
-            &rewind_blinding_public_key.compressed,
-            &commitment.as_public_key().compressed,
+            rewind_blinding_public_key.compressed(),
+            commitment.as_public_key().compressed(),
         );
         let (confidential_value, proof_message) = rp
             .rewind_single_get_value_only(
                 &self.bp_gens,
                 &mut pt,
-                &commitment.as_public_key().compressed,
+                commitment.as_public_key().compressed(),
                 self.range,
                 &rewind_nonce_1,
                 &rewind_nonce_2,
@@ -181,20 +181,20 @@ impl RangeProofService for DalekRangeProofService {
         let rewind_public_key = RistrettoPublicKey::from_secret_key(rewind_key);
         let rewind_blinding_public_key = RistrettoPublicKey::from_secret_key(rewind_blinding_key);
         let rewind_nonce_1 =
-            get_rewind_nonce_from_pub_key(&rewind_public_key.compressed, &commitment.as_public_key().compressed);
+            get_rewind_nonce_from_pub_key(rewind_public_key.compressed(), commitment.as_public_key().compressed());
         let rewind_nonce_2 = get_rewind_nonce_from_pub_key(
-            &rewind_blinding_public_key.compressed,
-            &commitment.as_public_key().compressed,
+            rewind_blinding_public_key.compressed(),
+            commitment.as_public_key().compressed(),
         );
-        let blinding_nonce_1 = get_secret_nonce_from_pvt_key(&rewind_key.0, &commitment.as_public_key().compressed);
+        let blinding_nonce_1 = get_secret_nonce_from_pvt_key(&rewind_key.0, commitment.as_public_key().compressed());
         let blinding_nonce_2 =
-            get_secret_nonce_from_pvt_key(&rewind_blinding_key.0, &commitment.as_public_key().compressed);
+            get_secret_nonce_from_pvt_key(&rewind_blinding_key.0, commitment.as_public_key().compressed());
         let (confidential_value, blinding_factor, proof_message) = rp
             .rewind_single_get_commitment_data(
                 &self.bp_gens,
                 &self.pc_gens,
                 &mut pt,
-                &commitment.as_public_key().compressed,
+                commitment.as_public_key().compressed(),
                 self.range,
                 &rewind_nonce_1,
                 &rewind_nonce_2,
