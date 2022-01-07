@@ -8,6 +8,8 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           components: clippy, rustfmt
+          toolchain: nightly-2022-01-17
+          override: true
       - uses: actions-rs/cargo@v1
         with:
           command: fmt

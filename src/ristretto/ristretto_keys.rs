@@ -50,13 +50,14 @@ use tari_utilities::{hex::Hex, ByteArray, ByteArrayError, ExtendBytes, Hashable}
 /// little-endian):
 ///
 /// ```edition2018
-/// use tari_crypto::ristretto::RistrettoSecretKey;
-/// use tari_utilities::{ ByteArray, hex::Hex };
-/// use tari_crypto::keys::SecretKey;
 /// use rand;
+/// use tari_crypto::{keys::SecretKey, ristretto::RistrettoSecretKey};
+/// use tari_utilities::{hex::Hex, ByteArray};
 ///
 /// let mut rng = rand::thread_rng();
-/// let _k1 = RistrettoSecretKey::from_bytes(&[1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]);
+/// let _k1 = RistrettoSecretKey::from_bytes(&[
+///     1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+/// ]);
 /// let _k2 = RistrettoSecretKey::from_hex(&"100000002000000030000000040000000");
 /// let _k3 = RistrettoSecretKey::random(&mut rng);
 /// ```
@@ -185,14 +186,18 @@ impl From<u64> for RistrettoSecretKey {
 /// Both [PublicKey](trait.PublicKey.html) and [ByteArray](trait.ByteArray.html) are implemented on
 /// `RistrettoPublicKey` so all of the following will work:
 /// ```edition2018
-/// use tari_crypto::ristretto::{ RistrettoPublicKey, RistrettoSecretKey };
-/// use tari_utilities::{ ByteArray, hex::Hex };
-/// use tari_crypto::keys::{ PublicKey, SecretKey };
 /// use rand;
+/// use tari_crypto::{
+///     keys::{PublicKey, SecretKey},
+///     ristretto::{RistrettoPublicKey, RistrettoSecretKey},
+/// };
+/// use tari_utilities::{hex::Hex, ByteArray};
 ///
 /// let mut rng = rand::thread_rng();
-/// let _p1 = RistrettoPublicKey::from_bytes(&[224, 196, 24, 247, 200, 217, 196, 205, 215, 57, 91, 147, 234, 18, 79, 58, 217,
-/// 144, 33, 187, 104, 29, 252, 51, 2, 169, 217, 154, 46, 83, 230, 78]);
+/// let _p1 = RistrettoPublicKey::from_bytes(&[
+///     224, 196, 24, 247, 200, 217, 196, 205, 215, 57, 91, 147, 234, 18, 79, 58, 217, 144, 33, 187, 104, 29, 252, 51,
+///     2, 169, 217, 154, 46, 83, 230, 78,
+/// ]);
 /// let _p2 = RistrettoPublicKey::from_hex(&"e882b131016b52c1d3337080187cf768423efccbb517bb495ab812c4160ff44e");
 /// let sk = RistrettoSecretKey::random(&mut rng);
 /// let _p3 = RistrettoPublicKey::from_secret_key(&sk);

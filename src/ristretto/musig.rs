@@ -67,59 +67,47 @@ type MessageHashSlice = [u8];
 ///       # use tari_crypto::keys::PublicKey;
 ///       # use sha2::Sha256;
 ///       # use digest::Digest;
-///       let mut rng = rand::thread_rng();
-///       // Create a new MuSig instance. The number of signing parties must be known at this time.
-///       let mut alice = RistrettoMuSig::<Sha256>::new(2);
-///       let mut bob = RistrettoMuSig::<Sha256>::new(2);
-///       // Set the message. This can only be done once to prevent replay attacks. Any attempt to assign another
-///       // message will result in a Failure state.
-///       alice = alice.set_message(b"Discworld");
-///       bob = bob.set_message(b"Discworld");
-///       // Collect public keys
-///       let (k_a, p_a) = RistrettoPublicKey::random_keypair(&mut rng);
-///       let (k_b, p_b) = RistrettoPublicKey::random_keypair(&mut rng);
-///       // Add public keys to MuSig (in any order. They get sorted automatically when _n_ keys have been collected.
-///       alice = alice
-///           .add_public_key(&p_a)
-///           .add_public_key(&p_b);
-///       bob = bob
-///           .add_public_key(&p_b)
-///           .add_public_key(&p_a);
-///       // Round 1 - Collect nonce hashes - each party does this individually and keeps the secret keys secret.
-///       let (r_a, pr_a) = RistrettoPublicKey::random_keypair(&mut rng);
-///       let (r_b, pr_b) = RistrettoPublicKey::random_keypair(&mut rng);
-///       let h_a = Sha256::digest(pr_a.as_bytes()).to_vec();
-///       let h_b = Sha256::digest(pr_b.as_bytes()).to_vec();
-///       bob = bob
-///           .add_nonce_commitment(&p_b, h_b.clone())
-///           .add_nonce_commitment(&p_a, h_a.clone());
-///       // State automatically updates:
-///       assert!(bob.is_collecting_nonces());
-///       alice = alice
-///           .add_nonce_commitment(&p_a, h_a.clone())
-///           .add_nonce_commitment(&p_b, h_b.clone());
-///       assert!(alice.is_collecting_nonces());
-///        // Round 2 - Collect Nonces
-///        bob = bob
-///           .add_nonce(&p_b, pr_b.clone())
-///           .add_nonce(&p_a, pr_a.clone());
-///       assert!(bob.is_collecting_signatures());
-///       alice = alice
-///           .add_nonce(&p_a, pr_a.clone())
-///           .add_nonce(&p_b, pr_b.clone());
-///       assert!(alice.is_collecting_signatures());
-///       // round 3 - Collect partial signatures
-///       let s_a = alice.calculate_partial_signature(&p_a, &k_a, &r_a).unwrap();
-///       let s_b = bob.calculate_partial_signature(&p_b, &k_b, &r_b).unwrap();
-///       alice = alice
-///           .add_signature(&s_a, true)
-///           .add_signature(&s_b, true);
-///       assert!(alice.is_finalized());
-///       bob = bob
-///           .add_signature(&s_b, true)
-///           .add_signature(&s_a, true);
-///       assert!(bob.is_finalized());
-///       assert_eq!(alice.get_aggregated_signature(), bob.get_aggregated_signature());
+/// let mut rng = rand::thread_rng();
+/// // Create a new MuSig instance. The number of signing parties must be known at this time.
+/// let mut alice = RistrettoMuSig::<Sha256>::new(2);
+/// let mut bob = RistrettoMuSig::<Sha256>::new(2);
+/// // Set the message. This can only be done once to prevent replay attacks. Any attempt to assign another
+/// // message will result in a Failure state.
+/// alice = alice.set_message(b"Discworld");
+/// bob = bob.set_message(b"Discworld");
+/// // Collect public keys
+/// let (k_a, p_a) = RistrettoPublicKey::random_keypair(&mut rng);
+/// let (k_b, p_b) = RistrettoPublicKey::random_keypair(&mut rng);
+/// // Add public keys to MuSig (in any order. They get sorted automatically when _n_ keys have been collected.
+/// alice = alice.add_public_key(&p_a).add_public_key(&p_b);
+/// bob = bob.add_public_key(&p_b).add_public_key(&p_a);
+/// // Round 1 - Collect nonce hashes - each party does this individually and keeps the secret keys secret.
+/// let (r_a, pr_a) = RistrettoPublicKey::random_keypair(&mut rng);
+/// let (r_b, pr_b) = RistrettoPublicKey::random_keypair(&mut rng);
+/// let h_a = Sha256::digest(pr_a.as_bytes()).to_vec();
+/// let h_b = Sha256::digest(pr_b.as_bytes()).to_vec();
+/// bob = bob
+///     .add_nonce_commitment(&p_b, h_b.clone())
+///     .add_nonce_commitment(&p_a, h_a.clone());
+/// // State automatically updates:
+/// assert!(bob.is_collecting_nonces());
+/// alice = alice
+///     .add_nonce_commitment(&p_a, h_a.clone())
+///     .add_nonce_commitment(&p_b, h_b.clone());
+/// assert!(alice.is_collecting_nonces());
+/// // Round 2 - Collect Nonces
+/// bob = bob.add_nonce(&p_b, pr_b.clone()).add_nonce(&p_a, pr_a.clone());
+/// assert!(bob.is_collecting_signatures());
+/// alice = alice.add_nonce(&p_a, pr_a.clone()).add_nonce(&p_b, pr_b.clone());
+/// assert!(alice.is_collecting_signatures());
+/// // round 3 - Collect partial signatures
+/// let s_a = alice.calculate_partial_signature(&p_a, &k_a, &r_a).unwrap();
+/// let s_b = bob.calculate_partial_signature(&p_b, &k_b, &r_b).unwrap();
+/// alice = alice.add_signature(&s_a, true).add_signature(&s_b, true);
+/// assert!(alice.is_finalized());
+/// bob = bob.add_signature(&s_b, true).add_signature(&s_a, true);
+/// assert!(bob.is_finalized());
+/// assert_eq!(alice.get_aggregated_signature(), bob.get_aggregated_signature());
 /// ```
 pub struct RistrettoMuSig<D: Digest> {
     state: MuSigState,
