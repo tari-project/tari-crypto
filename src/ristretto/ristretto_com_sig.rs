@@ -41,7 +41,8 @@ use crate::{
 /// # use tari_utilities::ByteArray;
 /// # use tari_utilities::hex::Hex;
 ///
-/// let r_pub = HomomorphicCommitment::from_hex("8063d85e151abee630e643e2b3dc47bfaeb8aa859c9d10d60847985f286aad19").unwrap();
+/// let r_pub =
+///     HomomorphicCommitment::from_hex("8063d85e151abee630e643e2b3dc47bfaeb8aa859c9d10d60847985f286aad19").unwrap();
 /// let u = RistrettoSecretKey::from_bytes(b"10000000000000000000000010000000").unwrap();
 /// let v = RistrettoSecretKey::from_bytes(b"a00000000000000000000000a0000000").unwrap();
 /// let sig = RistrettoComSig::new(r_pub, u, v);
@@ -85,8 +86,10 @@ use crate::{
 /// # use tari_utilities::ByteArray;
 /// # use digest::Digest;
 ///
-/// let commitment = HomomorphicCommitment::from_hex("d6cca5cc4cc302c1854a118221d6cf64d100b7da76665dae5199368f3703c665").unwrap();
-/// let r_nonce = HomomorphicCommitment::from_hex("9607f72d84d704825864a4455c2325509ecc290eb9419bbce7ff05f1f578284c").unwrap();
+/// let commitment =
+///     HomomorphicCommitment::from_hex("d6cca5cc4cc302c1854a118221d6cf64d100b7da76665dae5199368f3703c665").unwrap();
+/// let r_nonce =
+///     HomomorphicCommitment::from_hex("9607f72d84d704825864a4455c2325509ecc290eb9419bbce7ff05f1f578284c").unwrap();
 /// let u = RistrettoSecretKey::from_hex("0fd60e6479507fec35a46d2ec9da0ae300e9202e613e99b8f2b01d7ef6eccc02").unwrap();
 /// let v = RistrettoSecretKey::from_hex("9ae6621dd99ecc252b90a0eb69577c6f3d2e1e8abcdd43bfd0297afadf95fb0b").unwrap();
 /// let sig = RistrettoComSig::new(r_nonce, u, v);

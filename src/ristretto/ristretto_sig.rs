@@ -46,7 +46,8 @@ use crate::{
 /// # use tari_utilities::ByteArray;
 /// # use tari_utilities::hex::Hex;
 ///
-/// let public_r = RistrettoPublicKey::from_hex("6a493210f7499cd17fecb510ae0cea23a110e8d5b901f8acadd3095c73a3b919").unwrap();
+/// let public_r =
+///     RistrettoPublicKey::from_hex("6a493210f7499cd17fecb510ae0cea23a110e8d5b901f8acadd3095c73a3b919").unwrap();
 /// let s = RistrettoSecretKey::from_bytes(b"10000000000000000000000000000000").unwrap();
 /// let sig = RistrettoSchnorr::new(public_r, s);
 /// ```

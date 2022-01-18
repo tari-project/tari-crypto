@@ -65,6 +65,7 @@ pub unsafe extern "C" fn random_keypair(priv_key: *mut KeyArray, pub_key: *mut K
 /// Generate a Schnorr signature (s, R) using the provided private key and challenge (k, e).
 ///
 /// # Safety
+/// The caller MUST ensure that the string is null terminated e.g. "msg\0".
 /// If any args are null then the function returns -1
 #[no_mangle]
 pub unsafe extern "C" fn sign(
@@ -85,7 +86,7 @@ pub unsafe extern "C" fn sign(
         Ok(s) => s,
         _ => return STR_CONV_ERR,
     };
-    let challenge = Blake256::digest(msg.as_bytes()).to_vec();
+    let challenge = Blake256::digest(msg.as_bytes());
     let sig = match RistrettoSchnorr::sign(k, r, &challenge) {
         Ok(sig) => sig,
         _ => return SIGNING_ERROR,
@@ -98,6 +99,7 @@ pub unsafe extern "C" fn sign(
 /// Verify that a Schnorr signature (s, R) is valid for the provided public key and challenge (P, e).
 ///
 /// # Safety
+/// The caller MUST ensure that the string is null terminated e.g. "msg\0".
 /// If any args are null then the function returns false, and sets `err_code` to -1
 #[no_mangle]
 pub unsafe extern "C" fn verify(
@@ -174,6 +176,7 @@ pub unsafe extern "C" fn commitment(
 ///
 /// # Safety
 /// If any args are null the function returns -1.
+/// The caller MUST ensure that the string is null terminated e.g. "msg\0".
 /// The *caller* must manage memory for the results, this function assumes that at least `KEY_LENGTH` bytes have been
 /// allocated in `public_nonce`, `signature_u`, and `signature_v`.
 #[no_mangle]
@@ -313,7 +316,7 @@ mod test {
     pub fn test_sign_invalid_params() {
         unsafe {
             let priv_key = [0; KEY_LENGTH];
-            let msg = "msg";
+            let msg = "msg\0";
             let mut nonce = [0; KEY_LENGTH];
             let mut signature = [0; KEY_LENGTH];
             assert_eq!(
@@ -335,7 +338,7 @@ mod test {
     #[test]
     pub fn test_sign_valid_params() {
         let priv_key = [1; KEY_LENGTH];
-        let msg = "msg";
+        let msg = "msg\0";
         let mut nonce = [0; KEY_LENGTH];
         let mut signature = [0; KEY_LENGTH];
         unsafe {
@@ -349,7 +352,7 @@ mod test {
     #[test]
     pub fn test_verify_invalid_params() {
         let pub_key = [1; KEY_LENGTH];
-        let msg = "msg";
+        let msg = "msg\0";
         let mut pub_nonce = [0; KEY_LENGTH];
         let mut signature = [0; KEY_LENGTH];
         let mut err_code = 0i32;
@@ -407,7 +410,7 @@ mod test {
         let mut pub_key: KeyArray = [0; KEY_LENGTH];
         let mut pub_nonce: KeyArray = [0; KEY_LENGTH];
         let mut signature: KeyArray = [0; KEY_LENGTH];
-        let msg = "msg";
+        let msg = "msg\0";
         let mut err_code = 0i32;
         unsafe {
             random_keypair(&mut priv_key, &mut pub_key);
