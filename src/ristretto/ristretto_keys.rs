@@ -23,7 +23,6 @@
 //! The Tari-compatible implementation of Ristretto based on the curve25519-dalek implementation
 use crate::keys::{DiffieHellmanSharedSecret, PublicKey, SecretKey};
 use blake2::Blake2b;
-use clear_on_drop::clear::Clear;
 use curve25519_dalek::{
     constants::RISTRETTO_BASEPOINT_TABLE,
     ristretto::{CompressedRistretto, RistrettoPoint},
@@ -40,6 +39,7 @@ use std::{
     ops::{Add, Mul, Sub},
 };
 use tari_utilities::{hex::Hex, ByteArray, ByteArrayError, ExtendBytes, Hashable};
+use zeroize::Zeroize;
 
 /// The [SecretKey](trait.SecretKey.html) implementation for [Ristretto](https://ristretto.group) is a thin wrapper
 /// around the Dalek [Scalar](struct.Scalar.html) type, representing a 256-bit integer (mod the group order).
@@ -79,12 +79,10 @@ impl SecretKey for RistrettoSecretKey {
     }
 }
 
-//----------------------------------    Ristretto Secret Key Default   -----------------------------------------------//
-
 /// Clear the secret key value in memory when it goes out of scope
 impl Drop for RistrettoSecretKey {
     fn drop(&mut self) {
-        self.0.clear();
+        self.0.zeroize()
     }
 }
 
