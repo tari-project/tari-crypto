@@ -99,6 +99,11 @@ impl TariScript {
         }
     }
 
+    /// Returns the number of script op codes
+    pub fn size(&self) -> usize {
+        self.script.len()
+    }
+
     fn should_execute(&self, opcode: &Opcode, state: &ExecutionState) -> Result<bool, ScriptError> {
         use Opcode::*;
         match opcode {
