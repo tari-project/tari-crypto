@@ -11,6 +11,7 @@
 # $ sudo apt install lcov
 
 RUSTFLAGS="-Z instrument-coverage"
+RUSTUP_TOOLCHAIN=nightly
 LLVM_PROFILE_FILE="./cov_raw/tari_crypto-%m.profraw"
 
 get_binaries() {
