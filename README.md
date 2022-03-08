@@ -25,8 +25,6 @@ To generate a module for use in node.js, use this command:
 
     $ wasm-pack build --target nodejs -d tari_js . -- --features "wasm"
 
-If you receive compoiler errors related to `clear_on_drop`, then add the `no_cc` or `no_cc_nightly` feature flags.
-    
 Note: Node v10+ is needed for the WASM 
 
 ## Example (Node.js)
