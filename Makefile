@@ -33,7 +33,7 @@ ffi: target/debug/libtari_crypto.a
 ffi-release: target/release/libtari_crypto.a
 
 wasm:
-	wasm-pack build . -- --features "wasm, no_cc_nightly"
+	wasm-pack build . -- --features "wasm"
 
 wasm-node:
-	wasm-pack build --target nodejs -d tari_js . -- --features "wasm, no_cc_nightly"
+	wasm-pack build --target nodejs -d tari_js . -- --features "wasm"

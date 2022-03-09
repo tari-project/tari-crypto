@@ -30,6 +30,7 @@ use curve25519_dalek::{
     traits::MultiscalarMul,
 };
 use digest::Digest;
+use once_cell::sync::OnceCell;
 use rand::{CryptoRng, Rng};
 use std::{
     cmp::Ordering,
@@ -202,23 +203,28 @@ impl From<u64> for RistrettoSecretKey {
 /// ```
 #[derive(Clone)]
 pub struct RistrettoPublicKey {
-    pub(crate) point: RistrettoPoint,
-    pub(crate) compressed: CompressedRistretto,
+    point: RistrettoPoint,
+    compressed: OnceCell<CompressedRistretto>,
 }
 
 impl RistrettoPublicKey {
     // Private constructor
-    pub(super) fn new_from_pk(pk: RistrettoPoint) -> RistrettoPublicKey {
-        RistrettoPublicKey {
+    pub(super) fn new_from_pk(pk: RistrettoPoint) -> Self {
+        Self {
             point: pk,
-            compressed: pk.compress(),
+            compressed: OnceCell::new(),
         }
     }
 
-    pub(super) fn new_from_compressed(compressed: CompressedRistretto) -> Option<RistrettoPublicKey> {
-        compressed
-            .decompress()
-            .map(|point| RistrettoPublicKey { compressed, point })
+    fn new_from_compressed(compressed: CompressedRistretto) -> Option<Self> {
+        compressed.decompress().map(|point| Self {
+            compressed: compressed.into(),
+            point,
+        })
+    }
+
+    pub(super) fn compressed(&self) -> &CompressedRistretto {
+        self.compressed.get_or_init(|| self.point.compress())
     }
 }
 
@@ -301,7 +307,7 @@ impl fmt::Debug for RistrettoPublicKey {
 impl PartialEq for RistrettoPublicKey {
     fn eq(&self, other: &RistrettoPublicKey) -> bool {
         // Although this is slower than `self.compressed == other.compressed`, expanded point comparison is an equal
-        // time comparision
+        // time comparison
         self.point == other.point
     }
 }
@@ -310,13 +316,13 @@ impl Eq for RistrettoPublicKey {}
 
 impl PartialOrd for RistrettoPublicKey {
     fn partial_cmp(&self, other: &RistrettoPublicKey) -> Option<Ordering> {
-        self.compressed.to_bytes().partial_cmp(&other.compressed.to_bytes())
+        self.compressed().as_bytes().partial_cmp(other.compressed().as_bytes())
     }
 }
 
 impl Ord for RistrettoPublicKey {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.compressed.to_bytes().cmp(&other.compressed.to_bytes())
+        self.compressed().as_bytes().cmp(other.compressed().as_bytes())
     }
 }
 
@@ -344,7 +350,7 @@ impl ByteArray for RistrettoPublicKey {
 
     /// Return the little-endian byte array representation of the compressed public key
     fn as_bytes(&self) -> &[u8] {
-        self.compressed.as_bytes()
+        self.compressed().as_bytes()
     }
 }
 
@@ -429,7 +435,7 @@ impl From<&RistrettoPublicKey> for RistrettoPoint {
 
 impl From<RistrettoPublicKey> for CompressedRistretto {
     fn from(pk: RistrettoPublicKey) -> Self {
-        pk.compressed
+        *pk.compressed()
     }
 }
 
