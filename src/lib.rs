@@ -9,6 +9,7 @@ pub mod macros;
 pub mod commitment;
 pub mod hash;
 pub mod keys;
+#[cfg(feature = "musig")]
 pub mod musig;
 pub mod range_proof;
 pub mod signatures;
