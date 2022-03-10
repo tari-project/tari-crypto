@@ -48,6 +48,7 @@ simd = ["simd_backend"]
 avx2 = ["simd_backend"] # deprecated alias for simd_backend
 wasm = ["wasm-bindgen", "getrandom/js"]
 ffi = []
+musig = []
 
 [lib]
 # Disable benchmarks to allow Criterion to take over
