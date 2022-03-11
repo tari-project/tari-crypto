@@ -15,6 +15,10 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+use digest::Digest;
+use tari_utilities::{ByteArray, ByteArrayError};
+use thiserror::Error;
+
 use crate::{
     commitment::HomomorphicCommitmentFactory,
     ristretto::{
@@ -23,9 +27,6 @@ use crate::{
     },
     script::{HashValue, TariScript},
 };
-use digest::Digest;
-use tari_utilities::{ByteArray, ByteArrayError};
-use thiserror::Error;
 
 #[derive(Debug, Clone, Error, PartialEq)]
 pub enum ScriptCommitmentError {
@@ -182,6 +183,9 @@ impl ScriptCommitmentFactory {
 
 #[cfg(test)]
 mod tests {
+    use blake2::Blake2b;
+    use rand::RngCore;
+
     use crate::{
         common::Blake256,
         keys::PublicKey,
@@ -191,8 +195,6 @@ mod tests {
         },
         script::TariScript,
     };
-    use blake2::Blake2b;
-    use rand::RngCore;
 
     #[test]
     fn script_commitment_default_script() {

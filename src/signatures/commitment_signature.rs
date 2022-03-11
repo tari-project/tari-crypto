@@ -24,18 +24,20 @@
 //! This module defines generic traits for handling the digital signature operations, agnostic
 //! of the underlying elliptic curve implementation
 
-use crate::{
-    commitment::{HomomorphicCommitment, HomomorphicCommitmentFactory},
-    keys::{PublicKey, SecretKey},
-};
-use serde::{Deserialize, Serialize};
 use std::{
     cmp::Ordering,
     hash::{Hash, Hasher},
     ops::{Add, Mul},
 };
+
+use serde::{Deserialize, Serialize};
 use tari_utilities::ByteArray;
 use thiserror::Error;
+
+use crate::{
+    commitment::{HomomorphicCommitment, HomomorphicCommitmentFactory},
+    keys::{PublicKey, SecretKey},
+};
 
 #[derive(Clone, Debug, Error, PartialEq, Eq, Deserialize, Serialize)]
 pub enum CommitmentSignatureError {

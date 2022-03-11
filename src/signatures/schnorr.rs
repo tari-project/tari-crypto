@@ -2,14 +2,16 @@
 //! This module defines generic traits for handling the digital signature operations, agnostic
 //! of the underlying elliptic curve implementation
 
-use crate::keys::{PublicKey, SecretKey};
-use serde::{Deserialize, Serialize};
 use std::{
     cmp::Ordering,
     ops::{Add, Mul},
 };
+
+use serde::{Deserialize, Serialize};
 use tari_utilities::ByteArray;
 use thiserror::Error;
+
+use crate::keys::{PublicKey, SecretKey};
 
 #[derive(Clone, Debug, Error, PartialEq, Eq, Deserialize, Serialize)]
 pub enum SchnorrSignatureError {

@@ -41,7 +41,8 @@
 //!   }
 //! ```
 
-use crate::ristretto::{RistrettoPublicKey, RistrettoSecretKey};
+use std::fmt;
+
 use serde::{
     de::{self, Visitor},
     Deserialize,
@@ -49,8 +50,9 @@ use serde::{
     Serialize,
     Serializer,
 };
-use std::fmt;
 use tari_utilities::{byte_array::ByteArray, hex::Hex};
+
+use crate::ristretto::{RistrettoPublicKey, RistrettoSecretKey};
 
 impl<'de> Deserialize<'de> for RistrettoPublicKey {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>

@@ -20,10 +20,12 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use crate::keys::{PublicKey, SecretKey};
-use digest::Digest;
 use std::{ops::Mul, prelude::v1::Vec};
+
+use digest::Digest;
 use thiserror::Error;
+
+use crate::keys::{PublicKey, SecretKey};
 
 //----------------------------------------------   Constants       ------------------------------------------------//
 pub const MAX_SIGNATURES: usize = 32768; // If you need more, call customer support

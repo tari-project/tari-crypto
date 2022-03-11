@@ -82,12 +82,13 @@ pub const RISTRETTO_PEDERSEN_H: CompressedRistretto = RISTRETTO_NUMS_POINTS_COMP
 
 #[cfg(test)]
 mod test {
-    use crate::ristretto::constants::{RISTRETTO_NUMS_POINTS, RISTRETTO_NUMS_POINTS_COMPRESSED};
     use curve25519_dalek::{
         constants::RISTRETTO_BASEPOINT_POINT,
         ristretto::{CompressedRistretto, RistrettoPoint},
     };
     use sha2::{Digest, Sha512};
+
+    use crate::ristretto::constants::{RISTRETTO_NUMS_POINTS, RISTRETTO_NUMS_POINTS_COMPRESSED};
 
     /// Generate a set of NUMS points by sequentially hashing the Ristretto255 generator point. By using
     /// `from_uniform_bytes`, the resulting point is a NUMS point if the input bytes are from a uniform distribution.

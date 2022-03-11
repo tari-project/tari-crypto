@@ -20,12 +20,13 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
+
 use crate::{
     commitment::HomomorphicCommitment,
     keys::{PublicKey, SecretKey},
 };
-use serde::{Deserialize, Serialize};
-use thiserror::Error;
 
 pub const REWIND_PROOF_MESSAGE_LENGTH: usize = 23;
 pub const REWIND_CHECK_MESSAGE: &[u8; 2] = b"TR";

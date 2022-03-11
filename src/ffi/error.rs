@@ -72,8 +72,9 @@ pub fn get_error_message(code: i32) -> &'static str {
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use std::ptr::null_mut;
+
+    use super::*;
 
     #[test]
     pub fn test_lookup_error_message_invalid_params() {

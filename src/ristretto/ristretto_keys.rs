@@ -21,7 +21,14 @@
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //! The Tari-compatible implementation of Ristretto based on the curve25519-dalek implementation
-use crate::keys::{DiffieHellmanSharedSecret, PublicKey, SecretKey};
+use std::{
+    cmp::Ordering,
+    fmt,
+    fmt::Debug,
+    hash::{Hash, Hasher},
+    ops::{Add, Mul, Sub},
+};
+
 use blake2::Blake2b;
 use curve25519_dalek::{
     constants::RISTRETTO_BASEPOINT_TABLE,
@@ -32,15 +39,10 @@ use curve25519_dalek::{
 use digest::Digest;
 use once_cell::sync::OnceCell;
 use rand::{CryptoRng, Rng};
-use std::{
-    cmp::Ordering,
-    fmt,
-    fmt::Debug,
-    hash::{Hash, Hasher},
-    ops::{Add, Mul, Sub},
-};
 use tari_utilities::{hex::Hex, ByteArray, ByteArrayError, ExtendBytes, Hashable};
 use zeroize::Zeroize;
+
+use crate::keys::{DiffieHellmanSharedSecret, PublicKey, SecretKey};
 
 /// The [SecretKey](trait.SecretKey.html) implementation for [Ristretto](https://ristretto.group) is a thin wrapper
 /// around the Dalek [Scalar](struct.Scalar.html) type, representing a 256-bit integer (mod the group order).
@@ -445,9 +447,10 @@ impl From<RistrettoPublicKey> for CompressedRistretto {
 
 #[cfg(test)]
 mod test {
+    use tari_utilities::{message_format::MessageFormat, ByteArray};
+
     use super::*;
     use crate::{keys::PublicKey, ristretto::test_common::get_keypair};
-    use tari_utilities::{message_format::MessageFormat, ByteArray};
 
     fn assert_completely_equal(k1: &RistrettoPublicKey, k2: &RistrettoPublicKey) {
         assert_eq!(k1, k2);

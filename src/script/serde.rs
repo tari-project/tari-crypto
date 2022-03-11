@@ -15,7 +15,8 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use crate::script::TariScript;
+use std::fmt;
+
 use serde::{
     de::{Error, Visitor},
     Deserialize,
@@ -23,8 +24,9 @@ use serde::{
     Serialize,
     Serializer,
 };
-use std::fmt;
 use tari_utilities::hex::{from_hex, Hex};
+
+use crate::script::TariScript;
 
 impl Serialize for TariScript {
     fn serialize<S>(&self, ser: S) -> Result<S::Ok, S::Error>

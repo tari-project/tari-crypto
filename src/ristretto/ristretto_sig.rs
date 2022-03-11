@@ -101,13 +101,14 @@ pub type RistrettoSchnorr = SchnorrSignature<RistrettoPublicKey, RistrettoSecret
 
 #[cfg(test)]
 mod test {
+    use digest::Digest;
+    use tari_utilities::{hex::from_hex, ByteArray};
+
     use crate::{
         common::Blake256,
         keys::{PublicKey, SecretKey},
         ristretto::{RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
     };
-    use digest::Digest;
-    use tari_utilities::{hex::from_hex, ByteArray};
 
     #[test]
     fn default() {
