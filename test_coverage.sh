@@ -10,7 +10,7 @@
 # 5. genhtml
 # $ sudo apt install lcov
 
-RUSTFLAGS="-Z instrument-coverage"
+RUSTFLAGS="-Zinstrument-coverage"
 RUSTUP_TOOLCHAIN=nightly
 LLVM_PROFILE_FILE="./cov_raw/tari_crypto-%m.profraw"
 
@@ -39,8 +39,9 @@ cargo cov -- \
     --show-branch-summary \
     --show-instantiation-summary \
     --show-region-summary \
-    --ignore-filename-regex='/.cargo/registry' \
-    --ignore-filename-regex="^/rustc" \
+    --ignore-filename-regex='\.cargo' \
+    --ignore-filename-regex="rustc" \
+    --ignore-filename-regex="\.git" \
     --instr-profile=cov_raw/tari_crypto.profdata \
     $files \
     > cov_raw/tari_crypto.lcov
@@ -51,8 +52,9 @@ cargo cov -- \
     --show-branch-summary \
     --show-instantiation-summary \
     --show-region-summary \
-    --ignore-filename-regex='/.cargo/registry' \
-    --ignore-filename-regex="^/rustc" \
+    --ignore-filename-regex='\.cargo' \
+    --ignore-filename-regex="rustc" \
+    --ignore-filename-regex="\.git" \
     --instr-profile=cov_raw/tari_crypto.profdata \
     $files \
     > cov_raw/tari_crypto.txt
