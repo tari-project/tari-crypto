@@ -20,15 +20,16 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use crate::keys::{PublicKey, SecretKey};
-use serde::{Deserialize, Serialize};
 use std::{
     cmp::Ordering,
     hash::{Hash, Hasher},
     ops::{Add, Mul, Sub},
 };
 
+use serde::{Deserialize, Serialize};
 use tari_utilities::{ByteArray, ByteArrayError};
+
+use crate::keys::{PublicKey, SecretKey};
 
 /// A commitment is like a sealed envelope. You put some information inside the envelope, and then seal (commit) it.
 /// You can't change what you've said, but also, no-one knows what you've said until you're ready to open (open) the

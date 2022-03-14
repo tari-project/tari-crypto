@@ -25,9 +25,10 @@
 //! implementation of ECC curve). The idea being that we can swap out the underlying
 //! implementation without worrying too much about the impact on upstream code.
 
+use std::ops::Add;
+
 use rand::{CryptoRng, Rng};
 use serde::{de::DeserializeOwned, ser::Serialize};
-use std::ops::Add;
 use tari_utilities::ByteArray;
 
 /// A trait specifying common behaviour for representing `SecretKey`s. Specific elliptic curve

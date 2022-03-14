@@ -32,8 +32,9 @@ pub extern "C" fn version() -> *const c_char {
 
 #[cfg(test)]
 mod test {
-    use super::version;
     use std::ffi::CStr;
+
+    use super::version;
 
     #[test]
     pub fn test_version() {

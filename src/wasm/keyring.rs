@@ -20,6 +20,10 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+use std::collections::HashMap;
+
+use rand::rngs::OsRng;
+use tari_utilities::hex::Hex;
 use wasm_bindgen::prelude::*;
 
 use crate::{
@@ -35,9 +39,6 @@ use crate::{
         key_utils::{sign_message_with_key, SignResult},
     },
 };
-use rand::rngs::OsRng;
-use std::collections::HashMap;
-use tari_utilities::hex::Hex;
 
 #[wasm_bindgen]
 #[derive(Default)]
@@ -164,10 +165,11 @@ impl KeyRing {
 
 #[cfg(test)]
 mod test {
-    use super::*;
-    use crate::{hash::blake2::Blake256, keys::SecretKey, ristretto::RistrettoSchnorr};
     use blake2::{digest::Output, Digest};
     use wasm_bindgen_test::*;
+
+    use super::*;
+    use crate::{hash::blake2::Blake256, keys::SecretKey, ristretto::RistrettoSchnorr};
 
     const SAMPLE_CHALLENGE: &str = "გამარჯობა";
 

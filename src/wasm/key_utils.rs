@@ -24,6 +24,12 @@
 //! stuff with private and public keys, because the keys are translated to- and from hex every time you make a call
 //! using a function from this module. You should use a [KeyRing] instead. But sometimes, these functions are handy.
 
+use blake2::Digest;
+use rand::rngs::OsRng;
+use serde::{Deserialize, Serialize};
+use tari_utilities::hex::{from_hex, Hex};
+use wasm_bindgen::prelude::*;
+
 use crate::{
     common::Blake256,
     keys::{PublicKey, SecretKey},
@@ -35,11 +41,6 @@ use crate::{
         RistrettoSecretKey,
     },
 };
-use blake2::Digest;
-use rand::rngs::OsRng;
-use serde::{Deserialize, Serialize};
-use tari_utilities::hex::{from_hex, Hex};
-use wasm_bindgen::prelude::*;
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct SignatureVerifyResult {
@@ -443,14 +444,15 @@ pub fn multiply_secret_keys(private_key_a: &str, private_key_b: &str) -> JsValue
 
 #[cfg(test)]
 mod test {
+    use blake2::digest::Output;
+    use wasm_bindgen_test::*;
+
     use super::*;
     use crate::{
         commitment::HomomorphicCommitmentFactory,
         signatures::{CommitmentSignature, SchnorrSignature},
         tari_utilities::{hex, ByteArray},
     };
-    use blake2::digest::Output;
-    use wasm_bindgen_test::*;
 
     const SAMPLE_CHALLENGE: &str =
         "Cormac was completely aware that he was being manipulated, but how he could not see.";

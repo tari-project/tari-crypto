@@ -11,7 +11,7 @@ version = "0.12.0"
 edition = "2018"
 
 [dependencies]
-tari_utilities = { git = "https://github.com/tari-project/tari_utilities.git", branch = "main" }
+tari_utilities = { git = "https://github.com/tari-project/tari_utilities.git", tag = "v0.3.1" }
 
 base64 = "0.10.1"
 blake2 = "0.9.1"
@@ -47,6 +47,7 @@ simd = ["simd_backend"]
 avx2 = ["simd_backend"] # deprecated alias for simd_backend
 wasm = ["wasm-bindgen", "getrandom/js"]
 ffi = []
+musig = []
 
 [lib]
 # Disable benchmarks to allow Criterion to take over

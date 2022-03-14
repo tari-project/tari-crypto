@@ -20,6 +20,14 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+use bulletproofs::{
+    range_proof::{get_rewind_nonce_from_pub_key, get_secret_nonce_from_pvt_key},
+    BulletproofGens,
+    PedersenGens,
+    RangeProof as DalekProof,
+};
+use merlin::Transcript;
+
 use crate::{
     keys::PublicKey,
     range_proof::{
@@ -37,13 +45,6 @@ use crate::{
         RistrettoSecretKey,
     },
 };
-use bulletproofs::{
-    range_proof::{get_rewind_nonce_from_pub_key, get_secret_nonce_from_pvt_key},
-    BulletproofGens,
-    PedersenGens,
-    RangeProof as DalekProof,
-};
-use merlin::Transcript;
 
 /// A wrapper around the Dalek library implementation of Bulletproof range proofs.
 pub struct DalekRangeProofService {
@@ -215,6 +216,8 @@ impl RangeProofService for DalekRangeProofService {
 
 #[cfg(test)]
 mod test {
+    use rand::thread_rng;
+
     use crate::{
         commitment::HomomorphicCommitmentFactory,
         keys::{PublicKey, SecretKey},
@@ -226,7 +229,6 @@ mod test {
             RistrettoSecretKey,
         },
     };
-    use rand::thread_rng;
 
     #[test]
     fn create_and_verify_proof() {

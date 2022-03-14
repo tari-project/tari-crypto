@@ -20,14 +20,16 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+use std::marker::PhantomData;
+
+use digest::Digest;
+use tari_utilities::{fixed_set::FixedSet, ByteArray};
+
 use crate::{
     musig::{JointKey, JointKeyBuilder, MuSigError},
     ristretto::{RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
     signatures::SchnorrSignature,
 };
-use digest::Digest;
-use std::marker::PhantomData;
-use tari_utilities::{fixed_set::FixedSet, ByteArray};
 
 //-----------------------------------------  Constants and aliases    ------------------------------------------------//
 
@@ -604,10 +606,11 @@ impl FinalizedMuSig {
 
 #[cfg(test)]
 mod test {
-    use super::*;
-    use crate::keys::{PublicKey, SecretKey};
     use rand::{CryptoRng, Rng};
     use sha2::Sha256;
+
+    use super::*;
+    use crate::keys::{PublicKey, SecretKey};
 
     struct MuSigTestData {
         pub pub_keys: Vec<RistrettoPublicKey>,
@@ -947,10 +950,11 @@ mod test {
 
 #[cfg(test)]
 mod test_joint_key {
-    use super::*;
-    use crate::{keys::PublicKey, musig::MAX_SIGNATURES};
     use sha2::Sha256;
     use tari_utilities::hex::Hex;
+
+    use super::*;
+    use crate::{keys::PublicKey, musig::MAX_SIGNATURES};
 
     #[test]
     fn zero_sized_jk() {

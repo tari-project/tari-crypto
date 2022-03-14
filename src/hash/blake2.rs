@@ -21,15 +21,32 @@
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use blake2::{digest::VariableOutput, VarBlake2b};
-use digest::{consts::U32, generic_array::GenericArray, FixedOutput, Reset, Update};
+use digest::{
+    consts::U32,
+    generic_array::{typenum::Unsigned, GenericArray},
+    FixedOutput,
+    Reset,
+    Update,
+};
 
 /// A convenience wrapper produce 256 bit hashes from Blake2b
 #[derive(Clone, Debug)]
 pub struct Blake256(VarBlake2b);
 
+impl Blake256 {
+    pub fn with_params(key: &[u8], salt: &[u8], persona: &[u8]) -> Self {
+        Self(VarBlake2b::with_params(
+            key,
+            salt,
+            persona,
+            <Self as FixedOutput>::OutputSize::USIZE,
+        ))
+    }
+}
+
 impl Default for Blake256 {
     fn default() -> Self {
-        let h = VariableOutput::new(32).unwrap();
+        let h = VariableOutput::new(<Self as FixedOutput>::OutputSize::USIZE).unwrap();
         Blake256(h)
     }
 }
@@ -60,10 +77,11 @@ impl Update for Blake256 {
 
 #[cfg(test)]
 mod test {
-    use crate::common::Blake256;
     use blake2::digest::FixedOutput;
     use digest::{generic_array::GenericArray, Digest};
     use tari_utilities::hex;
+
+    use crate::common::Blake256;
 
     #[test]
     fn blake256() {
@@ -114,5 +132,24 @@ mod test {
         // test Debug impl
         assert_eq!(format!("{:?}", e), "Blake256(VarBlake2b { ... })");
         assert_eq!(e.finalize(), e2.finalize());
+    }
+
+    #[test]
+    fn personalisation() {
+        let default = Blake256::new().chain(b"onetwo").finalize();
+        let personalised = Blake256::with_params(&[], &[], b"unit-test")
+            .chain(b"onetwo")
+            .finalize();
+        let salted = Blake256::with_params(&[], b"unit-test", &[])
+            .chain(b"onetwo")
+            .finalize();
+        let keyed = Blake256::with_params(&[1u8; 64], &[], &[]).chain(b"onetwo").finalize();
+
+        assert_ne!(default, personalised);
+        assert_ne!(default, salted);
+        assert_ne!(salted, personalised);
+        assert_ne!(salted, keyed);
+        assert_ne!(keyed, personalised);
+        assert_ne!(keyed, salted);
     }
 }

@@ -20,6 +20,10 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+use serde::{Deserialize, Serialize};
+use tari_utilities::hex::Hex;
+use wasm_bindgen::prelude::*;
+
 use crate::{
     commitment::HomomorphicCommitmentFactory,
     ristretto::{
@@ -28,9 +32,6 @@ use crate::{
         RistrettoSecretKey,
     },
 };
-use serde::{Deserialize, Serialize};
-use tari_utilities::hex::Hex;
-use wasm_bindgen::prelude::*;
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct CommitmentResult {
@@ -95,10 +96,11 @@ pub fn opens(key: &str, value: u64, commitment: &str) -> bool {
 
 #[cfg(test)]
 mod test {
-    use super::*;
-    use crate::keys::SecretKey;
     use rand::rngs::OsRng;
     use wasm_bindgen_test::*;
+
+    use super::*;
+    use crate::keys::SecretKey;
 
     mod commit {
         use super::*;

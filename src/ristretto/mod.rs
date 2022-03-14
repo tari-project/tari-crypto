@@ -22,6 +22,7 @@
 
 pub mod constants;
 pub mod dalek_range_proof;
+#[cfg(feature = "musig")]
 pub mod musig;
 pub mod pedersen;
 pub mod ristretto_com_sig;

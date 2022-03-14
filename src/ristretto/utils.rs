@@ -17,13 +17,14 @@
 
 //! Handy utility functions for use in tests and demo scripts
 
+use digest::Digest;
+use tari_utilities::ByteArray;
+
 use crate::{
     keys::PublicKey,
     ristretto::{RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
     signatures::SchnorrSignatureError,
 };
-use digest::Digest;
-use tari_utilities::ByteArray;
 
 /// A set of keys and it's associated signature
 pub struct SignatureSet {
