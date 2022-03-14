@@ -1,0 +1,7 @@
+{
+  "sign": true,
+  "skip": {
+    "commit": true,
+    "tag": true
+  }
+}
