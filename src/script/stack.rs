@@ -17,14 +17,15 @@
 
 use std::convert::TryFrom;
 
-use crate::{
-    ristretto::{pedersen::PedersenCommitment, RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
-    script::{error::ScriptError, op_codes::HashValue},
-};
 use serde::{Deserialize, Serialize};
 use tari_utilities::{
     hex::{from_hex, to_hex, Hex, HexError},
     ByteArray,
+};
+
+use crate::{
+    ristretto::{pedersen::PedersenCommitment, RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
+    script::{error::ScriptError, op_codes::HashValue},
 };
 pub const MAX_STACK_SIZE: usize = 255;
 
@@ -332,14 +333,15 @@ fn counter(values: [u8; 5], item: &StackItem) -> [u8; 5] {
 
 #[cfg(test)]
 mod test {
+    use blake2::Digest;
+    use tari_utilities::hex::Hex;
+
     use crate::{
         common::Blake256,
         keys::{PublicKey, SecretKey},
         ristretto::{utils, utils::SignatureSet, RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
         script::{ExecutionStack, StackItem},
     };
-    use blake2::Digest;
-    use tari_utilities::hex::Hex;
 
     #[test]
     fn as_bytes_roundtrip() {

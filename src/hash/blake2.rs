@@ -77,10 +77,11 @@ impl Update for Blake256 {
 
 #[cfg(test)]
 mod test {
-    use crate::common::Blake256;
     use blake2::digest::FixedOutput;
     use digest::{generic_array::GenericArray, Digest};
     use tari_utilities::hex;
+
+    use crate::common::Blake256;
 
     #[test]
     fn blake256() {

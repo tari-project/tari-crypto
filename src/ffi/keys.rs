@@ -15,6 +15,15 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+use std::{
+    ffi::CStr,
+    os::raw::{c_char, c_int},
+};
+
+use digest::Digest;
+use rand::rngs::OsRng;
+use tari_utilities::ByteArray;
+
 use crate::{
     commitment::{HomomorphicCommitment, HomomorphicCommitmentFactory},
     ffi::error::{INVALID_SECRET_KEY_SER, NULL_POINTER, OK, SIGNING_ERROR, STR_CONV_ERR},
@@ -28,13 +37,6 @@ use crate::{
         RistrettoSecretKey,
     },
 };
-use digest::Digest;
-use rand::rngs::OsRng;
-use std::{
-    ffi::CStr,
-    os::raw::{c_char, c_int},
-};
-use tari_utilities::ByteArray;
 
 pub const KEY_LENGTH: usize = 32;
 
@@ -276,9 +278,11 @@ pub unsafe extern "C" fn verify_comsig(
 
 #[cfg(test)]
 mod test {
-    use super::*;
-    use curve25519_dalek::scalar::Scalar;
     use std::ptr::null_mut;
+
+    use curve25519_dalek::scalar::Scalar;
+
+    use super::*;
 
     #[test]
     pub fn test_random_keypair_with_invalid_params() {

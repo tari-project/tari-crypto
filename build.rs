@@ -15,8 +15,9 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use cbindgen::Config;
 use std::{env, path::Path};
+
+use cbindgen::Config;
 
 fn main() {
     let needs_ffi = &env::var("CARGO_FEATURE_FFI").unwrap_or_default() == "1";

@@ -15,11 +15,12 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use crate::ristretto::RistrettoPublicKey;
 use std::{fmt, ops::Deref};
+
 use tari_utilities::{hex::Hex, ByteArray, ByteArrayError};
 
 use super::ScriptError;
+use crate::ristretto::RistrettoPublicKey;
 
 pub type HashValue = [u8; 32];
 pub type Message = [u8; MESSAGE_LENGTH];

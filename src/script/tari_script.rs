@@ -16,6 +16,16 @@
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // pending updates to Dalek/Digest
+use std::{cmp::Ordering, collections::HashSet, convert::TryFrom, fmt, ops::Deref};
+
+use digest::Digest;
+use sha2::Sha256;
+use sha3::Sha3_256;
+use tari_utilities::{
+    hex::{from_hex, to_hex, Hex, HexError},
+    ByteArray,
+};
+
 use crate::{
     common::Blake256,
     ristretto::{RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
@@ -27,14 +37,6 @@ use crate::{
         ScriptContext,
         StackItem,
     },
-};
-use digest::Digest;
-use sha2::Sha256;
-use sha3::Sha3_256;
-use std::{cmp::Ordering, collections::HashSet, convert::TryFrom, fmt, ops::Deref};
-use tari_utilities::{
-    hex::{from_hex, to_hex, Hex, HexError},
-    ByteArray,
 };
 
 #[macro_export]
@@ -571,6 +573,11 @@ impl Default for ExecutionState {
 
 #[cfg(test)]
 mod test {
+    use blake2::Digest;
+    use sha2::Sha256;
+    use sha3::Sha3_256 as Sha3;
+    use tari_utilities::{hex::Hex, ByteArray};
+
     use crate::{
         common::Blake256,
         inputs,
@@ -587,10 +594,6 @@ mod test {
             DEFAULT_SCRIPT_HASH,
         },
     };
-    use blake2::Digest;
-    use sha2::Sha256;
-    use sha3::Sha3_256 as Sha3;
-    use tari_utilities::{hex::Hex, ByteArray};
 
     fn context_with_height(height: u64) -> ScriptContext {
         ScriptContext::new(height, &HashValue::default(), &PedersenCommitment::default())

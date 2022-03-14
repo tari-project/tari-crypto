@@ -20,6 +20,10 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+use serde::{Deserialize, Serialize};
+use tari_utilities::hex::Hex;
+use wasm_bindgen::prelude::*;
+
 use crate::{
     range_proof::RangeProofService,
     ristretto::{
@@ -29,9 +33,6 @@ use crate::{
     },
     tari_utilities::hex::from_hex,
 };
-use serde::{Deserialize, Serialize};
-use tari_utilities::hex::Hex;
-use wasm_bindgen::prelude::*;
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct RangeProofResult {
@@ -106,10 +107,11 @@ impl Default for RangeProofFactory {
 
 #[cfg(test)]
 mod test {
-    use super::*;
-    use crate::{commitment::HomomorphicCommitmentFactory, keys::PublicKey, ristretto::RistrettoPublicKey};
     use rand::rngs::OsRng;
     use wasm_bindgen_test::*;
+
+    use super::*;
+    use crate::{commitment::HomomorphicCommitmentFactory, keys::PublicKey, ristretto::RistrettoPublicKey};
 
     #[wasm_bindgen_test]
     fn it_fails_with_invalid_hex_input() {

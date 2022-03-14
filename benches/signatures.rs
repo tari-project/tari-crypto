@@ -1,6 +1,7 @@
+use std::time::Duration;
+
 use criterion::{criterion_group, BatchSize, Criterion};
 use rand::{thread_rng, RngCore};
-use std::time::Duration;
 use tari_crypto::{
     keys::{PublicKey, SecretKey},
     ristretto::{RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},

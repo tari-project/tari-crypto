@@ -20,15 +20,19 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use crate::{
-    commitment::HomomorphicCommitment,
-    ristretto::{constants::RISTRETTO_NUMS_POINTS, RistrettoPublicKey},
-};
-use curve25519_dalek::{constants::RISTRETTO_BASEPOINT_POINT, ristretto::RistrettoPoint, traits::MultiscalarMul};
-
-use crate::{commitment::HomomorphicCommitmentFactory, ristretto::RistrettoSecretKey};
-use curve25519_dalek::scalar::Scalar;
 use std::{borrow::Borrow, iter::Sum};
+
+use curve25519_dalek::{
+    constants::RISTRETTO_BASEPOINT_POINT,
+    ristretto::RistrettoPoint,
+    scalar::Scalar,
+    traits::MultiscalarMul,
+};
+
+use crate::{
+    commitment::{HomomorphicCommitment, HomomorphicCommitmentFactory},
+    ristretto::{constants::RISTRETTO_NUMS_POINTS, RistrettoPublicKey, RistrettoSecretKey},
+};
 
 pub const RISTRETTO_PEDERSEN_G: RistrettoPoint = RISTRETTO_BASEPOINT_POINT;
 lazy_static! {
@@ -107,14 +111,16 @@ where T: Borrow<PedersenCommitment>
 
 #[cfg(test)]
 mod test {
-    use super::*;
-    use crate::keys::{PublicKey, SecretKey};
     use std::{
         collections::hash_map::DefaultHasher,
         convert::From,
         hash::{Hash, Hasher},
     };
+
     use tari_utilities::{message_format::MessageFormat, ByteArray};
+
+    use super::*;
+    use crate::keys::{PublicKey, SecretKey};
 
     #[test]
     fn check_default_base() {
