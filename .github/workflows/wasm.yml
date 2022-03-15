@@ -1,0 +1,41 @@
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+name: Wasm Test
+
+jobs:
+  wasm:
+    name: wasm test
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+      - name: toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly-2022-01-17
+          target: wasm32-unknown-unknown
+          override: true
+      - name: install wasm-pack
+        run: npm install -g wasm-pack
+      - name: make wasm
+        run: make wasm
+      - name: make wasm-node
+        run: make wasm-node
+      - name: make wasm-test
+        run: make wasm-test
+      - name: upload pkg
+        if: ${{ github.event_name == 'push' }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: wasm-bundler
+          path: pkg
+      - name: upload nodejs
+        if: ${{ github.event_name == 'push' }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: wasm-nodejs
+          path: tari_js

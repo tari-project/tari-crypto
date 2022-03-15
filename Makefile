@@ -37,3 +37,6 @@ wasm:
 
 wasm-node:
 	wasm-pack build --target nodejs -d tari_js . -- --features "wasm"
+
+wasm-test:
+	wasm-pack test --node --features wasm
