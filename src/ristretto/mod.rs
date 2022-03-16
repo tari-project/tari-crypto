@@ -28,7 +28,6 @@ pub mod pedersen;
 pub mod ristretto_com_sig;
 pub mod ristretto_keys;
 pub mod ristretto_sig;
-pub mod script_commitment;
 pub mod serialize;
 pub mod utils;
 
