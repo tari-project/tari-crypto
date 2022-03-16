@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+set -e
+
+pushd `git rev-parse --show-toplevel` > /dev/null
+# See https://github.com/conventional-changelog/standard-version#cli-usage for usage
+npx standard-version "$@"
+popd > /dev/null
