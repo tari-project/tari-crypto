@@ -1,5 +1,13 @@
 # Changelog
 
+
+### [0.12.2](https://github.com/tari-project/tari-crypto/compare/v0.12.1...v0.12.2) (2022-03-25)
+
+
+### Bug Fixes
+
+* lock bulletproof repo to correct version ([4650715](https://github.com/tari-project/tari-crypto/commit/465071528e26f0913f19d4297f3c05b0b4f21e41))
+
 ### [0.12.1](https://github.com/tari-project/tari-crypto/compare/v0.12.0...v0.12.1) (2022-03-14)
 
 
