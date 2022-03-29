@@ -7,7 +7,7 @@ categories = ["cryptography"]
 homepage = "https://tari.com"
 readme = "README.md"
 license = "BSD-3-Clause"
-version = "0.12.4"
+version = "0.12.5"
 edition = "2018"
 
 [dependencies]
@@ -15,7 +15,7 @@ tari_utilities = { git = "https://github.com/tari-project/tari_utilities.git", t
 
 base64 = "0.10.1"
 blake2 = "0.9.1"
-bulletproofs = { version = "4.1.0", package = "tari_bulletproofs", git = "https://github.com/tari-project/bulletproofs", tag = "v4.1.0" }
+bulletproofs = { version = "4.1.2", package = "tari_bulletproofs", git = "https://github.com/tari-project/bulletproofs", tag = "v4.1.2" }
 curve25519-dalek = { package = "curve25519-dalek-ng", version = "4.1", default-features = false, features = ["u64_backend", "serde", "alloc"] }
 digest = "0.9.0"
 getrandom = { version = "0.2.3", default-features = false, optional = true }
@@ -28,7 +28,7 @@ serde_json = "1.0"
 sha3 = "0.9"
 thiserror = "1.0.20"
 wasm-bindgen = { version = "^0.2", features = ["serde-serialize"], optional = true }
-zeroize = { version = "1.3.0", default-features = false, features = ["alloc"] }
+zeroize = { version = "1.5.0", default-features = false, features = ["alloc"] }
 
 [dev-dependencies]
 bincode = "1.1.4"
