@@ -92,10 +92,10 @@ where
     /// Sign the provided challenge with the value commitment's value and blinding factor. The two nonces should be
     /// completely random and never reused - that responsibility lies with the calling function.
     pub fn sign<C>(
-        secret_a: K,
-        secret_x: K,
-        nonce_a: K,
-        nonce_x: K,
+        secret_a: &K,
+        secret_x: &K,
+        nonce_a: &K,
+        nonce_x: &K,
         challenge: &[u8],
         factory: &C,
     ) -> Result<Self, CommitmentSignatureError>
@@ -109,13 +109,13 @@ where
             Ok(e) => e,
             Err(_) => return Err(CommitmentSignatureError::InvalidChallenge),
         };
-        let ea = &e * &secret_a;
-        let ex = &e * &secret_x;
+        let ea = &e * secret_a;
+        let ex = &e * secret_x;
 
-        let v = &nonce_a + &ea;
-        let u = &nonce_x + &ex;
+        let v = nonce_a + &ea;
+        let u = nonce_x + &ex;
 
-        let public_commitment_nonce = factory.commit(&nonce_x, &nonce_a);
+        let public_commitment_nonce = factory.commit(nonce_x, nonce_a);
 
         Ok(Self::new(public_commitment_nonce, u, v))
     }
@@ -142,7 +142,7 @@ where
     }
 
     /// Verify if the commitment signature signed the commitment using the specified challenge (as secret key).
-    ///   v*H + u*G = R + e.C
+    ///  v*H + u*G = R + e.C
     pub fn verify<'a, C>(&self, public_commitment: &'a HomomorphicCommitment<P>, challenge: &K, factory: &C) -> bool
     where
         for<'b> &'a HomomorphicCommitment<P>: Mul<&'b K, Output = HomomorphicCommitment<P>>,

@@ -496,7 +496,7 @@ mod test {
         ];
         let mut bytes = [0u8; 32];
         for i in 0u8..16 {
-            let pk = RistrettoPublicKey::from_hex(&encodings_of_small_multiples[i as usize]).unwrap();
+            let pk = RistrettoPublicKey::from_hex(encodings_of_small_multiples[i as usize]).unwrap();
             bytes[0] = i;
             let sk = RistrettoSecretKey::from_bytes(&bytes).unwrap();
             let pk2 = RistrettoPublicKey::from_secret_key(&sk);

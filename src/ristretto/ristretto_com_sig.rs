@@ -67,7 +67,7 @@ use crate::{
 /// let e = Blake256::digest(b"Maskerade");
 /// let factory = PedersenCommitmentFactory::default();
 /// let commitment = factory.commit(&x_val, &a_val);
-/// let sig = RistrettoComSig::sign(a_val, x_val, a_nonce, x_nonce, &e, &factory).unwrap();
+/// let sig = RistrettoComSig::sign(&a_val, &x_val, &a_nonce, &x_nonce, &e, &factory).unwrap();
 /// assert!(sig.verify_challenge(&commitment, &e, &factory));
 /// ```
 ///
@@ -151,7 +151,7 @@ mod test {
         let e_key = RistrettoSecretKey::from_bytes(&challenge).unwrap();
         let u_value = &k_1 + e_key.clone() * &x_value;
         let v_value = &k_2 + e_key * &a_value;
-        let sig = RistrettoComSig::sign(a_value, x_value, k_2, k_1, &challenge, &factory).unwrap();
+        let sig = RistrettoComSig::sign(&a_value, &x_value, &k_2, &k_1, &challenge, &factory).unwrap();
         let R_calc = sig.public_nonce();
         assert_eq!(nonce_commitment, *R_calc);
         let (_, sig_1, sig_2) = sig.complete_signature_tuple();
@@ -194,10 +194,18 @@ mod test {
             .chain(b"Moving Pictures")
             .finalize();
         // Calculate Alice's signature
-        let sig_alice =
-            RistrettoComSig::sign(a_value_alice, x_value_alice, k_2_alice, k_1_alice, &challenge, &factory).unwrap();
+        let sig_alice = RistrettoComSig::sign(
+            &a_value_alice,
+            &x_value_alice,
+            &k_2_alice,
+            &k_1_alice,
+            &challenge,
+            &factory,
+        )
+        .unwrap();
         // Calculate Bob's signature
-        let sig_bob = RistrettoComSig::sign(a_value_bob, x_value_bob, k_2_bob, k_1_bob, &challenge, &factory).unwrap();
+        let sig_bob =
+            RistrettoComSig::sign(&a_value_bob, &x_value_bob, &k_2_bob, &k_1_bob, &challenge, &factory).unwrap();
         // Now add the two signatures together
         let s_agg = &sig_alice + &sig_bob;
         // Check that the multi-sig verifies
@@ -216,7 +224,7 @@ mod test {
         let message = from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap();
         let k_1 = RistrettoSecretKey::random(&mut rng);
         let k_2 = RistrettoSecretKey::random(&mut rng);
-        assert!(RistrettoComSig::sign(a_value, x_value, k_2, k_1, &message, &factory).is_ok());
+        assert!(RistrettoComSig::sign(&a_value, &x_value, &k_2, &k_1, &message, &factory).is_ok());
     }
 
     #[test]

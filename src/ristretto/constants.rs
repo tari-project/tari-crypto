@@ -69,6 +69,7 @@ pub const RISTRETTO_NUMS_POINTS_COMPRESSED: [CompressedRistretto; 10] = [
 ];
 
 lazy_static! {
+    /// A static array of pre-generated NUMS points
     pub static ref RISTRETTO_NUMS_POINTS: [RistrettoPoint; 10] = {
         let mut arr = [RistrettoPoint::default(); 10];
         for i in 0..10 {
@@ -78,6 +79,7 @@ lazy_static! {
     };
 }
 
+/// The NUMS Ristretto point `H`
 pub const RISTRETTO_PEDERSEN_H: CompressedRistretto = RISTRETTO_NUMS_POINTS_COMPRESSED[0];
 
 #[cfg(test)]
