@@ -14,7 +14,13 @@ jobs:
         with:
           command: fmt
           args: --all -- --check
-      - uses: actions-rs/clippy-check@v1
+      - name: Install cargo-lints
+        uses: actions-rs/cargo@v1
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features
+          command: install
+          args: cargo-lints
+      - name: Clippy lints
+        uses: actions-rs/cargo@v1
+        with:
+          command: lints
+          args: clippy --all-targets

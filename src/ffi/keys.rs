@@ -215,7 +215,7 @@ pub unsafe extern "C" fn sign_comsig(
     };
     let challenge = Blake256::digest(msg.as_bytes()).to_vec();
     let factory = PedersenCommitmentFactory::default();
-    let sig = match RistrettoComSig::sign(secret_a, secret_x, nonce_a, nonce_x, &challenge, &factory) {
+    let sig = match RistrettoComSig::sign(&secret_a, &secret_x, &nonce_a, &nonce_x, &challenge, &factory) {
         Ok(sig) => sig,
         _ => return SIGNING_ERROR,
     };

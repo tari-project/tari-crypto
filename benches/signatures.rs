@@ -12,7 +12,7 @@ fn generate_secret_key(c: &mut Criterion) {
     c.bench_function("Generate secret key", |b| {
         let mut rng = thread_rng();
         b.iter(|| {
-            let _ = RistrettoSecretKey::random(&mut rng);
+            let _key = RistrettoSecretKey::random(&mut rng);
         });
     });
 }
@@ -46,7 +46,7 @@ fn sign_message(c: &mut Criterion) {
         b.iter_batched(
             gen_keypair,
             |d| {
-                let _ = RistrettoSchnorr::sign(d.k, d.r, &d.m.to_vec()).unwrap();
+                let _sig = RistrettoSchnorr::sign(d.k, d.r, &d.m.to_vec()).unwrap();
             },
             BatchSize::SmallInput,
         );

@@ -314,7 +314,7 @@ pub(crate) fn sign_comsig_with_key(
         None => RistrettoSecretKey::random(&mut OsRng),
     };
 
-    let sig = match RistrettoComSig::sign(private_key_a.clone(), private_key_x.clone(), r_2, r_1, e, &factory) {
+    let sig = match RistrettoComSig::sign(&private_key_a, &private_key_x, &r_2, &r_1, e, &factory) {
         Ok(s) => s,
         Err(e) => {
             result.error = format!("Could not create signature. {}", e.to_string());
@@ -483,15 +483,9 @@ mod test {
         let (sk_x, _) = random_keypair();
         let (nonce_a, _) = random_keypair();
         let (nonce_x, _) = random_keypair();
-        let sig = CommitmentSignature::<RistrettoPublicKey, _>::sign(
-            sk_a.clone(),
-            sk_x.clone(),
-            nonce_a,
-            nonce_x,
-            &hash(msg),
-            &factory,
-        )
-        .unwrap();
+        let sig =
+            CommitmentSignature::<RistrettoPublicKey, _>::sign(&sk_a, &sk_x, &nonce_a, &nonce_x, &hash(msg), &factory)
+                .unwrap();
         let commitment = factory.commit(&sk_x, &sk_a);
 
         (sig, commitment)

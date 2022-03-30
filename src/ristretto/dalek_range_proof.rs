@@ -246,14 +246,14 @@ mod test {
         // Invalid value
         let v2 = RistrettoSecretKey::from(43);
         let c = commitment_factory.commit(&k, &v2);
-        assert_eq!(prover.verify(&proof, &c), false);
+        assert!(!prover.verify(&proof, &c));
         // Invalid key
         let k = RistrettoSecretKey::random(&mut rng);
         let c = commitment_factory.commit(&k, &v);
-        assert_eq!(prover.verify(&proof, &c), false);
+        assert!(!prover.verify(&proof, &c));
         // Both invalid
         let c = commitment_factory.commit(&k, &v2);
-        assert_eq!(prover.verify(&proof, &c), false);
+        assert!(!prover.verify(&proof, &c));
     }
 
     #[test]
@@ -277,7 +277,7 @@ mod test {
         let c = commitment_factory.commit(&k, &v);
         let message = b"testing12345678910111";
         let proof = prover
-            .construct_proof_with_rewind_key(&k, 42, &rewind_k, &rewind_blinding_k, &message)
+            .construct_proof_with_rewind_key(&k, 42, &rewind_k, &rewind_blinding_k, message)
             .unwrap();
 
         // test Debug impl
@@ -347,7 +347,7 @@ mod test {
         for i in 0..257 {
             let v = RistrettoSecretKey::from(i);
             let c = commitment_factory.commit(&k, &v);
-            assert_eq!(prover.verify(&proof, &c), false);
+            assert!(!prover.verify(&proof, &c));
         }
     }
 }
