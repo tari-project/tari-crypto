@@ -40,6 +40,8 @@ use crate::{
     },
 };
 
+/// KeyRing is an in-memory key-value store for secret keys. Each secret key has a user-defined id associated with it.
+/// Additionally, it provides methods to sign and verify signatures using these stored keys.
 #[wasm_bindgen]
 #[derive(Default)]
 pub struct KeyRing {
@@ -226,7 +228,7 @@ mod test {
 
             let sk_a = kr.expect_private_key("a");
             let pk_a = kr.expect_public_key("a");
-            assert_eq!(*pk_a, RistrettoPublicKey::from_secret_key(&sk_a));
+            assert_eq!(*pk_a, RistrettoPublicKey::from_secret_key(sk_a));
 
             let sk_b = kr.expect_private_key("b");
             assert_ne!(sk_a, sk_b);
@@ -257,7 +259,7 @@ mod test {
             let kr = new_keyring();
             let sig = sign(&kr, "a").unwrap();
             let pk = kr.expect_public_key("a");
-            assert!(sig.verify_challenge(&pk, &hash(SAMPLE_CHALLENGE)));
+            assert!(sig.verify_challenge(pk, &hash(SAMPLE_CHALLENGE)));
         }
     }
 
@@ -267,30 +269,30 @@ mod test {
         #[wasm_bindgen_test]
         fn it_returns_false_if_key_doesnt_exist() {
             let kr = new_keyring();
-            assert_eq!(kr.opens("doesnt-exist", 0, ""), false);
-            assert_eq!(kr.opens("doesnt-exist", u64::MAX, ""), false);
+            assert!(!kr.opens("doesnt-exist", 0, ""),);
+            assert!(!kr.opens("doesnt-exist", u64::MAX, ""),);
             let c = create_commitment(kr.expect_private_key("a"), 0);
-            assert_eq!(kr.opens("doesnt-exist", 0, &c.to_hex()), false);
+            assert!(!kr.opens("doesnt-exist", 0, &c.to_hex()),);
         }
 
         #[wasm_bindgen_test]
         fn it_returns_false_does_not_open_commitment() {
             let kr = new_keyring();
             let c = create_commitment(&RistrettoSecretKey::random(&mut OsRng), 123);
-            assert_eq!(kr.opens("a", 123, &c.to_hex()), false);
+            assert!(!kr.opens("a", 123, &c.to_hex()),);
 
             let c = create_commitment(kr.expect_private_key("a"), 123);
-            assert_eq!(kr.opens("a", 321, &c.to_hex()), false);
+            assert!(!kr.opens("a", 321, &c.to_hex()),);
 
             let c = create_commitment(kr.expect_private_key("a"), 123);
-            assert_eq!(kr.opens("b", 123, &c.to_hex()), false);
+            assert!(!kr.opens("b", 123, &c.to_hex()),);
         }
 
         #[wasm_bindgen_test]
         fn it_returns_true_if_commitment_opened() {
             let kr = new_keyring();
             let c = create_commitment(kr.expect_private_key("a"), 123);
-            assert_eq!(kr.opens("a", 123, &c.to_hex()), true);
+            assert!(kr.opens("a", 123, &c.to_hex()));
         }
     }
 

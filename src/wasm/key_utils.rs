@@ -158,7 +158,7 @@ pub(super) fn sign_with_key(k: &RistrettoSecretKey, e: &[u8], r: Option<&Ristret
     let sig = match RistrettoSchnorr::sign(k.clone(), r, e) {
         Ok(s) => s,
         Err(e) => {
-            result.error = format!("Could not create signature. {}", e.to_string());
+            result.error = format!("Could not create signature. {}", e);
             return;
         },
     };
@@ -314,10 +314,10 @@ pub(crate) fn sign_comsig_with_key(
         None => RistrettoSecretKey::random(&mut OsRng),
     };
 
-    let sig = match RistrettoComSig::sign(&private_key_a, &private_key_x, &r_2, &r_1, e, &factory) {
+    let sig = match RistrettoComSig::sign(private_key_a, private_key_x, &r_2, &r_1, e, &factory) {
         Ok(s) => s,
         Err(e) => {
-            result.error = format!("Could not create signature. {}", e.to_string());
+            result.error = format!("Could not create signature. {}", e);
             return;
         },
     };
@@ -548,7 +548,7 @@ mod test {
 
         #[wasm_bindgen_test]
         fn it_returns_error_if_invalid() {
-            assert_eq!(sign("", SAMPLE_CHALLENGE).error.is_empty(), false);
+            assert!(!sign("", SAMPLE_CHALLENGE).error.is_empty());
             assert!(!sign(&["0"; 32].join(""), SAMPLE_CHALLENGE).error.is_empty());
         }
 
@@ -585,17 +585,13 @@ mod test {
         #[wasm_bindgen_test]
         fn it_returns_error_if_invalid() {
             let (_, key) = key_hex();
-            assert_eq!(
-                sign_challenge_with_nonce(&key, "", &hash_hex(SAMPLE_CHALLENGE))
+            assert!(!sign_challenge_with_nonce(&key, "", &hash_hex(SAMPLE_CHALLENGE))
+                .error
+                .is_empty());
+            assert!(
+                !sign_challenge_with_nonce(&["0"; 33].join(""), &key, &hash_hex(SAMPLE_CHALLENGE))
                     .error
-                    .is_empty(),
-                false
-            );
-            assert_eq!(
-                sign_challenge_with_nonce(&["0"; 33].join(""), &key, &hash_hex(SAMPLE_CHALLENGE))
-                    .error
-                    .is_empty(),
-                false
+                    .is_empty()
             );
         }
 
@@ -634,30 +630,29 @@ mod test {
         fn it_errors_given_invalid_data() {
             fn it_errors(pub_nonce: &str, signature: &str, pub_key: &str, msg: &str) {
                 let result = check_signature(pub_nonce, signature, pub_key, msg);
-                assert_eq!(
-                    result.error.is_empty(),
-                    false,
+                assert!(
+                    !result.error.is_empty(),
                     "check_signature did not fail with args ({}, {}, {}, {})",
                     pub_nonce,
                     signature,
                     pub_key,
                     msg
                 );
-                assert_eq!(result.result, false);
+                assert!(!result.result);
             }
 
             it_errors("", "", "", SAMPLE_CHALLENGE);
 
             let (sig, pk, _) = create_signature(SAMPLE_CHALLENGE);
-            it_errors(&sig.get_public_nonce().to_hex(), &"", &pk.to_hex(), SAMPLE_CHALLENGE);
+            it_errors(&sig.get_public_nonce().to_hex(), "", &pk.to_hex(), SAMPLE_CHALLENGE);
         }
 
         #[wasm_bindgen_test]
         fn it_fails_if_verification_is_invalid() {
             fn it_fails(pub_nonce: &str, signature: &str, pub_key: &str, msg: &str) {
                 let result = check_signature(pub_nonce, signature, pub_key, msg);
-                assert_eq!(result.error.is_empty(), true,);
-                assert_eq!(result.result, false);
+                assert!(result.error.is_empty());
+                assert!(!result.result);
             }
 
             let (sig, pk, _) = create_signature(SAMPLE_CHALLENGE);
@@ -708,10 +703,10 @@ mod test {
         fn it_fails_if_given_invalid_data() {
             fn it_fails(a: &str, x: &str, msg: &str) {
                 let result = sign_comsig(a, x, msg);
-                assert_eq!(result.error.is_empty(), false);
-                assert_eq!(result.public_nonce.is_some(), false);
-                assert_eq!(result.v.is_some(), false);
-                assert_eq!(result.u.is_some(), false);
+                assert!(!result.error.is_empty());
+                assert!(result.public_nonce.is_none());
+                assert!(result.v.is_none());
+                assert!(result.u.is_none());
             }
 
             let (sk, _) = random_keypair();
@@ -775,10 +770,10 @@ mod test {
         fn it_fails_if_given_invalid_data() {
             fn it_fails(a: &str, x: &str, n_a: &str, n_x: &str) {
                 let result = sign_comsig_challenge_with_nonce(a, x, n_a, n_x);
-                assert_eq!(result.error.is_empty(), false);
-                assert_eq!(result.public_nonce.is_some(), false);
-                assert_eq!(result.v.is_some(), false);
-                assert_eq!(result.u.is_some(), false);
+                assert!(!result.error.is_empty());
+                assert!(result.public_nonce.is_none());
+                assert!(result.v.is_none());
+                assert!(result.u.is_none());
             }
 
             let (sk, _) = random_keypair();
@@ -794,7 +789,7 @@ mod test {
             let (r2, _) = random_keypair();
             let expected_p_nonce = PedersenCommitmentFactory::default().commit(&r1, &r2);
             let result = sign_comsig_challenge_with_nonce(&sk.to_hex(), &sk.to_hex(), &r1.to_hex(), &r2.to_hex());
-            assert_eq!(result.error.is_empty(), true);
+            assert!(result.error.is_empty());
             assert_eq!(
                 PedersenCommitment::from_hex(&result.public_nonce.unwrap()).unwrap(),
                 expected_p_nonce
@@ -822,16 +817,15 @@ mod test {
             fn it_errors(nonce_commit: &str, signature_u: &str, signature_v: &str, commitment: &str) {
                 let result =
                     check_comsig_signature(nonce_commit, signature_u, signature_v, commitment, SAMPLE_CHALLENGE);
-                assert_eq!(
-                    result.error.is_empty(),
-                    false,
+                assert!(
+                    !result.error.is_empty(),
                     "check_comsig_signature did not fail with args ({}, {}, {}, {})",
                     nonce_commit,
                     signature_u,
                     signature_v,
                     commitment
                 );
-                assert_eq!(result.result, false);
+                assert!(!result.result);
             }
 
             it_errors("", "", "", "");
@@ -845,8 +839,8 @@ mod test {
         fn it_fails_if_verification_is_invalid() {
             fn it_fails(pub_nonce_commit: &str, signature_u: &str, signature_v: &str, commit: &str, msg: &str) {
                 let result = check_comsig_signature(pub_nonce_commit, signature_u, signature_v, commit, msg);
-                assert_eq!(result.error.is_empty(), true);
-                assert_eq!(result.result, false);
+                assert!(result.error.is_empty());
+                assert!(!result.result);
             }
 
             let (sig, commit) = create_commsig(SAMPLE_CHALLENGE);
@@ -894,7 +888,7 @@ mod test {
         #[wasm_bindgen_test]
         fn fail_case() {
             fn it_fails(private_key_hex: &str) {
-                assert_eq!(secret_key_from_hex_bytes(private_key_hex).as_bool().unwrap(), false);
+                assert!(!secret_key_from_hex_bytes(private_key_hex).as_bool().unwrap());
             }
 
             it_fails("");
@@ -921,10 +915,10 @@ mod test {
         use super::*;
 
         fn it_fails<F: Fn(&str, &str) -> JsValue>(subject: F, k_a: &str, k_b: &str) {
-            assert_eq!((subject)(k_a, k_b).as_bool().unwrap(), false);
+            assert!(!(subject)(k_a, k_b).as_bool().unwrap());
         }
         fn it_succeeds<F: Fn(&str, &str) -> JsValue>(subject: F, k_a: &str, k_b: &str) -> RistrettoSecretKey {
-            (subject)(&k_a, &k_b).into_serde::<RistrettoSecretKey>().unwrap()
+            (subject)(k_a, k_b).into_serde::<RistrettoSecretKey>().unwrap()
         }
 
         #[wasm_bindgen_test]

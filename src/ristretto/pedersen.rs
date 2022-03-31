@@ -41,6 +41,8 @@ lazy_static! {
 
 pub type PedersenCommitment = HomomorphicCommitment<RistrettoPublicKey>;
 
+/// Generates Pederson commitments `k.G + v.H` using the provided base
+/// [RistrettoPoints](curve25519_dalek::ristretto::RistrettoPoints).
 #[derive(Debug, PartialEq, Eq, Clone)]
 #[allow(non_snake_case)]
 pub struct PedersenCommitmentFactory {
@@ -57,8 +59,8 @@ impl PedersenCommitmentFactory {
     }
 }
 
-/// The default Ristretto Commitment factory uses the Base point for x25519 and its first Blake256 hash.
 impl Default for PedersenCommitmentFactory {
+    /// The default Ristretto Commitment factory uses the Base point for x25519 and its first Blake256 hash.
     fn default() -> Self {
         PedersenCommitmentFactory::new(RISTRETTO_PEDERSEN_G, *RISTRETTO_PEDERSEN_H)
     }

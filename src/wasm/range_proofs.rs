@@ -54,6 +54,7 @@ pub struct RangeProofFactory {
 
 #[wasm_bindgen]
 impl RangeProofFactory {
+    /// Create a new `RangeProofFactory`
     pub fn new() -> Self {
         let cf = PedersenCommitmentFactory::default();
         let rpf = DalekRangeProofService::new(64, &cf).unwrap();
@@ -90,7 +91,7 @@ impl RangeProofFactory {
         let proof = match from_hex(proof) {
             Ok(v) => v,
             Err(e) => {
-                result.error = format!("Range proof is invalid. {}", e.to_string());
+                result.error = format!("Range proof is invalid. {}", e);
                 return JsValue::from_serde(&result).unwrap();
             },
         };
@@ -117,7 +118,7 @@ mod test {
     fn it_fails_with_invalid_hex_input() {
         let factory = RangeProofFactory::new();
         let result = factory.create_proof("", 123).into_serde::<RangeProofResult>().unwrap();
-        assert_eq!(result.error.is_empty(), false);
+        assert!(!result.error.is_empty());
         assert!(result.proof.is_empty());
     }
 

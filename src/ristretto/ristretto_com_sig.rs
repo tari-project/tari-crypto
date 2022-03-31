@@ -97,7 +97,6 @@ use crate::{
 /// let factory = PedersenCommitmentFactory::default();
 /// assert!(sig.verify_challenge(&commitment, &e, &factory));
 /// ```
-
 pub type RistrettoComSig = CommitmentSignature<RistrettoPublicKey, RistrettoSecretKey>;
 
 #[cfg(test)]

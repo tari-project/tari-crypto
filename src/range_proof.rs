@@ -76,7 +76,7 @@ pub trait RangeProofService {
         proof_message: &[u8; REWIND_USER_MESSAGE_LENGTH],
     ) -> Result<Self::P, RangeProofError>;
 
-    /// Rewind a rewindable range proof to reveal the committed value and the 19 byte proof message
+    /// Rewind a rewindable range proof to reveal the committed value and the 19 byte proof message.
     fn rewind_proof_value_only(
         &self,
         proof: &Self::P,
@@ -96,6 +96,7 @@ pub trait RangeProofService {
     ) -> Result<FullRewindResult<Self::K>, RangeProofError>;
 }
 
+/// Rewind data extracted from a rangeproof containing the committed value and the 19 byte proof message.
 #[derive(Debug, PartialEq)]
 pub struct RewindResult {
     pub committed_value: u64,
@@ -103,6 +104,7 @@ pub struct RewindResult {
 }
 
 impl RewindResult {
+    /// Creates a new `RewindResult`
     pub fn new(committed_value: u64, proof_message: [u8; REWIND_USER_MESSAGE_LENGTH]) -> Self {
         Self {
             committed_value,
@@ -111,6 +113,8 @@ impl RewindResult {
     }
 }
 
+/// Rewind data extracted from a rangeproof containing the committed value, a 19 byte proof message and the blinding
+/// factor.
 #[derive(Debug, PartialEq)]
 pub struct FullRewindResult<K>
 where K: SecretKey
@@ -123,6 +127,7 @@ where K: SecretKey
 impl<K> FullRewindResult<K>
 where K: SecretKey
 {
+    /// Creates a new `FullRewindResult`
     pub fn new(committed_value: u64, proof_message: [u8; REWIND_USER_MESSAGE_LENGTH], blinding_factor: K) -> Self {
         Self {
             committed_value,

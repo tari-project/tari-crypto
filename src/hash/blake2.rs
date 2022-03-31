@@ -34,6 +34,7 @@ use digest::{
 pub struct Blake256(VarBlake2b);
 
 impl Blake256 {
+    /// Constructs a `Blake256` hashing context with parameters that allow hash keying, salting and personalization.
     pub fn with_params(key: &[u8], salt: &[u8], persona: &[u8]) -> Self {
         Self(VarBlake2b::with_params(
             key,
