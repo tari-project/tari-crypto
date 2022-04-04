@@ -16,6 +16,7 @@
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use std::{
+    convert::TryFrom,
     os::raw::{c_char, c_int},
     ptr,
     slice,
@@ -35,8 +36,12 @@ pub unsafe extern "C" fn lookup_error_message(code: c_int, buffer: *mut c_char, 
         return NULL_POINTER;
     }
 
-    let error_message = get_error_message(code).to_string();
-    let buffer = slice::from_raw_parts_mut(buffer as *mut u8, length as usize);
+    let error_message = get_error_message(code);
+    let length = match usize::try_from(length) {
+        Ok(l) => l,
+        Err(_) => return INTEGER_OVERFLOW,
+    };
+    let buffer = slice::from_raw_parts_mut(buffer as *mut u8, length);
 
     if error_message.len() >= buffer.len() {
         return BUFFER_TOO_SMALL;
@@ -48,7 +53,9 @@ pub unsafe extern "C" fn lookup_error_message(code: c_int, buffer: *mut c_char, 
     // accidentally read into garbage.
     buffer[error_message.len()] = 0;
 
-    error_message.len() as c_int
+    // Explicitly truncate usize to c_int (not possible anyway) because adding #[allow(clippy::cast-possible-wrap)]
+    // attribute requires unstable rust feature
+    c_int::try_from(error_message.len()).unwrap_or(c_int::MAX)
 }
 
 pub const OK: i32 = 0;
@@ -57,6 +64,7 @@ pub const BUFFER_TOO_SMALL: i32 = -2;
 pub const INVALID_SECRET_KEY_SER: i32 = -1000;
 pub const SIGNING_ERROR: i32 = -1100;
 pub const STR_CONV_ERR: i32 = -2000;
+pub const INTEGER_OVERFLOW: i32 = -3000;
 
 pub fn get_error_message(code: i32) -> &'static str {
     match code {
@@ -66,6 +74,7 @@ pub fn get_error_message(code: i32) -> &'static str {
         INVALID_SECRET_KEY_SER => "Invalid secret key representation.",
         SIGNING_ERROR => "Error creating signature",
         STR_CONV_ERR => "String conversion error",
+        INTEGER_OVERFLOW => "Integer overflowed",
         _ => "Unknown error code.",
     }
 }
@@ -92,7 +101,7 @@ mod test {
         unsafe {
             let mut buffer = [0u8; 1000];
             assert_eq!(
-                lookup_error_message(OK, buffer.as_mut_ptr() as *mut i8, 1000) as usize,
+                usize::try_from(lookup_error_message(OK, buffer.as_mut_ptr() as *mut i8, 1000)).unwrap(),
                 get_error_message(OK).len()
             );
             assert_eq!(

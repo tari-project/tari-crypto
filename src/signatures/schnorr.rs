@@ -19,6 +19,12 @@ pub enum SchnorrSignatureError {
     InvalidChallenge,
 }
 
+/// # SchnorrSignature
+///
+/// Provides a Schnorr signature that is agnostic to a specific public/private key implementation.
+/// For a concrete implementation see [RistrettoSchnorr](crate::ristretto::RistrettoSchnorr).
+///
+/// More details on Schnorr signatures can be found at [TLU](https://tlu.tarilabs.com/cryptography/introduction-schnorr-signatures).
 #[allow(non_snake_case)]
 #[derive(PartialEq, Eq, Copy, Debug, Clone, Serialize, Deserialize, Hash)]
 pub struct SchnorrSignature<P, K> {
@@ -31,6 +37,7 @@ where
     P: PublicKey<K = K>,
     K: SecretKey,
 {
+    /// Create a new `SchnorrSignature`.
     pub fn new(public_nonce: P, signature: K) -> Self {
         SchnorrSignature {
             public_nonce,
@@ -38,10 +45,13 @@ where
         }
     }
 
-    pub fn calc_signature_verifier(&self) -> P {
+    /// Calculates the signature verifier `s.G`. This must be equal to `R + eK`.
+    fn calc_signature_verifier(&self) -> P {
         P::from_secret_key(&self.signature)
     }
 
+    /// Sign a challenge with the given `secret` and private `nonce`. Returns an SchnorrSignatureError if `<K as
+    /// ByteArray>::from_bytes(challenge)` returns an error.
     pub fn sign(secret: K, nonce: K, challenge: &[u8]) -> Result<Self, SchnorrSignatureError>
     where K: Add<Output = K> + Mul<P, Output = P> + Mul<Output = K> {
         // s = r + e.k
@@ -55,6 +65,8 @@ where
         Ok(Self::new(public_nonce, s))
     }
 
+    /// Returns true if this signature is valid for a public key and challenge, otherwise false. This will always return
+    /// false if `<K as ByteArray>::from_bytes(challenge)` returns an error.
     pub fn verify_challenge<'a>(&self, public_key: &'a P, challenge: &[u8]) -> bool
     where
         for<'b> &'b K: Mul<&'a P, Output = P>,
@@ -67,6 +79,7 @@ where
         self.verify(public_key, &e)
     }
 
+    /// Returns true if this signature is valid for a public key and challenge scalar, otherwise false.
     pub fn verify<'a>(&self, public_key: &'a P, challenge: &K) -> bool
     where
         for<'b> &'b K: Mul<&'a P, Output = P>,
@@ -78,12 +91,12 @@ where
         lhs == rhs
     }
 
-    #[inline]
+    /// Returns a reference to the `s` signature component.
     pub fn get_signature(&self) -> &K {
         &self.signature
     }
 
-    #[inline]
+    /// Returns a reference to the public nonce component.
     pub fn get_public_nonce(&self) -> &P {
         &self.public_nonce
     }
@@ -131,15 +144,16 @@ where
     }
 }
 
-/// Provide an efficient ordering algorithm for Schnorr signatures. It's probably not a good idea to implement `Ord`
-/// for secret keys, but in this instance, the signature is publicly known and is simply a scalar, so we use the byte
-/// representation of the scalar as the canonical ordering metric. This conversion is done if and only if the public
-/// nonces are already equal, otherwise the public nonce ordering determines the SchnorrSignature order.
 impl<P, K> Ord for SchnorrSignature<P, K>
 where
     P: Eq + Ord,
     K: Eq + ByteArray,
 {
+    /// Provide an efficient ordering algorithm for Schnorr signatures. It's probably not a good idea to implement `Ord`
+    /// for secret keys, but in this instance, the signature is publicly known and is simply a scalar, so we use the
+    /// byte representation of the scalar as the canonical ordering metric. This conversion is done if and only if
+    /// the public nonces are already equal, otherwise the public nonce ordering determines the SchnorrSignature
+    /// order.
     fn cmp(&self, other: &Self) -> Ordering {
         match self.public_nonce.cmp(&other.public_nonce) {
             Ordering::Equal => self.signature.as_bytes().cmp(other.signature.as_bytes()),

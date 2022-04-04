@@ -179,7 +179,7 @@ where
     /// produces a byte array of the correct length.
     fn calculate_common<D: Digest>(&self) -> K {
         let mut common = D::new();
-        for k in self.pub_keys.iter() {
+        for k in &self.pub_keys {
             common = common.chain(k.as_bytes());
         }
         K::from_bytes(&common.finalize())

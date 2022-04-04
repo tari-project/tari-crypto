@@ -295,7 +295,7 @@ mod test {
     #[test]
     pub fn test_random_keypair_with_valid_params() {
         let mut priv_key: KeyArray = [0; KEY_LENGTH];
-        let priv_key_before = priv_key.clone();
+        let priv_key_before = priv_key;
         let mut pub_key: KeyArray = [0; KEY_LENGTH];
 
         // Public keys is null. A new private key is set
@@ -304,7 +304,7 @@ mod test {
         }
         assert_ne!(priv_key, priv_key_before);
 
-        let priv_key_before = priv_key.clone();
+        let priv_key_before = priv_key;
         // Both are not null.
         unsafe {
             random_keypair(&mut priv_key, &mut pub_key);
@@ -361,50 +361,41 @@ mod test {
         let mut signature = [0; KEY_LENGTH];
         let mut err_code = 0i32;
         unsafe {
-            assert_eq!(
-                verify(
-                    null_mut(),
-                    msg.as_ptr() as *const c_char,
-                    &mut pub_nonce,
-                    &mut signature,
-                    &mut err_code
-                ),
-                false
-            );
-            assert_eq!(
-                verify(&pub_key, null_mut(), &mut pub_nonce, &mut signature, &mut err_code),
-                false
-            );
-            assert_eq!(
-                verify(
-                    &pub_key,
-                    msg.as_ptr() as *const c_char,
-                    null_mut(),
-                    &mut signature,
-                    &mut err_code
-                ),
-                false
-            );
-            assert_eq!(
-                verify(
-                    &pub_key,
-                    msg.as_ptr() as *const c_char,
-                    &mut pub_nonce,
-                    null_mut(),
-                    &mut err_code
-                ),
-                false
-            );
-            assert_eq!(
-                verify(
-                    &pub_key,
-                    msg.as_ptr() as *const c_char,
-                    &mut pub_nonce,
-                    &mut signature,
-                    null_mut()
-                ),
-                false
-            );
+            assert!(!verify(
+                null_mut(),
+                msg.as_ptr() as *const c_char,
+                &mut pub_nonce,
+                &mut signature,
+                &mut err_code
+            ),);
+            assert!(!verify(
+                &pub_key,
+                null_mut(),
+                &mut pub_nonce,
+                &mut signature,
+                &mut err_code
+            ),);
+            assert!(!verify(
+                &pub_key,
+                msg.as_ptr() as *const c_char,
+                null_mut(),
+                &mut signature,
+                &mut err_code
+            ),);
+            assert!(!verify(
+                &pub_key,
+                msg.as_ptr() as *const c_char,
+                &mut pub_nonce,
+                null_mut(),
+                &mut err_code
+            ),);
+            assert!(!verify(
+                &pub_key,
+                msg.as_ptr() as *const c_char,
+                &mut pub_nonce,
+                &mut signature,
+                null_mut()
+            ),);
         }
     }
 
@@ -419,16 +410,13 @@ mod test {
         unsafe {
             random_keypair(&mut priv_key, &mut pub_key);
             sign(&priv_key, msg.as_ptr() as *const c_char, &mut pub_nonce, &mut signature);
-            assert_eq!(
-                verify(
-                    &pub_key,
-                    msg.as_ptr() as *const c_char,
-                    &mut pub_nonce,
-                    &mut signature,
-                    &mut err_code
-                ),
-                true
-            );
+            assert!(verify(
+                &pub_key,
+                msg.as_ptr() as *const c_char,
+                &mut pub_nonce,
+                &mut signature,
+                &mut err_code
+            ));
         }
     }
 }

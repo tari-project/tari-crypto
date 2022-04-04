@@ -150,7 +150,7 @@ mod test {
 
         #[wasm_bindgen_test]
         fn it_returns_false_for_zero_length_input() {
-            assert!(!opens("", 123, &""));
+            assert!(!opens("", 123, ""));
         }
 
         #[wasm_bindgen_test]

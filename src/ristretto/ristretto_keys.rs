@@ -82,8 +82,8 @@ impl SecretKey for RistrettoSecretKey {
     }
 }
 
-/// Clear the secret key value in memory when it goes out of scope
 impl Drop for RistrettoSecretKey {
+    /// Clear the secret key value in memory when it goes out of scope
     fn drop(&mut self) {
         self.0.zeroize()
     }
@@ -131,7 +131,7 @@ impl<'a, 'b> Mul<&'b RistrettoPublicKey> for &'a RistrettoSecretKey {
     type Output = RistrettoPublicKey;
 
     fn mul(self, rhs: &'b RistrettoPublicKey) -> RistrettoPublicKey {
-        let p = &self.0 * &rhs.point;
+        let p = self.0 * rhs.point;
         RistrettoPublicKey::new_from_pk(p)
     }
 }
@@ -140,7 +140,7 @@ impl<'a, 'b> Add<&'b RistrettoSecretKey> for &'a RistrettoSecretKey {
     type Output = RistrettoSecretKey;
 
     fn add(self, rhs: &'b RistrettoSecretKey) -> RistrettoSecretKey {
-        let k = &self.0 + &rhs.0;
+        let k = self.0 + rhs.0;
         RistrettoSecretKey(k)
     }
 }
@@ -149,7 +149,7 @@ impl<'a, 'b> Sub<&'b RistrettoSecretKey> for &'a RistrettoSecretKey {
     type Output = RistrettoSecretKey;
 
     fn sub(self, rhs: &'b RistrettoSecretKey) -> RistrettoSecretKey {
-        RistrettoSecretKey(&self.0 - &rhs.0)
+        RistrettoSecretKey(self.0 - rhs.0)
     }
 }
 
@@ -362,7 +362,7 @@ impl<'a, 'b> Add<&'b RistrettoPublicKey> for &'a RistrettoPublicKey {
     type Output = RistrettoPublicKey;
 
     fn add(self, rhs: &'b RistrettoPublicKey) -> RistrettoPublicKey {
-        let p_sum = &self.point + &rhs.point;
+        let p_sum = self.point + rhs.point;
         RistrettoPublicKey::new_from_pk(p_sum)
     }
 }
@@ -371,7 +371,7 @@ impl<'a, 'b> Sub<&'b RistrettoPublicKey> for &'a RistrettoPublicKey {
     type Output = RistrettoPublicKey;
 
     fn sub(self, rhs: &RistrettoPublicKey) -> RistrettoPublicKey {
-        let p_sum = &self.point - &rhs.point;
+        let p_sum = self.point - rhs.point;
         RistrettoPublicKey::new_from_pk(p_sum)
     }
 }
@@ -380,7 +380,7 @@ impl<'a, 'b> Mul<&'b RistrettoSecretKey> for &'a RistrettoPublicKey {
     type Output = RistrettoPublicKey;
 
     fn mul(self, rhs: &'b RistrettoSecretKey) -> RistrettoPublicKey {
-        let p = &rhs.0 * &self.point;
+        let p = rhs.0 * self.point;
         RistrettoPublicKey::new_from_pk(p)
     }
 }
