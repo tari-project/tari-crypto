@@ -1,24 +1,79 @@
-// Copyright 2019 The Tari Project
-//
-// Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
-// following conditions are met:
-//
-// 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following
-// disclaimer.
-//
-// 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
-// following disclaimer in the documentation and/or other materials provided with the distribution.
-//
-// 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote
-// products derived from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
-// INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-// SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
-// WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
-// USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Copyright 2019. The Tari Project
+// SPDX-License-Identifier: BSD-3-Clause
+
+//! MuSig signature aggregation. [MuSig](https://blockstream.com/2018/01/23/musig-key-aggregation-schnorr-signatures/)
+//! is a 3-round signature aggregation protocol.
+//! We assume that all the public keys are known and publicly accessible. A [Joint Public Key](structs.JointKey.html)
+//! is constructed by all participants.
+//! 1. In the first round, participants share the hash of their nonces.
+//! 2. Participants then share their public nonce, \\( R_i \\), and all participants calculate the shared nonce,
+//!   \\( R = \sum R_i \\).
+//! 3. Each participant then calculates a partial signature, with the final signature being the sum of all the
+//! partial signatures.
+//!
+//! This protocol is implemented as a Finite State Machine. MuSig is a simple wrapper around a `MusigState` enum that
+//! holds the various states that the MuSig protocol can be in, combined with a `MuSigEvents` enum that enumerates
+//! the relevant input events that can  occur. Any attempt to invoke an invalid transition, or any other failure
+//! condition results in the `Failure` state; in which case the MuSig protocol should be abandoned.
+//!
+//! Rust's type system is leveraged to prevent any rewinding of state; old state variables are destroyed when
+//! transitioning to new states. The MuSig variable also _takes ownership_ of the nonce key, reducing the risk of
+//! nonce reuse (though obviously it doesn't eliminate it). Let's be clear: REUSING a nonce WILL result in your secret
+//! key being discovered. See
+//! [this post](https://tlu.tarilabs.com/cryptography/digital_signatures/introduction_schnorr_signatures.html#musig)
+//! for details.
+//!
+//! The API is fairly straightforward and is best illustrated with an example. Alice and Bob are going to construct a
+//! 2-of-2 aggregated signature.
+//!
+//! ```edition2018
+//!       # use tari_crypto::ristretto::{ musig::RistrettoMuSig, ristretto_keys::* };
+//!       # use tari_utilities::ByteArray;
+//!       # use tari_crypto::keys::PublicKey;
+//!       # use sha2::Sha256;
+//!       # use digest::Digest;
+//! let mut rng = rand::thread_rng();
+//! // Create a new MuSig instance. The number of signing parties must be known at this time.
+//! let mut alice = RistrettoMuSig::<Sha256>::new(2);
+//! let mut bob = RistrettoMuSig::<Sha256>::new(2);
+//! // Set the message. This can only be done once to prevent replay attacks. Any attempt to assign another
+//! // message will result in a Failure state.
+//! alice = alice.set_message(b"Discworld");
+//! bob = bob.set_message(b"Discworld");
+//! // Collect public keys
+//! let (k_a, p_a) = RistrettoPublicKey::random_keypair(&mut rng);
+//! let (k_b, p_b) = RistrettoPublicKey::random_keypair(&mut rng);
+//! // Add public keys to MuSig (in any order. They get sorted automatically when _n_ keys have been collected.
+//! alice = alice.add_public_key(&p_a).add_public_key(&p_b);
+//! bob = bob.add_public_key(&p_b).add_public_key(&p_a);
+//! // Round 1 - Collect nonce hashes - each party does this individually and keeps the secret keys secret.
+//! let (r_a, pr_a) = RistrettoPublicKey::random_keypair(&mut rng);
+//! let (r_b, pr_b) = RistrettoPublicKey::random_keypair(&mut rng);
+//! let h_a = Sha256::digest(pr_a.as_bytes()).to_vec();
+//! let h_b = Sha256::digest(pr_b.as_bytes()).to_vec();
+//! bob = bob
+//!     .add_nonce_commitment(&p_b, h_b.clone())
+//!     .add_nonce_commitment(&p_a, h_a.clone());
+//! // State automatically updates:
+//! assert!(bob.is_collecting_nonces());
+//! alice = alice
+//!     .add_nonce_commitment(&p_a, h_a.clone())
+//!     .add_nonce_commitment(&p_b, h_b.clone());
+//! assert!(alice.is_collecting_nonces());
+//! // Round 2 - Collect Nonces
+//! bob = bob.add_nonce(&p_b, pr_b.clone()).add_nonce(&p_a, pr_a.clone());
+//! assert!(bob.is_collecting_signatures());
+//! alice = alice.add_nonce(&p_a, pr_a.clone()).add_nonce(&p_b, pr_b.clone());
+//! assert!(alice.is_collecting_signatures());
+//! // round 3 - Collect partial signatures
+//! let s_a = alice.calculate_partial_signature(&p_a, &k_a, &r_a).unwrap();
+//! let s_b = bob.calculate_partial_signature(&p_b, &k_b, &r_b).unwrap();
+//! alice = alice.add_signature(&s_a, true).add_signature(&s_b, true);
+//! assert!(alice.is_finalized());
+//! bob = bob.add_signature(&s_b, true).add_signature(&s_a, true);
+//! assert!(bob.is_finalized());
+//! assert_eq!(alice.get_aggregated_signature(), bob.get_aggregated_signature());
+//! ```
 
 use std::marker::PhantomData;
 
@@ -38,79 +93,7 @@ type JointPubKey = JointKey<RistrettoPublicKey, RistrettoSecretKey>;
 type MessageHash = Vec<u8>;
 type MessageHashSlice = [u8];
 
-/// MuSig signature aggregation. [MuSig](https://blockstream.com/2018/01/23/musig-key-aggregation-schnorr-signatures/)
-/// is a 3-round signature aggregation protocol.
-/// We assume that all the public keys are known and publicly accessible. A [Joint Public Key](structs.JointKey.html)
-/// is constructed by all participants.
-/// 1. In the first round, participants share the hash of their nonces.
-/// 2. Participants then share their public nonce, \\( R_i \\), and all participants calculate the shared nonce,
-///   \\( R = \sum R_i \\).
-/// 3. Each participant then calculates a partial signature, with the final signature being the sum of all the
-/// partial signatures.
-///
-/// This protocol is implemented as a Finite State Machine. MuSig is a simple wrapper around a `MusigState` enum that
-/// holds the various states that the MuSig protocol can be in, combined with a `MuSigEvents` enum that enumerates
-/// the relevant input events that can  occur. Any attempt to invoke an invalid transition, or any other failure
-/// condition results in the `Failure` state; in which case the MuSig protocol should be abandoned.
-///
-/// Rust's type system is leveraged to prevent any rewinding of state; old state variables are destroyed when
-/// transitioning to new states. The MuSig variable also _takes ownership_ of the nonce key, reducing the risk of
-/// nonce reuse (though obviously it doesn't eliminate it). Let's be clear: REUSING a nonce WILL result in your secret
-/// key being discovered. See
-/// [this post](https://tlu.tarilabs.com/cryptography/digital_signatures/introduction_schnorr_signatures.html#musig)
-/// for details.
-///
-/// The API is fairly straightforward and is best illustrated with an example. Alice and Bob are going to construct a
-/// 2-of-2 aggregated signature.
-///
-/// ```edition2018
-///       # use tari_crypto::ristretto::{ musig::RistrettoMuSig, ristretto_keys::* };
-///       # use tari_utilities::ByteArray;
-///       # use tari_crypto::keys::PublicKey;
-///       # use sha2::Sha256;
-///       # use digest::Digest;
-/// let mut rng = rand::thread_rng();
-/// // Create a new MuSig instance. The number of signing parties must be known at this time.
-/// let mut alice = RistrettoMuSig::<Sha256>::new(2);
-/// let mut bob = RistrettoMuSig::<Sha256>::new(2);
-/// // Set the message. This can only be done once to prevent replay attacks. Any attempt to assign another
-/// // message will result in a Failure state.
-/// alice = alice.set_message(b"Discworld");
-/// bob = bob.set_message(b"Discworld");
-/// // Collect public keys
-/// let (k_a, p_a) = RistrettoPublicKey::random_keypair(&mut rng);
-/// let (k_b, p_b) = RistrettoPublicKey::random_keypair(&mut rng);
-/// // Add public keys to MuSig (in any order. They get sorted automatically when _n_ keys have been collected.
-/// alice = alice.add_public_key(&p_a).add_public_key(&p_b);
-/// bob = bob.add_public_key(&p_b).add_public_key(&p_a);
-/// // Round 1 - Collect nonce hashes - each party does this individually and keeps the secret keys secret.
-/// let (r_a, pr_a) = RistrettoPublicKey::random_keypair(&mut rng);
-/// let (r_b, pr_b) = RistrettoPublicKey::random_keypair(&mut rng);
-/// let h_a = Sha256::digest(pr_a.as_bytes()).to_vec();
-/// let h_b = Sha256::digest(pr_b.as_bytes()).to_vec();
-/// bob = bob
-///     .add_nonce_commitment(&p_b, h_b.clone())
-///     .add_nonce_commitment(&p_a, h_a.clone());
-/// // State automatically updates:
-/// assert!(bob.is_collecting_nonces());
-/// alice = alice
-///     .add_nonce_commitment(&p_a, h_a.clone())
-///     .add_nonce_commitment(&p_b, h_b.clone());
-/// assert!(alice.is_collecting_nonces());
-/// // Round 2 - Collect Nonces
-/// bob = bob.add_nonce(&p_b, pr_b.clone()).add_nonce(&p_a, pr_a.clone());
-/// assert!(bob.is_collecting_signatures());
-/// alice = alice.add_nonce(&p_a, pr_a.clone()).add_nonce(&p_b, pr_b.clone());
-/// assert!(alice.is_collecting_signatures());
-/// // round 3 - Collect partial signatures
-/// let s_a = alice.calculate_partial_signature(&p_a, &k_a, &r_a).unwrap();
-/// let s_b = bob.calculate_partial_signature(&p_b, &k_b, &r_b).unwrap();
-/// alice = alice.add_signature(&s_a, true).add_signature(&s_b, true);
-/// assert!(alice.is_finalized());
-/// bob = bob.add_signature(&s_b, true).add_signature(&s_a, true);
-/// assert!(bob.is_finalized());
-/// assert_eq!(alice.get_aggregated_signature(), bob.get_aggregated_signature());
-/// ```
+/// A Musig ceremony struct using Ristretto
 pub struct RistrettoMuSig<D: Digest> {
     state: MuSigState,
     digest_type: PhantomData<D>,

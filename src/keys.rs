@@ -1,24 +1,5 @@
 // Copyright 2019 The Tari Project
-//
-// Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
-// following conditions are met:
-//
-// 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following
-// disclaimer.
-//
-// 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
-// following disclaimer in the documentation and/or other materials provided with the distribution.
-//
-// 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote
-// products derived from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
-// INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-// SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
-// WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
-// USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// SPDX-License-Identifier: BSD-3-Clause
 
 //! General definition of public-private key pairs for use in Tari. The traits and structs
 //! defined here are used in the Tari domain logic layer exclusively (as opposed to any specific
@@ -46,7 +27,9 @@ use tari_utilities::ByteArray;
 /// let p = RistrettoPublicKey::from_secret_key(&k);
 /// ```
 pub trait SecretKey: ByteArray + Clone + PartialEq + Eq + Add<Output = Self> + Default {
+    /// The length of the key, in bytes
     fn key_length() -> usize;
+    /// Generates a random secret key
     fn random<R: Rng + CryptoRng>(rng: &mut R) -> Self;
 }
 
@@ -59,15 +42,21 @@ pub trait SecretKey: ByteArray + Clone + PartialEq + Eq + Add<Output = Self> + D
 pub trait PublicKey:
     ByteArray + Add<Output = Self> + Clone + PartialOrd + Ord + Default + Serialize + DeserializeOwned
 {
+    /// The related [SecretKey](trait.SecretKey.html) type
     type K: SecretKey;
+
     /// Calculate the public key associated with the given secret key. This should not fail; if a
     /// failure does occur (implementation error?), the function will panic.
     fn from_secret_key(k: &Self::K) -> Self;
 
+    /// The length of the public key when converted to bytes
     fn key_length() -> usize;
 
+    /// Multiplies each of the items in `scalars` by their respective item in `points` and then adds
+    /// the results to produce a single public key
     fn batch_mul(scalars: &[Self::K], points: &[Self]) -> Self;
 
+    /// Generate a random public and secret key
     fn random_keypair<R: Rng + CryptoRng>(rng: &mut R) -> (Self::K, Self) {
         let k = Self::K::random(rng);
         let pk = Self::from_secret_key(&k);
@@ -77,6 +66,7 @@ pub trait PublicKey:
 
 /// This trait provides a common mechanism to calculate a shared secret using the private and public key of two parties
 pub trait DiffieHellmanSharedSecret: ByteArray + Clone + PartialEq + Eq + Add<Output = Self> + Default {
+    /// The type of public key
     type PK: PublicKey;
     /// Generate a shared secret from one party's private key and another party's public key
     fn shared_secret(k: &<Self::PK as PublicKey>::K, pk: &Self::PK) -> Self::PK;

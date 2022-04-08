@@ -1,25 +1,7 @@
 // Copyright 2019. The Tari Project
-//
-// Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
-// following conditions are met:
-//
-// 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following
-// disclaimer.
-//
-// 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
-// following disclaimer in the documentation and/or other materials provided with the distribution.
-//
-// 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote
-// products derived from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
-// INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-// SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
-// WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
-// USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// SPDX-License-Identifier: BSD-3-Clause
 
+//! A wrapper around the Dalek library implementation of Bulletproof range proofs.
 use bulletproofs::{
     range_proof::{get_rewind_nonce_from_pub_key, get_secret_nonce_from_pvt_key},
     BulletproofGens,
@@ -77,10 +59,10 @@ impl DalekRangeProofService {
 
 impl RangeProofService for DalekRangeProofService {
     type K = RistrettoSecretKey;
-    type P = Vec<u8>;
     type PK = RistrettoPublicKey;
+    type Proof = Vec<u8>;
 
-    fn construct_proof(&self, key: &RistrettoSecretKey, value: u64) -> Result<Vec<u8>, RangeProofError> {
+    fn construct_proof(&self, key: &RistrettoSecretKey, value: u64) -> Result<Self::Proof, RangeProofError> {
         let mut pt = Transcript::new(b"tari");
         let k = key.0;
         let (proof, _) = DalekProof::prove_single(&self.bp_gens, &self.pc_gens, &mut pt, value, &k, self.range)
@@ -88,7 +70,7 @@ impl RangeProofService for DalekRangeProofService {
         Ok(proof.to_bytes())
     }
 
-    fn verify(&self, proof: &Self::P, commitment: &PedersenCommitment) -> bool {
+    fn verify(&self, proof: &Self::Proof, commitment: &PedersenCommitment) -> bool {
         let rp = DalekProof::from_bytes(proof).map_err(|_| RangeProofError::InvalidProof);
         if rp.is_err() {
             return false;
@@ -111,7 +93,7 @@ impl RangeProofService for DalekRangeProofService {
         rewind_key: &RistrettoSecretKey,
         rewind_blinding_key: &RistrettoSecretKey,
         proof_message: &[u8; REWIND_USER_MESSAGE_LENGTH],
-    ) -> Result<Vec<u8>, RangeProofError> {
+    ) -> Result<Self::Proof, RangeProofError> {
         let mut pt = Transcript::new(b"tari");
         let mut full_proof_message = [0u8; REWIND_PROOF_MESSAGE_LENGTH];
         full_proof_message[0..REWIND_CHECK_MESSAGE.len()].clone_from_slice(REWIND_CHECK_MESSAGE);
@@ -137,7 +119,7 @@ impl RangeProofService for DalekRangeProofService {
 
     fn rewind_proof_value_only(
         &self,
-        proof: &Self::P,
+        proof: &Self::Proof,
         commitment: &PedersenCommitment,
         rewind_public_key: &RistrettoPublicKey,
         rewind_blinding_public_key: &RistrettoPublicKey,
@@ -171,7 +153,7 @@ impl RangeProofService for DalekRangeProofService {
 
     fn rewind_proof_commitment_data(
         &self,
-        proof: &Self::P,
+        proof: &Self::Proof,
         commitment: &PedersenCommitment,
         rewind_key: &RistrettoSecretKey,
         rewind_blinding_key: &RistrettoSecretKey,

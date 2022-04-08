@@ -1,28 +1,10 @@
 // Copyright 2020. The Tari Project
-//
-// Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
-// following conditions are met:
-//
-// 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following
-// disclaimer.
-//
-// 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
-// following disclaimer in the documentation and/or other materials provided with the distribution.
-//
-// 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote
-// products derived from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
-// INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-// SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
-// WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
-// USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// SPDX-License-Identifier: BSD-3-Clause
 
 //! Simple cryptographic key functions. It's generally not very efficient to use these functions to do lots of cool
 //! stuff with private and public keys, because the keys are translated to- and from hex every time you make a call
-//! using a function from this module. You should use a [KeyRing] instead. But sometimes, these functions are handy.
+//! using a function from this module. You should use a [crate::wasm::keyring::KeyRing] instead. But sometimes, these
+//! functions are handy.
 
 use blake2::Digest;
 use rand::rngs::OsRng;
@@ -31,7 +13,7 @@ use tari_utilities::hex::{from_hex, Hex};
 use wasm_bindgen::prelude::*;
 
 use crate::{
-    common::Blake256,
+    hash::blake2::Blake256,
     keys::{PublicKey, SecretKey},
     ristretto::{
         pedersen::{PedersenCommitment, PedersenCommitmentFactory},
@@ -42,24 +24,36 @@ use crate::{
     },
 };
 
+/// Result of calling [check_signature] and [check_comsig_signature]
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct SignatureVerifyResult {
+    /// True if the signature was valid
     pub result: bool,
+    /// Will contain the error if one occurred, otherwise empty
     pub error: String,
 }
 
+/// Result of calling [sign]
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct SignResult {
+    /// The public nonce of the signature, if successful
     pub public_nonce: Option<String>,
+    /// The signature, if successful
     pub signature: Option<String>,
+    /// Will contain the error if one occurred, otherwise empty
     pub error: String,
 }
 
+/// Result of calling [sign_comsig]
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct ComSignResult {
+    /// The public nonce of the signature, if successful
     pub public_nonce: Option<String>,
+    /// The `u` component of the signature
     pub u: Option<String>,
+    /// The `v` component of the signature
     pub v: Option<String>,
+    /// Will contain the error if one occurred, otherwise empty
     pub error: String,
 }
 
@@ -166,7 +160,7 @@ pub(super) fn sign_with_key(k: &RistrettoSecretKey, e: &[u8], r: Option<&Ristret
     result.signature = Some(sig.get_signature().to_hex());
 }
 
-/// Checks the validity of a Schnorr signature
+/// Checks the validity of a Schnorr signature. Returns a [JsValue] of a serialized [SignatureVerifyResult]
 #[allow(non_snake_case)]
 #[wasm_bindgen]
 pub fn check_signature(pub_nonce: &str, signature: &str, pub_key: &str, msg: &str) -> JsValue {
