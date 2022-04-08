@@ -1,7 +1,7 @@
 // Copyright 2019. The Tari Project
 // SPDX-License-Identifier: BSD-3-Clause
 
-//! Constant points for the Ristretto curve. There are 10 provided, but this library currently only
+//! Constant [NUMS](https://tools.ietf.org/id/draft-black-numscurves-02.html) points for the Ristretto curve. There are 10 provided, but this library currently only
 //! uses the first
 
 use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
