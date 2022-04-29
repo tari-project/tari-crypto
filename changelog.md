@@ -1,5 +1,19 @@
 # Changelog
 
+All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+
+## [0.13.0](https://github.com/tari-project/tari-crypto/compare/v0.12.5...v0.13.0) (2022-04-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* changes method signature of RistrettoComSig::sign to pass in references (#91)
+
+### Bug Fixes
+
+* clippy lints ([#93](https://github.com/tari-project/tari-crypto/issues/93)) ([fa0d728](https://github.com/tari-project/tari-crypto/commit/fa0d7286e941b06038a10de5adead415339d4603))
+* adds clippy lints config and fix lints ([#91](https://github.com/tari-project/tari-crypto/issues/91)) ([5de3d45](https://github.com/tari-project/tari-crypto/commit/5de3d45661386d5c6af9ebbc2c5af9fe62fca1ed))
+
 ### [0.12.2](https://github.com/tari-project/tari-crypto/compare/v0.12.1...v0.12.2) (2022-03-25)
 
 ### Bug Fixes
