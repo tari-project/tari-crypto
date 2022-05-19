@@ -9,6 +9,7 @@ pub mod keys;
 #[cfg(feature = "musig")]
 pub mod musig;
 pub mod range_proof;
+pub mod rewindable_range_proof;
 pub mod signatures;
 
 // Implementations
@@ -18,6 +19,7 @@ pub mod ristretto;
 #[cfg(feature = "wasm")]
 pub mod wasm;
 
+pub mod errors;
 #[cfg(feature = "ffi")]
 pub mod ffi;
 
