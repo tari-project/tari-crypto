@@ -29,16 +29,10 @@ use bulletproofs::{
 use merlin::Transcript;
 
 use crate::{
+    errors::RangeProofError,
     keys::PublicKey,
-    range_proof::{
-        FullRewindResult,
-        RangeProofError,
-        RangeProofService,
-        RewindResult,
-        REWIND_CHECK_MESSAGE,
-        REWIND_PROOF_MESSAGE_LENGTH,
-        REWIND_USER_MESSAGE_LENGTH,
-    },
+    range_proof::RangeProofService,
+    rewindable_range_proof::{FullRewindResult, RewindResult, RewindableRangeProofService, REWIND_USER_MESSAGE_LENGTH},
     ristretto::{
         pedersen::{PedersenCommitment, PedersenCommitmentFactory},
         RistrettoPublicKey,
@@ -54,6 +48,8 @@ pub struct DalekRangeProofService {
 }
 
 const MASK: usize = 0b111_1000; // Mask for 8,16,32,64; the valid ranges on the Dalek library
+pub const REWIND_PROOF_MESSAGE_LENGTH: usize = 23;
+pub const REWIND_CHECK_MESSAGE: &[u8; 2] = b"TR";
 
 impl DalekRangeProofService {
     /// Create a new RangeProofService. The Dalek library can only generate proofs for ranges between [0; 2^range),
@@ -66,7 +62,7 @@ impl DalekRangeProofService {
             B_blinding: base.G,
             B: base.H,
         };
-        let bp_gens = BulletproofGens::new(64, 1);
+        let bp_gens = BulletproofGens::new(range, 1);
         Ok(DalekRangeProofService {
             range,
             pc_gens,
@@ -77,8 +73,8 @@ impl DalekRangeProofService {
 
 impl RangeProofService for DalekRangeProofService {
     type K = RistrettoSecretKey;
-    type P = Vec<u8>;
     type PK = RistrettoPublicKey;
+    type Proof = Vec<u8>;
 
     fn construct_proof(&self, key: &RistrettoSecretKey, value: u64) -> Result<Vec<u8>, RangeProofError> {
         let mut pt = Transcript::new(b"tari");
@@ -88,7 +84,7 @@ impl RangeProofService for DalekRangeProofService {
         Ok(proof.to_bytes())
     }
 
-    fn verify(&self, proof: &Self::P, commitment: &PedersenCommitment) -> bool {
+    fn verify(&self, proof: &Self::Proof, commitment: &PedersenCommitment) -> bool {
         let rp = DalekProof::from_bytes(proof).map_err(|_| RangeProofError::InvalidProof);
         if rp.is_err() {
             return false;
@@ -103,6 +99,12 @@ impl RangeProofService for DalekRangeProofService {
     fn range(&self) -> usize {
         self.range
     }
+}
+
+impl RewindableRangeProofService for DalekRangeProofService {
+    type K = RistrettoSecretKey;
+    type P = Vec<u8>;
+    type PK = RistrettoPublicKey;
 
     fn construct_proof_with_rewind_key(
         &self,
@@ -220,8 +222,10 @@ mod test {
 
     use crate::{
         commitment::HomomorphicCommitmentFactory,
+        errors::RangeProofError,
         keys::{PublicKey, SecretKey},
-        range_proof::{RangeProofError, RangeProofService},
+        range_proof::RangeProofService,
+        rewindable_range_proof::RewindableRangeProofService,
         ristretto::{
             dalek_range_proof::DalekRangeProofService,
             pedersen::PedersenCommitmentFactory,
