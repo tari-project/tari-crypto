@@ -58,6 +58,8 @@ use crate::{
 /// # use digest::Digest;
 /// # use tari_crypto::commitment::HomomorphicCommitmentFactory;
 /// # use tari_crypto::ristretto::pedersen::*;
+/// use tari_crypto::ristretto::pedersen::commitment_factory::PedersenCommitmentFactory;
+/// use tari_utilities::hex::Hex;
 ///
 /// let mut rng = rand::thread_rng();
 /// let a_val = RistrettoSecretKey::random(&mut rng);
@@ -67,7 +69,9 @@ use crate::{
 /// let e = Blake256::digest(b"Maskerade");
 /// let factory = PedersenCommitmentFactory::default();
 /// let commitment = factory.commit(&x_val, &a_val);
+/// // println!("commitment: {:?}", commitment.to_hex());
 /// let sig = RistrettoComSig::sign(&a_val, &x_val, &a_nonce, &x_nonce, &e, &factory).unwrap();
+/// // println!("sig: R {:?} u {:?} v {:?}", sig.public_nonce().to_hex(), sig.u().to_hex(), sig.v().to_hex());
 /// assert!(sig.verify_challenge(&commitment, &e, &factory));
 /// ```
 ///
@@ -85,13 +89,14 @@ use crate::{
 /// # use tari_utilities::hex::*;
 /// # use tari_utilities::ByteArray;
 /// # use digest::Digest;
+/// use tari_crypto::ristretto::pedersen::commitment_factory::PedersenCommitmentFactory;
 ///
 /// let commitment =
-///     HomomorphicCommitment::from_hex("d6cca5cc4cc302c1854a118221d6cf64d100b7da76665dae5199368f3703c665").unwrap();
+///     HomomorphicCommitment::from_hex("c4c38e10ee55f7fd66bee579b9f5dd8ec63f5857400ca4b2d5772cf69094c70d").unwrap();
 /// let r_nonce =
-///     HomomorphicCommitment::from_hex("9607f72d84d704825864a4455c2325509ecc290eb9419bbce7ff05f1f578284c").unwrap();
-/// let u = RistrettoSecretKey::from_hex("0fd60e6479507fec35a46d2ec9da0ae300e9202e613e99b8f2b01d7ef6eccc02").unwrap();
-/// let v = RistrettoSecretKey::from_hex("9ae6621dd99ecc252b90a0eb69577c6f3d2e1e8abcdd43bfd0297afadf95fb0b").unwrap();
+///     HomomorphicCommitment::from_hex("f8852ddda5856305fa1f4ecd116958f9904c95d6506e0096207199672b7c1051").unwrap();
+/// let u = RistrettoSecretKey::from_hex("37766058ffdafd9720b93f7b6d30648b8b4765282303b088999e2f6ef9761e06").unwrap();
+/// let v = RistrettoSecretKey::from_hex("45c881f1650490112397c0ff9a06803a93f846aadc9dd9c27911e98f3a5d350f").unwrap();
 /// let sig = RistrettoComSig::new(r_nonce, u, v);
 /// let e = Blake256::digest(b"Maskerade");
 /// let factory = PedersenCommitmentFactory::default();
@@ -109,7 +114,7 @@ mod test {
         common::Blake256,
         keys::{PublicKey, SecretKey},
         ristretto::{
-            pedersen::{PedersenCommitment, PedersenCommitmentFactory},
+            pedersen::{commitment_factory::PedersenCommitmentFactory, PedersenCommitment},
             RistrettoComSig,
             RistrettoPublicKey,
             RistrettoSecretKey,

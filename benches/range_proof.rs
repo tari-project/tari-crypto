@@ -30,7 +30,7 @@ use tari_crypto::{
     range_proof::RangeProofService,
     ristretto::{
         dalek_range_proof::DalekRangeProofService,
-        pedersen::{PedersenCommitment, PedersenCommitmentFactory},
+        pedersen::{commitment_factory::PedersenCommitmentFactory, PedersenCommitment},
         RistrettoSecretKey,
     },
 };

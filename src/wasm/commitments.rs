@@ -27,7 +27,7 @@ use wasm_bindgen::prelude::*;
 use crate::{
     commitment::HomomorphicCommitmentFactory,
     ristretto::{
-        pedersen::{PedersenCommitment, PedersenCommitmentFactory},
+        pedersen::{commitment_factory::PedersenCommitmentFactory, PedersenCommitment},
         RistrettoPublicKey,
         RistrettoSecretKey,
     },

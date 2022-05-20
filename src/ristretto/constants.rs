@@ -21,50 +21,49 @@
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
-
-/// These points on the Ristretto curve have been created by sequentially hashing the Generator point with SHA512 and
-/// using the byte string representation of the hash as input into the `from_uniform_bytes` constructor in
-/// [RistrettoPoint](Struct.RistrettoPoint.html). This process is validated with the `check_nums_points` test below.
+/// These points on the Ristretto curve have been created by sequentially hashing a domain separated Generator point
+/// with SHA512 and using the byte string representation of the hash as input into the `from_uniform_bytes` constructor
+/// in [RistrettoPoint](Struct.RistrettoPoint.html). This process is validated with the `check_nums_points` test below.
 pub const RISTRETTO_NUMS_POINTS_COMPRESSED: [CompressedRistretto; 10] = [
     CompressedRistretto([
-        144, 202, 17, 205, 108, 98, 39, 203, 10, 188, 57, 226, 113, 12, 68, 74, 230, 97, 126, 168, 24, 152, 231, 22,
-        53, 63, 52, 16, 217, 101, 102, 5,
+        98, 56, 19, 177, 234, 20, 111, 117, 13, 149, 154, 171, 219, 38, 67, 110, 72, 144, 158, 23, 116, 160, 228, 130,
+        217, 64, 206, 217, 215, 47, 191, 18,
     ]),
     CompressedRistretto([
-        158, 163, 67, 196, 112, 228, 87, 33, 101, 243, 64, 56, 81, 223, 107, 32, 221, 251, 206, 241, 171, 132, 207,
-        171, 15, 197, 139, 223, 124, 54, 254, 7,
+        200, 37, 26, 97, 156, 96, 132, 114, 160, 100, 250, 74, 137, 61, 100, 162, 10, 73, 6, 48, 232, 156, 192, 145,
+        204, 198, 148, 70, 155, 142, 204, 33,
     ]),
     CompressedRistretto([
-        48, 188, 62, 20, 154, 63, 125, 42, 172, 191, 231, 48, 225, 158, 154, 7, 119, 59, 83, 83, 219, 98, 32, 99, 185,
-        44, 153, 54, 50, 173, 60, 7,
+        242, 134, 145, 123, 35, 223, 241, 95, 17, 252, 219, 222, 48, 71, 43, 27, 225, 135, 92, 148, 221, 50, 41, 125,
+        57, 110, 201, 109, 191, 193, 214, 60,
     ]),
     CompressedRistretto([
-        142, 16, 136, 206, 212, 150, 29, 136, 213, 177, 113, 189, 154, 52, 40, 68, 84, 120, 154, 69, 95, 70, 236, 55,
-        82, 145, 49, 33, 36, 183, 30, 108,
+        222, 31, 108, 78, 74, 126, 187, 234, 126, 57, 207, 107, 78, 168, 125, 234, 1, 207, 106, 101, 90, 37, 66, 92,
+        140, 154, 110, 142, 204, 188, 181, 117,
     ]),
     CompressedRistretto([
-        112, 19, 255, 145, 136, 246, 135, 216, 133, 201, 90, 218, 110, 88, 11, 35, 141, 231, 33, 12, 85, 193, 246, 36,
-        123, 31, 16, 101, 38, 8, 10, 85,
+        164, 245, 103, 45, 167, 255, 166, 15, 130, 229, 14, 27, 244, 89, 228, 236, 163, 67, 234, 153, 188, 120, 50,
+        182, 44, 20, 235, 182, 6, 230, 155, 108,
     ]),
     CompressedRistretto([
-        122, 234, 197, 53, 77, 120, 8, 171, 35, 80, 105, 62, 45, 2, 30, 42, 99, 188, 47, 231, 194, 119, 210, 5, 107,
-        176, 108, 127, 141, 78, 6, 81,
+        66, 229, 208, 151, 225, 98, 88, 6, 33, 54, 185, 126, 149, 4, 215, 114, 48, 120, 254, 237, 97, 166, 26, 161, 70,
+        234, 152, 3, 120, 44, 199, 24,
     ]),
     CompressedRistretto([
-        228, 224, 63, 227, 33, 214, 87, 20, 172, 223, 193, 247, 88, 37, 111, 121, 204, 69, 49, 213, 30, 143, 121, 244,
-        15, 194, 105, 198, 196, 117, 160, 65,
+        234, 153, 246, 145, 163, 1, 37, 83, 29, 141, 204, 207, 14, 7, 148, 2, 132, 77, 48, 146, 87, 244, 29, 92, 0, 23,
+        135, 180, 38, 252, 113, 119,
     ]),
     CompressedRistretto([
-        136, 214, 134, 144, 253, 111, 238, 89, 110, 128, 92, 250, 34, 30, 126, 40, 119, 21, 166, 201, 46, 148, 100,
-        255, 196, 32, 172, 183, 12, 236, 51, 27,
+        136, 16, 34, 235, 193, 68, 129, 24, 197, 150, 189, 17, 69, 8, 239, 220, 52, 98, 249, 229, 213, 216, 219, 138,
+        154, 94, 182, 224, 134, 1, 2, 76,
     ]),
     CompressedRistretto([
-        204, 102, 24, 189, 15, 12, 192, 35, 132, 29, 173, 74, 19, 204, 46, 55, 166, 35, 14, 36, 48, 80, 214, 220, 196,
-        201, 49, 208, 70, 224, 234, 3,
+        208, 187, 119, 38, 163, 204, 121, 219, 111, 215, 141, 8, 134, 238, 82, 60, 245, 224, 139, 255, 111, 252, 4, 81,
+        179, 238, 176, 77, 88, 210, 144, 123,
     ]),
     CompressedRistretto([
-        96, 230, 255, 101, 87, 7, 198, 66, 73, 210, 250, 146, 78, 49, 146, 182, 149, 220, 88, 44, 180, 246, 214, 140,
-        180, 43, 155, 49, 24, 147, 237, 64,
+        110, 128, 149, 108, 46, 193, 113, 71, 214, 210, 246, 51, 128, 210, 102, 205, 47, 27, 179, 247, 191, 20, 106,
+        199, 84, 218, 136, 137, 120, 9, 133, 93,
     ]),
 ];
 
@@ -79,9 +78,6 @@ lazy_static! {
     };
 }
 
-/// The NUMS Ristretto point `H`
-pub const RISTRETTO_PEDERSEN_H: CompressedRistretto = RISTRETTO_NUMS_POINTS_COMPRESSED[0];
-
 #[cfg(test)]
 mod test {
     use curve25519_dalek::{
@@ -92,15 +88,18 @@ mod test {
 
     use crate::ristretto::constants::{RISTRETTO_NUMS_POINTS, RISTRETTO_NUMS_POINTS_COMPRESSED};
 
-    /// Generate a set of NUMS points by sequentially hashing the Ristretto255 generator point. By using
+    /// Generate a set of NUMS points by sequentially hashing domain separated Ristretto255 generator point. By using
     /// `from_uniform_bytes`, the resulting point is a NUMS point if the input bytes are from a uniform distribution.
     fn nums_ristretto(n: usize) -> (Vec<RistrettoPoint>, Vec<CompressedRistretto>) {
         let mut val = RISTRETTO_BASEPOINT_POINT.compress().to_bytes();
         let mut points = Vec::with_capacity(n);
         let mut compressed_points = Vec::with_capacity(n);
         let mut a: [u8; 64] = [0; 64];
-        for _ in 0..n {
-            let hashed_v = Sha512::digest(&val[..]);
+        for i in 0..n {
+            let mut data = b"TARI CRYPTO - ".to_vec();
+            data.append(&mut i.to_le_bytes().to_vec());
+            data.append(&mut val.to_vec());
+            let hashed_v = Sha512::digest(&*data);
             a.copy_from_slice(&hashed_v);
             let next_val = RistrettoPoint::from_uniform_bytes(&a);
             points.push(next_val);
