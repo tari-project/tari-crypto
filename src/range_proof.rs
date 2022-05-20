@@ -27,18 +27,18 @@ use crate::{
 };
 
 pub trait RangeProofService {
-    type P: Sized;
+    type Proof: Sized;
     type K: SecretKey;
     type PK: PublicKey<K = Self::K>;
 
     /// Construct a new range proof for the given secret key and value. The resulting proof will be sufficient
     /// evidence that the prover knows the secret key and value, and that the value lies in the range determined by
     /// the service.
-    fn construct_proof(&self, key: &Self::K, value: u64) -> Result<Self::P, RangeProofError>;
+    fn construct_proof(&self, key: &Self::K, value: u64) -> Result<Self::Proof, RangeProofError>;
 
     /// Verify the range proof against the given commitment. If this function returns true, it attests to the
     /// commitment having a value in the range [0; 2^64-1] and that the prover knew both the value and private key.
-    fn verify(&self, proof: &Self::P, commitment: &HomomorphicCommitment<Self::PK>) -> bool;
+    fn verify(&self, proof: &Self::Proof, commitment: &HomomorphicCommitment<Self::PK>) -> bool;
 
     /// Return the maximum range of the range proof as a power of 2. i.e. if the maximum range is 2^64, this function
     /// returns 64.

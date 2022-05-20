@@ -73,8 +73,8 @@ impl DalekRangeProofService {
 
 impl RangeProofService for DalekRangeProofService {
     type K = RistrettoSecretKey;
-    type P = Vec<u8>;
     type PK = RistrettoPublicKey;
+    type Proof = Vec<u8>;
 
     fn construct_proof(&self, key: &RistrettoSecretKey, value: u64) -> Result<Vec<u8>, RangeProofError> {
         let mut pt = Transcript::new(b"tari");
@@ -84,7 +84,7 @@ impl RangeProofService for DalekRangeProofService {
         Ok(proof.to_bytes())
     }
 
-    fn verify(&self, proof: &Self::P, commitment: &PedersenCommitment) -> bool {
+    fn verify(&self, proof: &Self::Proof, commitment: &PedersenCommitment) -> bool {
         let rp = DalekProof::from_bytes(proof).map_err(|_| RangeProofError::InvalidProof);
         if rp.is_err() {
             return false;
