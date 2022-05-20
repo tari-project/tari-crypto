@@ -234,6 +234,11 @@ impl RistrettoPublicKey {
         })
     }
 
+    /// Return the embedded RistrettoPoint representation
+    pub fn point(&self) -> RistrettoPoint {
+        self.point
+    }
+
     pub(super) fn compressed(&self) -> &CompressedRistretto {
         self.compressed.get_or_init(|| self.point.compress())
     }

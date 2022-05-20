@@ -39,5 +39,6 @@ pub use self::{
 };
 
 // test modules
+mod bulletproofs_plus;
 #[cfg(test)]
 mod test_common;
