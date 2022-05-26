@@ -285,7 +285,7 @@ mod test {
     fn sum_commitment_vector() {
         let mut rng = rand::thread_rng();
         let v_zero = RistrettoSecretKey::default();
-        let k_zero = vec![RistrettoSecretKey::default(); *EXTENSION_DEGREE.iter().max().unwrap() as usize];
+        let k_zero = vec![RistrettoSecretKey::default(); ExtensionDegree::Five as usize];
         for extension_degree in EXTENSION_DEGREE {
             let mut v_sum = RistrettoSecretKey::default();
             let mut k_sum = vec![RistrettoSecretKey::default(); extension_degree as usize];
