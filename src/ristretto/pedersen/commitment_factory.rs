@@ -1,4 +1,29 @@
-use curve25519_dalek::{ristretto::RistrettoPoint, scalar::Scalar, traits::MultiscalarMul};
+// Copyright 2019 The Tari Project
+//
+// Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
+// following conditions are met:
+//
+// 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following
+// disclaimer.
+//
+// 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
+// following disclaimer in the documentation and/or other materials provided with the distribution.
+//
+// 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote
+// products derived from this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+// INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+// SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+// WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+// USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+use curve25519_dalek::{
+    ristretto::RistrettoPoint,
+    traits::{Identity, MultiscalarMul},
+};
 
 use crate::{
     commitment::{HomomorphicCommitment, HomomorphicCommitmentFactory},
@@ -43,9 +68,7 @@ impl HomomorphicCommitmentFactory for PedersenCommitmentFactory {
     }
 
     fn zero(&self) -> PedersenCommitment {
-        let zero = Scalar::zero();
-        let c = RistrettoPoint::multiscalar_mul(&[zero, zero], &[self.H, self.G]);
-        HomomorphicCommitment(RistrettoPublicKey::new_from_pk(c))
+        HomomorphicCommitment(RistrettoPublicKey::new_from_pk(RistrettoPoint::identity()))
     }
 
     fn open(&self, k: &RistrettoSecretKey, v: &RistrettoSecretKey, commitment: &PedersenCommitment) -> bool {
@@ -72,6 +95,7 @@ mod test {
         hash::{Hash, Hasher},
     };
 
+    use curve25519_dalek::scalar::Scalar;
     use tari_utilities::message_format::MessageFormat;
 
     use super::*;
@@ -86,6 +110,20 @@ mod test {
         let base = PedersenCommitmentFactory::default();
         assert_eq!(base.G, RISTRETTO_PEDERSEN_G);
         assert_eq!(base.H, *RISTRETTO_PEDERSEN_H)
+    }
+
+    #[test]
+    /// Verify that the identity point is equal to a commitment to zero with a zero blinding factor on the base point
+    fn check_zero() {
+        let c = RistrettoPoint::multiscalar_mul(&[Scalar::zero(), Scalar::zero()], &[
+            RISTRETTO_PEDERSEN_G,
+            *RISTRETTO_PEDERSEN_H,
+        ]);
+        let factory = PedersenCommitmentFactory::default();
+        assert_eq!(
+            HomomorphicCommitment(RistrettoPublicKey::new_from_pk(c)),
+            PedersenCommitmentFactory::zero(&factory)
+        );
     }
 
     /// Simple test for open: Generate 100 random sets of scalars and calculate the Pedersen commitment for them.

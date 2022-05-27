@@ -21,9 +21,11 @@
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
-/// These points on the Ristretto curve have been created by sequentially hashing a domain separated Generator point
-/// with SHA512 and using the byte string representation of the hash as input into the `from_uniform_bytes` constructor
-/// in [RistrettoPoint](Struct.RistrettoPoint.html). This process is validated with the `check_nums_points` test below.
+
+/// These points on the Ristretto curve have been created by hashing domain separation labels with SHA512 and converting
+/// the hash output to a Ristretto generator point by using the byte string representation of the hash as input into the
+/// `from_uniform_bytes` constructor in [RistrettoPoint](Struct.RistrettoPoint.html). This process is validated with the
+/// `check_nums_points` test below.
 pub const RISTRETTO_NUMS_POINTS_COMPRESSED: [CompressedRistretto; 10] = [
     CompressedRistretto([
         206, 56, 152, 65, 192, 200, 105, 138, 185, 91, 112, 36, 42, 238, 166, 72, 64, 177, 234, 197, 246, 68, 183, 208,
@@ -80,7 +82,10 @@ lazy_static! {
 
 #[cfg(test)]
 mod test {
-    use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
+    use curve25519_dalek::{
+        constants::{RISTRETTO_BASEPOINT_COMPRESSED, RISTRETTO_BASEPOINT_POINT},
+        ristretto::{CompressedRistretto, RistrettoPoint},
+    };
     use sha2::{Digest, Sha512};
 
     use crate::ristretto::constants::{RISTRETTO_NUMS_POINTS, RISTRETTO_NUMS_POINTS_COMPRESSED};
@@ -93,8 +98,8 @@ mod test {
         let mut compressed_points = Vec::with_capacity(n);
         let mut a: [u8; 64] = [0; 64];
         for i in 0..n {
-            let mut data = b"TARI CRYPTO NUMS BASEPOINT LABEL - ".to_vec();
-            data.append(&mut i.to_le_bytes().to_vec());
+            let mut data = b"TARI CRYPTO NUMS BASEPOINT LABEL - ".to_vec(); // Domain label
+            data.append(&mut i.to_le_bytes().to_vec()); // Append domain separated label counter
             let hashed_v = Sha512::digest(&*data);
             a.copy_from_slice(&hashed_v);
             let next_val = RistrettoPoint::from_uniform_bytes(&a);
@@ -105,14 +110,28 @@ mod test {
     }
 
     /// Confirm that the [RISTRETTO_NUM_POINTS array](Const.RISTRETTO_NUMS_POINTS.html) is generated with Nothing Up
-    /// My Sleeve (NUMS).
+    /// My Sleeve (NUMS), unique, not equal to the identity value and not equal to the Ristretto base point.
     #[test]
     pub fn check_nums_points() {
         let n = RISTRETTO_NUMS_POINTS_COMPRESSED.len();
-        let v_arr = nums_ristretto(n);
+        let calculated_nums_points = nums_ristretto(n);
         for i in 0..n {
-            assert_eq!(v_arr.0[i], RISTRETTO_NUMS_POINTS[i]);
-            assert_eq!(v_arr.1[i], RISTRETTO_NUMS_POINTS_COMPRESSED[i]);
+            // Should be equal to the NUMS constants
+            assert_eq!(calculated_nums_points.0[i], RISTRETTO_NUMS_POINTS[i]);
+            assert_eq!(calculated_nums_points.1[i], RISTRETTO_NUMS_POINTS_COMPRESSED[i]);
+            // Should not be equal to the identity values
+            assert_ne!(RistrettoPoint::default(), RISTRETTO_NUMS_POINTS[i]);
+            assert_ne!(CompressedRistretto::default(), RISTRETTO_NUMS_POINTS_COMPRESSED[i]);
+            // Should not be equal to the Ristretto base point
+            assert_ne!(RISTRETTO_BASEPOINT_POINT, RISTRETTO_NUMS_POINTS[i]);
+            assert_ne!(RISTRETTO_BASEPOINT_COMPRESSED, RISTRETTO_NUMS_POINTS_COMPRESSED[i]);
+            // Should all be unique
+            for j in 0..n {
+                if i != j {
+                    assert_ne!(RISTRETTO_NUMS_POINTS[i], RISTRETTO_NUMS_POINTS[j]);
+                    assert_ne!(RISTRETTO_NUMS_POINTS_COMPRESSED[i], RISTRETTO_NUMS_POINTS_COMPRESSED[j]);
+                }
+            }
         }
     }
 }

@@ -1,5 +1,27 @@
+// Copyright 2019 The Tari Project
+//
+// Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
+// following conditions are met:
+//
+// 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following
+// disclaimer.
+//
+// 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
+// following disclaimer in the documentation and/or other materials provided with the distribution.
+//
+// 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote
+// products derived from this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+// INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+// SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+// WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+// USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 use bulletproofs_plus::{generators::pedersen_gens::ExtensionDegree, PedersenGens};
-use curve25519_dalek::{ristretto::RistrettoPoint, scalar::Scalar, traits::MultiscalarMul};
+use curve25519_dalek::{ristretto::RistrettoPoint, scalar::Scalar, traits::Identity};
 
 use crate::{
     commitment::{ExtendedHomomorphicCommitmentFactory, HomomorphicCommitment},
@@ -79,13 +101,7 @@ impl ExtendedHomomorphicCommitmentFactory for ExtendedPedersenCommitmentFactory 
     }
 
     fn zero(&self) -> PedersenCommitment {
-        let extension_degree = self.0.extension_degree as usize;
-        let zero = vec![Scalar::zero(); extension_degree + 1];
-        let mut points = Vec::with_capacity(extension_degree + 1);
-        points.push(self.0.h_base);
-        points.append(&mut self.0.g_base_vec.clone());
-        let c = RistrettoPoint::multiscalar_mul(&zero, &self.0.g_base_vec);
-        HomomorphicCommitment(RistrettoPublicKey::new_from_pk(c))
+        HomomorphicCommitment(RistrettoPublicKey::new_from_pk(RistrettoPoint::identity()))
     }
 
     fn open(
@@ -124,11 +140,11 @@ mod test {
     };
 
     use bulletproofs_plus::generators::pedersen_gens::ExtensionDegree;
-    use curve25519_dalek::ristretto::RistrettoPoint;
+    use curve25519_dalek::{ristretto::RistrettoPoint, scalar::Scalar, traits::MultiscalarMul};
     use tari_utilities::message_format::MessageFormat;
 
     use crate::{
-        commitment::ExtendedHomomorphicCommitmentFactory,
+        commitment::{ExtendedHomomorphicCommitmentFactory, HomomorphicCommitment},
         keys::{PublicKey, SecretKey},
         ristretto::{
             constants::RISTRETTO_NUMS_POINTS,
@@ -161,6 +177,24 @@ mod test {
             factory,
             ExtendedPedersenCommitmentFactory::new_with_extension_degree(ExtensionDegree::Zero).unwrap()
         );
+    }
+
+    #[test]
+    /// Verify that the identity point is equal to a commitment to zero with a zero blinding factor vector on the base
+    /// points
+    fn check_zero() {
+        for extension_degree in EXTENSION_DEGREE {
+            let zero_values = vec![Scalar::zero(); extension_degree as usize + 1];
+            let mut points = Vec::with_capacity(extension_degree as usize + 1);
+            let factory = ExtendedPedersenCommitmentFactory::new_with_extension_degree(extension_degree).unwrap();
+            points.push(factory.0.h_base);
+            points.append(&mut factory.0.g_base_vec.clone());
+            let c = RistrettoPoint::multiscalar_mul(&zero_values, &points);
+            assert_eq!(
+                HomomorphicCommitment(RistrettoPublicKey::new_from_pk(c)),
+                ExtendedPedersenCommitmentFactory::zero(&factory)
+            );
+        }
     }
 
     /// Simple test for open for each extension degree:

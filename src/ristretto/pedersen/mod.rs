@@ -135,7 +135,8 @@ mod test {
         assert_eq!(factory_singular.H, factory_extended.0.h_base);
     }
 
-    /// Default bases for PedersenCommitmentFactory and all versions of ExtendedPedersenCommitmentFactory must be equal
+    /// Default bases for PedersenCommitmentFactory and all extension degrees of ExtendedPedersenCommitmentFactory must
+    /// be equal
     #[test]
     fn check_extended_bases_between_factories() {
         let factory_singular = PedersenCommitmentFactory::default();
@@ -148,7 +149,8 @@ mod test {
         }
     }
 
-    /// A PedersenCommitmentFactory commitment and ExtendedPedersenCommitmentFactory of degree zero must be equal
+    /// A PedersenCommitmentFactory commitment and ExtendedPedersenCommitmentFactory commitment of degree zero must be
+    /// equal
     #[test]
     fn check_commitments_between_factories() {
         let factory_singular = PedersenCommitmentFactory::default();
