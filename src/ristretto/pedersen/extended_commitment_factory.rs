@@ -22,7 +22,6 @@ use crate::{
 /// [RistrettoPoints](curve25519_dalek::ristretto::RistrettoPoints).
 /// Notes:
 ///  - Homomorphism with public key only holds for extended commitments with `ExtensionDegree::Zero`
-///  - 'Ord' and 'PartialOrd' are undefined for extended commitments other than `ExtensionDegree::Zero`
 #[derive(Debug, PartialEq, Clone)]
 pub struct ExtendedPedersenCommitmentFactory(pub(crate) PedersenGens<RistrettoPoint>);
 
@@ -280,7 +279,6 @@ mod test {
     /// $$
     /// and
     /// `open(sum(sum(k_i)_j), sum(v_j))` is true for `sum(C_j)`
-    /// Note: Homomorphism with public key only holds for extended commitments with`ExtensionDegree::Zero`
     #[test]
     fn sum_commitment_vector() {
         let mut rng = rand::thread_rng();
@@ -333,82 +331,86 @@ mod test {
         for extension_degree in EXTENSION_DEGREE {
             let factory = ExtendedPedersenCommitmentFactory::new_with_extension_degree(extension_degree).unwrap();
             let k = vec![RistrettoSecretKey::from(1024); extension_degree as usize];
-            let c1 = factory.commit_value(&k, 2048).unwrap();
+            let value = 2048;
+            let c1 = factory.commit_value(&k, value).unwrap();
+
+            // Test 'Clone` implementation
+            let c2 = c1.clone();
+            assert_eq!(c1, c2);
+
+            // Test 'Debug' and hashing implementations
             let mut hasher = DefaultHasher::new();
             c1.hash(&mut hasher);
-            let c2 = c1.clone();
-            let c3 = factory.commit_value(&k, 2049).unwrap();
-
-            // Test 'clone`
-            assert_eq!(c1, c2);
-            assert_ne!(c2, c3);
-
-            // Note! 'Ord' and 'PartialOrd' are undefined for extended commitments with extension degree other than Zero
             match extension_degree {
                 ExtensionDegree::Zero => {
-                    // Test 'Debug'
                     assert_eq!(
                         format!("{:?}", c1),
-                        "HomomorphicCommitment(9801c7785217e0c973e9b85508c6eebcb74b257a6f825630e17282b81b7fcd78)"
+                        "HomomorphicCommitment(601cdc5c97e94bb16ae56f75430f8ab3ef4703c7d89ca9592e8acadc81629f0e)"
                     );
-                    // Test hashing
                     let result = format!("{:x}", hasher.finish());
-                    assert_eq!(&result, "1ef11e8d243c886e");
-                    // test 'Ord' and 'PartialOrd'
-                    assert!(c2 > c3);
-                    assert!(c3 < c2);
-                    assert!(matches!(c2.cmp(&c3), std::cmp::Ordering::Greater));
+                    assert_eq!(&result, "699d38210741194e");
                 },
                 ExtensionDegree::One => {
-                    // Test 'Debug'
                     assert_eq!(
                         format!("{:?}", c1),
-                        "HomomorphicCommitment(42a14804076ba9515be21a519eb1914d3ae1dc3c0237f387bad267a1596c0900)"
+                        "HomomorphicCommitment(f0019440ae20b39ba55a88f27ebd7ca56857251beca1047a3b195dc93642d829)"
                     );
-                    // Test hashing
                     let result = format!("{:x}", hasher.finish());
-                    assert_eq!(&result, "77144935b6bfdef2");
+                    assert_eq!(&result, "fb68d75431b3a0b0");
                 },
                 ExtensionDegree::Two => {
-                    // Test 'Debug'
                     assert_eq!(
                         format!("{:?}", c1),
-                        "HomomorphicCommitment(3232b10a480df84addc7fd9c89ba0225dc586ab907b1ea48e36395dbc1f8013a)"
+                        "HomomorphicCommitment(b09789e597115f592491009f18ef4ec13ba7018a77e9df1729f1e2611b237a06)"
                     );
-                    // Test hashing
                     let result = format!("{:x}", hasher.finish());
-                    assert_eq!(&result, "7d135652dedbd469");
+                    assert_eq!(&result, "61dd716dc29a5fc5");
                 },
                 ExtensionDegree::Three => {
-                    // Test 'Debug'
                     assert_eq!(
                         format!("{:?}", c1),
-                        "HomomorphicCommitment(128ae4d7b6ee6d441d6ca156e8a0847edd116a5528e65afd0ad7428d2704147d)"
+                        "HomomorphicCommitment(f8356cbea349191683f84818ab5203e48b04fef42f812ddf7d9b92df966c8473)"
                     );
-                    // Test hashing
                     let result = format!("{:x}", hasher.finish());
-                    assert_eq!(&result, "a5015615878d2095");
+                    assert_eq!(&result, "49e988f621628ebc");
                 },
                 ExtensionDegree::Four => {
-                    // Test 'Debug'
                     assert_eq!(
                         format!("{:?}", c1),
-                        "HomomorphicCommitment(a0f3593cb6a5261e025da8cee5ccd6e102fe365cf544998fd55bb2ec0222f707)"
+                        "HomomorphicCommitment(1e113af7e33ac15b328e298239f3796e5061a0863d1a69e297ee8d81ee6e1f22)"
                     );
-                    // Test hashing
                     let result = format!("{:x}", hasher.finish());
-                    assert_eq!(&result, "ea1eb5e67730ac49");
+                    assert_eq!(&result, "aff1b9967c7bffe7");
                 },
                 ExtensionDegree::Five => {
-                    // Test 'Debug'
                     assert_eq!(
                         format!("{:?}", c1),
-                        "HomomorphicCommitment(7cec35074259cad0b5d3022b29f6e9d5526ed3923d802faffaa64d1829bce67f)"
+                        "HomomorphicCommitment(126844ee6889dd065ccc0c47e16ea23697f72e6ecce70f5e3fef320d843c332e)"
                     );
-                    // Test hashing
                     let result = format!("{:x}", hasher.finish());
-                    assert_eq!(&result, "1a90510f34ef25ed");
+                    assert_eq!(&result, "e27df20b2dd195ee");
                 },
+            }
+
+            // Test 'Ord' and 'PartialOrd' implementations
+            let mut values = (value - 100..value - 1).collect::<Vec<_>>();
+            values.extend((value + 1..value + 100).collect::<Vec<_>>());
+            for val in values {
+                let c3 = factory.commit_value(&k, val).unwrap();
+                assert_ne!(c2, c3);
+                if c2 > c3 {
+                    assert!(c3 < c2);
+                }
+                if c2 < c3 {
+                    assert!(c3 > c2);
+                }
+                assert_ne!(c2.cmp(&c3), c3.cmp(&c2));
+                if c2.cmp(&c3) == std::cmp::Ordering::Less {
+                    assert!(matches!(c3.cmp(&c2), std::cmp::Ordering::Greater));
+                }
+                if c2.cmp(&c3) == std::cmp::Ordering::Greater {
+                    assert!(matches!(c3.cmp(&c2), std::cmp::Ordering::Less));
+                }
             }
         }
     }

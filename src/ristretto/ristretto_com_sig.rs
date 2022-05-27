@@ -92,11 +92,11 @@ use crate::{
 /// use tari_crypto::ristretto::pedersen::commitment_factory::PedersenCommitmentFactory;
 ///
 /// let commitment =
-///     HomomorphicCommitment::from_hex("c4c38e10ee55f7fd66bee579b9f5dd8ec63f5857400ca4b2d5772cf69094c70d").unwrap();
+///     HomomorphicCommitment::from_hex("167c6df11bf8106e89328c297e57423dc2a9be53df1ee63f6e50b4610104ab4a").unwrap();
 /// let r_nonce =
-///     HomomorphicCommitment::from_hex("f8852ddda5856305fa1f4ecd116958f9904c95d6506e0096207199672b7c1051").unwrap();
-/// let u = RistrettoSecretKey::from_hex("37766058ffdafd9720b93f7b6d30648b8b4765282303b088999e2f6ef9761e06").unwrap();
-/// let v = RistrettoSecretKey::from_hex("45c881f1650490112397c0ff9a06803a93f846aadc9dd9c27911e98f3a5d350f").unwrap();
+///     HomomorphicCommitment::from_hex("4033e00996e61df2ea1abd1494b751b946663e21a20e2729c6592712beb15356").unwrap();
+/// let u = RistrettoSecretKey::from_hex("f44bbc3374b172f77ffa8b904ddf0ad9f879b3e6183f9e440c57e7f01e851300").unwrap();
+/// let v = RistrettoSecretKey::from_hex("fd54afb2d8008c8a3af10272b24161247b2b7ae11687813fe9fb03e34dd7f009").unwrap();
 /// let sig = RistrettoComSig::new(r_nonce, u, v);
 /// let e = Blake256::digest(b"Maskerade");
 /// let factory = PedersenCommitmentFactory::default();

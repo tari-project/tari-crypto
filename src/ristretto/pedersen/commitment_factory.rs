@@ -211,25 +211,43 @@ mod test {
     fn derived_methods() {
         let factory = PedersenCommitmentFactory::default();
         let k = RistrettoSecretKey::from(1024);
-        let c1 = factory.commit_value(&k, 2048);
-        // Test Debug impl
+        let value = 2048;
+        let c1 = factory.commit_value(&k, value);
+
+        // Test 'Debug' implementation
         assert_eq!(
             format!("{:?}", c1),
-            "HomomorphicCommitment(9801c7785217e0c973e9b85508c6eebcb74b257a6f825630e17282b81b7fcd78)"
+            "HomomorphicCommitment(601cdc5c97e94bb16ae56f75430f8ab3ef4703c7d89ca9592e8acadc81629f0e)"
         );
-        // test Clone impl
+        // Test 'Clone' implementation
         let c2 = c1.clone();
         assert_eq!(c1, c2);
-        // test hash impl
+
+        // Test hash implementation
         let mut hasher = DefaultHasher::new();
         c1.hash(&mut hasher);
         let result = format!("{:x}", hasher.finish());
-        assert_eq!(&result, "1ef11e8d243c886e");
-        // test Ord and PartialOrd impl
-        let c3 = factory.commit_value(&k, 2049);
-        assert!(c2 > c3);
-        assert!(c2 != c3);
-        assert!(c3 < c2);
-        assert!(matches!(c2.cmp(&c3), std::cmp::Ordering::Greater));
+        assert_eq!(&result, "699d38210741194e");
+
+        // Test 'Ord' and 'PartialOrd' implementations
+        let mut values = (value - 100..value - 1).collect::<Vec<_>>();
+        values.extend((value + 1..value + 100).collect::<Vec<_>>());
+        for val in values {
+            let c3 = factory.commit_value(&k, val);
+            assert_ne!(c2, c3);
+            if c2 > c3 {
+                assert!(c3 < c2);
+            }
+            if c2 < c3 {
+                assert!(c3 > c2);
+            }
+            assert_ne!(c2.cmp(&c3), c3.cmp(&c2));
+            if c2.cmp(&c3) == std::cmp::Ordering::Less {
+                assert!(matches!(c3.cmp(&c2), std::cmp::Ordering::Greater));
+            }
+            if c2.cmp(&c3) == std::cmp::Ordering::Greater {
+                assert!(matches!(c3.cmp(&c2), std::cmp::Ordering::Less));
+            }
+        }
     }
 }

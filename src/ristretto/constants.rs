@@ -26,44 +26,44 @@ use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
 /// in [RistrettoPoint](Struct.RistrettoPoint.html). This process is validated with the `check_nums_points` test below.
 pub const RISTRETTO_NUMS_POINTS_COMPRESSED: [CompressedRistretto; 10] = [
     CompressedRistretto([
-        98, 56, 19, 177, 234, 20, 111, 117, 13, 149, 154, 171, 219, 38, 67, 110, 72, 144, 158, 23, 116, 160, 228, 130,
-        217, 64, 206, 217, 215, 47, 191, 18,
+        206, 56, 152, 65, 192, 200, 105, 138, 185, 91, 112, 36, 42, 238, 166, 72, 64, 177, 234, 197, 246, 68, 183, 208,
+        8, 172, 5, 135, 207, 71, 29, 112,
     ]),
     CompressedRistretto([
-        200, 37, 26, 97, 156, 96, 132, 114, 160, 100, 250, 74, 137, 61, 100, 162, 10, 73, 6, 48, 232, 156, 192, 145,
-        204, 198, 148, 70, 155, 142, 204, 33,
+        54, 179, 59, 85, 148, 85, 113, 114, 237, 39, 200, 19, 236, 249, 193, 45, 13, 194, 254, 236, 39, 225, 9, 66,
+        123, 41, 222, 21, 125, 254, 102, 77,
     ]),
     CompressedRistretto([
-        242, 134, 145, 123, 35, 223, 241, 95, 17, 252, 219, 222, 48, 71, 43, 27, 225, 135, 92, 148, 221, 50, 41, 125,
-        57, 110, 201, 109, 191, 193, 214, 60,
+        152, 202, 159, 30, 58, 170, 77, 68, 126, 51, 86, 197, 114, 69, 19, 227, 202, 190, 145, 71, 127, 19, 101, 207,
+        17, 221, 227, 175, 5, 88, 90, 85,
     ]),
     CompressedRistretto([
-        222, 31, 108, 78, 74, 126, 187, 234, 126, 57, 207, 107, 78, 168, 125, 234, 1, 207, 106, 101, 90, 37, 66, 92,
-        140, 154, 110, 142, 204, 188, 181, 117,
+        242, 2, 148, 178, 187, 151, 148, 185, 122, 161, 129, 17, 83, 85, 124, 125, 30, 139, 225, 50, 69, 73, 206, 68,
+        114, 177, 81, 20, 255, 56, 82, 71,
     ]),
     CompressedRistretto([
-        164, 245, 103, 45, 167, 255, 166, 15, 130, 229, 14, 27, 244, 89, 228, 236, 163, 67, 234, 153, 188, 120, 50,
-        182, 44, 20, 235, 182, 6, 230, 155, 108,
+        196, 93, 153, 124, 195, 94, 29, 16, 123, 234, 15, 2, 184, 227, 67, 128, 103, 87, 113, 86, 69, 132, 187, 122,
+        11, 194, 246, 23, 111, 190, 164, 28,
     ]),
     CompressedRistretto([
-        66, 229, 208, 151, 225, 98, 88, 6, 33, 54, 185, 126, 149, 4, 215, 114, 48, 120, 254, 237, 97, 166, 26, 161, 70,
-        234, 152, 3, 120, 44, 199, 24,
+        70, 122, 19, 104, 23, 41, 249, 95, 206, 125, 54, 95, 126, 136, 57, 94, 54, 200, 73, 141, 40, 206, 124, 156,
+        224, 237, 133, 95, 3, 225, 220, 102,
     ]),
     CompressedRistretto([
-        234, 153, 246, 145, 163, 1, 37, 83, 29, 141, 204, 207, 14, 7, 148, 2, 132, 77, 48, 146, 87, 244, 29, 92, 0, 23,
-        135, 180, 38, 252, 113, 119,
+        212, 243, 209, 88, 16, 127, 237, 87, 22, 162, 111, 122, 214, 165, 70, 23, 71, 139, 35, 16, 187, 144, 228, 5,
+        182, 51, 244, 148, 184, 63, 222, 26,
     ]),
     CompressedRistretto([
-        136, 16, 34, 235, 193, 68, 129, 24, 197, 150, 189, 17, 69, 8, 239, 220, 52, 98, 249, 229, 213, 216, 219, 138,
-        154, 94, 182, 224, 134, 1, 2, 76,
+        106, 114, 88, 57, 144, 221, 187, 75, 248, 13, 1, 136, 214, 61, 106, 235, 221, 175, 66, 184, 107, 31, 113, 2,
+        142, 36, 210, 62, 91, 35, 45, 25,
     ]),
     CompressedRistretto([
-        208, 187, 119, 38, 163, 204, 121, 219, 111, 215, 141, 8, 134, 238, 82, 60, 245, 224, 139, 255, 111, 252, 4, 81,
-        179, 238, 176, 77, 88, 210, 144, 123,
+        206, 164, 160, 199, 62, 109, 174, 203, 69, 222, 211, 23, 80, 44, 161, 143, 118, 138, 145, 140, 51, 145, 84,
+        208, 173, 74, 97, 128, 193, 239, 30, 30,
     ]),
     CompressedRistretto([
-        110, 128, 149, 108, 46, 193, 113, 71, 214, 210, 246, 51, 128, 210, 102, 205, 47, 27, 179, 247, 191, 20, 106,
-        199, 84, 218, 136, 137, 120, 9, 133, 93,
+        218, 174, 170, 84, 178, 150, 240, 77, 72, 189, 188, 156, 46, 84, 202, 209, 80, 14, 212, 160, 195, 106, 149, 59,
+        173, 24, 184, 4, 233, 38, 232, 44,
     ]),
 ];
 
@@ -80,32 +80,26 @@ lazy_static! {
 
 #[cfg(test)]
 mod test {
-    use curve25519_dalek::{
-        constants::RISTRETTO_BASEPOINT_POINT,
-        ristretto::{CompressedRistretto, RistrettoPoint},
-    };
+    use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
     use sha2::{Digest, Sha512};
 
     use crate::ristretto::constants::{RISTRETTO_NUMS_POINTS, RISTRETTO_NUMS_POINTS_COMPRESSED};
 
-    /// Generate a set of NUMS points by sequentially hashing domain separated Ristretto255 generator point. By using
-    /// `from_uniform_bytes`, the resulting point is a NUMS point if the input bytes are from a uniform distribution.
+    /// Generate a set of NUMS points by hashing domain separation labels and converting the hash output to a Ristretto
+    /// generator point. By using `RistrettoPoint::from_uniform_bytes`, the resulting point is a NUMS point if the input
+    /// bytes are from a uniform distribution.
     fn nums_ristretto(n: usize) -> (Vec<RistrettoPoint>, Vec<CompressedRistretto>) {
-        let mut val = RISTRETTO_BASEPOINT_POINT.compress().to_bytes();
         let mut points = Vec::with_capacity(n);
         let mut compressed_points = Vec::with_capacity(n);
         let mut a: [u8; 64] = [0; 64];
         for i in 0..n {
-            let mut data = b"TARI CRYPTO - ".to_vec();
+            let mut data = b"TARI CRYPTO NUMS BASEPOINT LABEL - ".to_vec();
             data.append(&mut i.to_le_bytes().to_vec());
-            data.append(&mut val.to_vec());
             let hashed_v = Sha512::digest(&*data);
             a.copy_from_slice(&hashed_v);
             let next_val = RistrettoPoint::from_uniform_bytes(&a);
             points.push(next_val);
-            let next_compressed = next_val.compress();
-            val = next_compressed.to_bytes();
-            compressed_points.push(next_compressed);
+            compressed_points.push(next_val.compress());
         }
         (points, compressed_points)
     }
