@@ -268,24 +268,32 @@ mod test {
         assert_eq!(&result, "b1b43e91f6d6109f");
 
         // Test 'Ord' and 'PartialOrd' implementations
-        let mut values = (value - 100..value - 1).collect::<Vec<_>>();
-        values.extend((value + 1..value + 100).collect::<Vec<_>>());
+        let mut values = (value - 10..value).collect::<Vec<_>>();
+        values.extend((value + 1..value + 11).collect::<Vec<_>>());
+        let (mut tested_less_than, mut tested_greater_than) = (false, false);
         for val in values {
             let c3 = factory.commit_value(&k, val);
             assert_ne!(c2, c3);
+            assert_ne!(c2.cmp(&c3), c3.cmp(&c2));
             if c2 > c3 {
                 assert!(c3 < c2);
+                assert!(matches!(c2.cmp(&c3), std::cmp::Ordering::Greater));
+                assert!(matches!(c3.cmp(&c2), std::cmp::Ordering::Less));
+                tested_less_than = true;
             }
             if c2 < c3 {
                 assert!(c3 > c2);
-            }
-            assert_ne!(c2.cmp(&c3), c3.cmp(&c2));
-            if c2.cmp(&c3) == std::cmp::Ordering::Less {
+                assert!(matches!(c2.cmp(&c3), std::cmp::Ordering::Less));
                 assert!(matches!(c3.cmp(&c2), std::cmp::Ordering::Greater));
+                tested_greater_than = true;
             }
-            if c2.cmp(&c3) == std::cmp::Ordering::Greater {
-                assert!(matches!(c3.cmp(&c2), std::cmp::Ordering::Less));
+            if tested_less_than && tested_greater_than {
+                break;
             }
         }
+        assert!(
+            tested_less_than && tested_greater_than,
+            "Try extending the range of values to compare"
+        );
     }
 }

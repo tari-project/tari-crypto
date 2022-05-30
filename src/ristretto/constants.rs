@@ -125,11 +125,9 @@ mod test {
             assert_ne!(RISTRETTO_BASEPOINT_POINT, RISTRETTO_NUMS_POINTS[i]);
             assert_ne!(RISTRETTO_BASEPOINT_COMPRESSED, RISTRETTO_NUMS_POINTS_COMPRESSED[i]);
             // Should all be unique
-            for j in 0..n {
-                if i != j {
-                    assert_ne!(RISTRETTO_NUMS_POINTS[i], RISTRETTO_NUMS_POINTS[j]);
-                    assert_ne!(RISTRETTO_NUMS_POINTS_COMPRESSED[i], RISTRETTO_NUMS_POINTS_COMPRESSED[j]);
-                }
+            for j in i + 1..n {
+                assert_ne!(RISTRETTO_NUMS_POINTS[i], RISTRETTO_NUMS_POINTS[j]);
+                assert_ne!(RISTRETTO_NUMS_POINTS_COMPRESSED[i], RISTRETTO_NUMS_POINTS_COMPRESSED[j]);
             }
         }
     }

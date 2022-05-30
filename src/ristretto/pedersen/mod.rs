@@ -83,15 +83,6 @@ mod test {
         },
     };
 
-    static EXTENSION_DEGREE: [ExtensionDegree; 6] = [
-        ExtensionDegree::Zero,
-        ExtensionDegree::One,
-        ExtensionDegree::Two,
-        ExtensionDegree::Three,
-        ExtensionDegree::Four,
-        ExtensionDegree::Five,
-    ];
-
     #[test]
     fn pubkey_roundtrip() {
         let mut rng = rand::thread_rng();
@@ -133,20 +124,6 @@ mod test {
         assert_eq!(factory_extended.0.extension_degree, ExtensionDegree::Zero);
         assert_eq!(factory_singular.G, factory_extended.0.g_base_vec[0]);
         assert_eq!(factory_singular.H, factory_extended.0.h_base);
-    }
-
-    /// Default bases for PedersenCommitmentFactory and all extension degrees of ExtendedPedersenCommitmentFactory must
-    /// be equal
-    #[test]
-    fn check_extended_bases_between_factories() {
-        let factory_singular = PedersenCommitmentFactory::default();
-        for extension_degree in EXTENSION_DEGREE {
-            let factory_extended =
-                ExtendedPedersenCommitmentFactory::new_with_extension_degree(extension_degree).unwrap();
-            assert_eq!(factory_extended.0.extension_degree, extension_degree);
-            assert_eq!(factory_singular.G, factory_extended.0.g_base_vec[0]);
-            assert_eq!(factory_singular.H, factory_extended.0.h_base);
-        }
     }
 
     /// A PedersenCommitmentFactory commitment and ExtendedPedersenCommitmentFactory commitment of degree zero must be
