@@ -22,50 +22,49 @@
 
 use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
 
-/// These points on the Ristretto curve have been created by hashing domain separation labels with SHA512 and converting
-/// the hash output to a Ristretto generator point by using the byte string representation of the hash as input into the
-/// `from_uniform_bytes` constructor in [RistrettoPoint](Struct.RistrettoPoint.html). This process is validated with the
-/// `check_nums_points` test below.
+/// These points on the Ristretto curve have been created by sequentially hashing the Generator point with SHA512 and
+/// using the byte string representation of the hash as input into the `from_uniform_bytes` constructor in
+/// [RistrettoPoint](Struct.RistrettoPoint.html). This process is validated with the `check_nums_points` test below.
 pub const RISTRETTO_NUMS_POINTS_COMPRESSED: [CompressedRistretto; 10] = [
     CompressedRistretto([
-        206, 56, 152, 65, 192, 200, 105, 138, 185, 91, 112, 36, 42, 238, 166, 72, 64, 177, 234, 197, 246, 68, 183, 208,
-        8, 172, 5, 135, 207, 71, 29, 112,
+        144, 202, 17, 205, 108, 98, 39, 203, 10, 188, 57, 226, 113, 12, 68, 74, 230, 97, 126, 168, 24, 152, 231, 22,
+        53, 63, 52, 16, 217, 101, 102, 5,
     ]),
     CompressedRistretto([
-        54, 179, 59, 85, 148, 85, 113, 114, 237, 39, 200, 19, 236, 249, 193, 45, 13, 194, 254, 236, 39, 225, 9, 66,
-        123, 41, 222, 21, 125, 254, 102, 77,
+        158, 163, 67, 196, 112, 228, 87, 33, 101, 243, 64, 56, 81, 223, 107, 32, 221, 251, 206, 241, 171, 132, 207,
+        171, 15, 197, 139, 223, 124, 54, 254, 7,
     ]),
     CompressedRistretto([
-        152, 202, 159, 30, 58, 170, 77, 68, 126, 51, 86, 197, 114, 69, 19, 227, 202, 190, 145, 71, 127, 19, 101, 207,
-        17, 221, 227, 175, 5, 88, 90, 85,
+        48, 188, 62, 20, 154, 63, 125, 42, 172, 191, 231, 48, 225, 158, 154, 7, 119, 59, 83, 83, 219, 98, 32, 99, 185,
+        44, 153, 54, 50, 173, 60, 7,
     ]),
     CompressedRistretto([
-        242, 2, 148, 178, 187, 151, 148, 185, 122, 161, 129, 17, 83, 85, 124, 125, 30, 139, 225, 50, 69, 73, 206, 68,
-        114, 177, 81, 20, 255, 56, 82, 71,
+        142, 16, 136, 206, 212, 150, 29, 136, 213, 177, 113, 189, 154, 52, 40, 68, 84, 120, 154, 69, 95, 70, 236, 55,
+        82, 145, 49, 33, 36, 183, 30, 108,
     ]),
     CompressedRistretto([
-        196, 93, 153, 124, 195, 94, 29, 16, 123, 234, 15, 2, 184, 227, 67, 128, 103, 87, 113, 86, 69, 132, 187, 122,
-        11, 194, 246, 23, 111, 190, 164, 28,
+        112, 19, 255, 145, 136, 246, 135, 216, 133, 201, 90, 218, 110, 88, 11, 35, 141, 231, 33, 12, 85, 193, 246, 36,
+        123, 31, 16, 101, 38, 8, 10, 85,
     ]),
     CompressedRistretto([
-        70, 122, 19, 104, 23, 41, 249, 95, 206, 125, 54, 95, 126, 136, 57, 94, 54, 200, 73, 141, 40, 206, 124, 156,
-        224, 237, 133, 95, 3, 225, 220, 102,
+        122, 234, 197, 53, 77, 120, 8, 171, 35, 80, 105, 62, 45, 2, 30, 42, 99, 188, 47, 231, 194, 119, 210, 5, 107,
+        176, 108, 127, 141, 78, 6, 81,
     ]),
     CompressedRistretto([
-        212, 243, 209, 88, 16, 127, 237, 87, 22, 162, 111, 122, 214, 165, 70, 23, 71, 139, 35, 16, 187, 144, 228, 5,
-        182, 51, 244, 148, 184, 63, 222, 26,
+        228, 224, 63, 227, 33, 214, 87, 20, 172, 223, 193, 247, 88, 37, 111, 121, 204, 69, 49, 213, 30, 143, 121, 244,
+        15, 194, 105, 198, 196, 117, 160, 65,
     ]),
     CompressedRistretto([
-        106, 114, 88, 57, 144, 221, 187, 75, 248, 13, 1, 136, 214, 61, 106, 235, 221, 175, 66, 184, 107, 31, 113, 2,
-        142, 36, 210, 62, 91, 35, 45, 25,
+        136, 214, 134, 144, 253, 111, 238, 89, 110, 128, 92, 250, 34, 30, 126, 40, 119, 21, 166, 201, 46, 148, 100,
+        255, 196, 32, 172, 183, 12, 236, 51, 27,
     ]),
     CompressedRistretto([
-        206, 164, 160, 199, 62, 109, 174, 203, 69, 222, 211, 23, 80, 44, 161, 143, 118, 138, 145, 140, 51, 145, 84,
-        208, 173, 74, 97, 128, 193, 239, 30, 30,
+        204, 102, 24, 189, 15, 12, 192, 35, 132, 29, 173, 74, 19, 204, 46, 55, 166, 35, 14, 36, 48, 80, 214, 220, 196,
+        201, 49, 208, 70, 224, 234, 3,
     ]),
     CompressedRistretto([
-        218, 174, 170, 84, 178, 150, 240, 77, 72, 189, 188, 156, 46, 84, 202, 209, 80, 14, 212, 160, 195, 106, 149, 59,
-        173, 24, 184, 4, 233, 38, 232, 44,
+        96, 230, 255, 101, 87, 7, 198, 66, 73, 210, 250, 146, 78, 49, 146, 182, 149, 220, 88, 44, 180, 246, 214, 140,
+        180, 43, 155, 49, 24, 147, 237, 64,
     ]),
 ];
 
@@ -90,21 +89,21 @@ mod test {
 
     use crate::ristretto::constants::{RISTRETTO_NUMS_POINTS, RISTRETTO_NUMS_POINTS_COMPRESSED};
 
-    /// Generate a set of NUMS points by hashing domain separation labels and converting the hash output to a Ristretto
-    /// generator point. By using `RistrettoPoint::from_uniform_bytes`, the resulting point is a NUMS point if the input
-    /// bytes are from a uniform distribution.
+    /// Generate a set of NUMS points by sequentially hashing the Ristretto255 generator point. By using
+    /// `from_uniform_bytes`, the resulting point is a NUMS point if the input bytes are from a uniform distribution.
     fn nums_ristretto(n: usize) -> (Vec<RistrettoPoint>, Vec<CompressedRistretto>) {
+        let mut val = RISTRETTO_BASEPOINT_POINT.compress().to_bytes();
         let mut points = Vec::with_capacity(n);
         let mut compressed_points = Vec::with_capacity(n);
         let mut a: [u8; 64] = [0; 64];
-        for i in 0..n {
-            let mut data = b"TARI CRYPTO NUMS BASEPOINT LABEL - ".to_vec(); // Domain label
-            data.append(&mut i.to_le_bytes().to_vec()); // Append domain separated label counter
-            let hashed_v = Sha512::digest(&*data);
+        for _ in 0..n {
+            let hashed_v = Sha512::digest(&val[..]);
             a.copy_from_slice(&hashed_v);
             let next_val = RistrettoPoint::from_uniform_bytes(&a);
             points.push(next_val);
-            compressed_points.push(next_val.compress());
+            let next_compressed = next_val.compress();
+            val = next_compressed.to_bytes();
+            compressed_points.push(next_compressed);
         }
         (points, compressed_points)
     }
