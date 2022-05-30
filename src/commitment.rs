@@ -30,7 +30,7 @@ use serde::{Deserialize, Serialize};
 use tari_utilities::{ByteArray, ByteArrayError};
 
 use crate::{
-    errors::RangeProofError,
+    errors::CommitmentError,
     keys::{PublicKey, SecretKey},
 };
 
@@ -189,32 +189,32 @@ pub trait ExtendedHomomorphicCommitmentFactory {
 
     /// Create a new commitment with the blinding factor vector **k** and value _v_ provided. The implementing type will
     /// provide the base values
-    fn commit(
+    fn commit_extended(
         &self,
         k_vec: &[<Self::P as PublicKey>::K],
         v: &<Self::P as PublicKey>::K,
-    ) -> Result<HomomorphicCommitment<Self::P>, RangeProofError>;
+    ) -> Result<HomomorphicCommitment<Self::P>, CommitmentError>;
     /// Return an identity point for addition using the specified base points. This is a commitment to zero with a zero
     /// blinding factor vector on the base points
-    fn zero(&self) -> HomomorphicCommitment<Self::P>;
+    fn zero_extended(&self) -> HomomorphicCommitment<Self::P>;
     /// Test whether the given blinding factor vector **k** and value _v_ open the given commitment
-    fn open(
+    fn open_extended(
         &self,
         k_vec: &[<Self::P as PublicKey>::K],
         v: &<Self::P as PublicKey>::K,
         commitment: &HomomorphicCommitment<Self::P>,
-    ) -> Result<bool, RangeProofError>;
+    ) -> Result<bool, CommitmentError>;
     /// Create a commitment from a blinding factor vector **k** and an integer value
-    fn commit_value(
+    fn commit_value_extended(
         &self,
         k_vec: &[<Self::P as PublicKey>::K],
         value: u64,
-    ) -> Result<HomomorphicCommitment<Self::P>, RangeProofError>;
+    ) -> Result<HomomorphicCommitment<Self::P>, CommitmentError>;
     /// Test whether the given private keys and value open the given commitment
-    fn open_value(
+    fn open_value_extended(
         &self,
         k_vec: &[<Self::P as PublicKey>::K],
         v: u64,
         commitment: &HomomorphicCommitment<Self::P>,
-    ) -> Result<bool, RangeProofError>;
+    ) -> Result<bool, CommitmentError>;
 }

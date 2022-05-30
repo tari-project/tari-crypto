@@ -33,8 +33,12 @@ pub enum RangeProofError {
     InitializationError(String),
     #[error("Invalid range proof provided: `{0}`")]
     InvalidRangeProof(String),
-    #[error("Inconsistent extension degree: `{0}`")]
-    ExtensionDegree(String),
     #[error("Invalid range proof rewind, the rewind keys provided must be invalid")]
     InvalidRewind,
+}
+
+#[derive(Debug, Clone, Error, PartialEq, Deserialize, Serialize)]
+pub enum CommitmentError {
+    #[error("Inconsistent extension degree: `{0}`")]
+    ExtensionDegree(String),
 }

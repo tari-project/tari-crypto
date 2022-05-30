@@ -16,7 +16,7 @@ tari_utilities = { git = "https://github.com/tari-project/tari_utilities.git", t
 base64 = "0.10.1"
 blake2 = "0.9.1"
 bulletproofs = { package = "tari_bulletproofs", git = "https://github.com/tari-project/bulletproofs", tag = "v4.2.0" }
-bulletproofs_plus = { package = "tari_bulletproofs_plus", git = "https://github.com/tari-project/bulletproofs-plus", tag = "v0.0.1" }
+bulletproofs_plus = { package = "tari_bulletproofs_plus", git = "https://github.com/tari-project/bulletproofs-plus", tag = "v0.0.3" }
 curve25519-dalek = { package = "curve25519-dalek", version = "4.0.0-pre.2", default-features = false, features = ["serde", "alloc"] }
 digest = "0.9.0"
 getrandom = { version = "0.2.3", default-features = false, optional = true }

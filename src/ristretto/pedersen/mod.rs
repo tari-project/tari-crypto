@@ -136,7 +136,7 @@ mod test {
         let v = RistrettoSecretKey::random(&mut rng);
         let k = RistrettoSecretKey::random(&mut rng);
         let c_singular = factory_singular.commit(&k, &v);
-        let c_extended = factory_extended.commit(&[k], &v).unwrap();
+        let c_extended = factory_extended.commit_extended(&[k], &v).unwrap();
         assert_eq!(c_singular, c_extended);
     }
 }
