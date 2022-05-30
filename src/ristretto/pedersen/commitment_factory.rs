@@ -268,8 +268,8 @@ mod test {
         assert_eq!(&result, "b1b43e91f6d6109f");
 
         // Test 'Ord' and 'PartialOrd' implementations
-        let mut values = (value - 10..value).collect::<Vec<_>>();
-        values.extend((value + 1..value + 11).collect::<Vec<_>>());
+        let mut values = (value - 100..value).collect::<Vec<_>>();
+        values.extend((value + 1..value + 101).collect::<Vec<_>>());
         let (mut tested_less_than, mut tested_greater_than) = (false, false);
         for val in values {
             let c3 = factory.commit_value(&k, val);

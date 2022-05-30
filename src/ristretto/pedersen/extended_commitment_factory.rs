@@ -60,11 +60,11 @@ impl ExtendedPedersenCommitmentFactory {
         }
         let g_base_vec = std::iter::once(&RISTRETTO_PEDERSEN_G)
             .chain(RISTRETTO_NUMS_POINTS[1..extension_degree as usize].iter())
-            .cloned()
+            .copied()
             .collect();
         let g_base_compressed_vec = std::iter::once(&RISTRETTO_PEDERSEN_G_COMPRESSED)
             .chain(RISTRETTO_NUMS_POINTS_COMPRESSED[1..extension_degree as usize].iter())
-            .cloned()
+            .copied()
             .collect();
         Ok(Self(PedersenGens {
             h_base: *RISTRETTO_PEDERSEN_H,
@@ -442,8 +442,8 @@ mod test {
             }
 
             // Test 'Ord' and 'PartialOrd' implementations
-            let mut values = (value - 10..value).collect::<Vec<_>>();
-            values.extend((value + 1..value + 11).collect::<Vec<_>>());
+            let mut values = (value - 100..value).collect::<Vec<_>>();
+            values.extend((value + 1..value + 101).collect::<Vec<_>>());
             let (mut tested_less_than, mut tested_greater_than) = (false, false);
             for val in values {
                 let c3 = factory.commit_value(&k_vec, val).unwrap();
