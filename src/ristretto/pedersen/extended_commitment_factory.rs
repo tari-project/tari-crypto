@@ -21,7 +21,7 @@
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use bulletproofs_plus::{generators::pedersen_gens::ExtensionDegree, PedersenGens};
-use curve25519_dalek::{ristretto::RistrettoPoint, scalar::Scalar, traits::Identity};
+use curve25519_dalek::{ristretto::RistrettoPoint, traits::Identity};
 
 use crate::{
     commitment::{ExtendedHomomorphicCommitmentFactory, HomomorphicCommitment},
@@ -92,10 +92,7 @@ impl ExtendedHomomorphicCommitmentFactory for ExtendedPedersenCommitmentFactory 
         k_vec: &[RistrettoSecretKey],
         v: &RistrettoSecretKey,
     ) -> Result<PedersenCommitment, RangeProofError> {
-        let k_vec: Vec<Scalar> = k_vec.to_vec().iter().map(|k| k.0).collect();
-        let c = self
-            .0
-            .commit(v.0, &k_vec)
+        let c = self.0.commit(v, k_vec)
             .map_err(|e| RangeProofError::ExtensionDegree(e.to_string()))?;
         Ok(HomomorphicCommitment(RistrettoPublicKey::new_from_pk(c)))
     }
