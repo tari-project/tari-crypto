@@ -64,7 +64,6 @@ where T: Borrow<PedersenCommitment>
 
 #[cfg(test)]
 mod test {
-    use bulletproofs_plus::generators::pedersen_gens::ExtensionDegree;
     use tari_utilities::ByteArray;
 
     use crate::{
@@ -73,7 +72,7 @@ mod test {
         ristretto::{
             pedersen::{
                 commitment_factory::PedersenCommitmentFactory,
-                extended_commitment_factory::ExtendedPedersenCommitmentFactory,
+                extended_commitment_factory::{ExtendedPedersenCommitmentFactory, ExtensionDegree},
                 PedersenCommitment,
                 RISTRETTO_PEDERSEN_G,
                 RISTRETTO_PEDERSEN_H,
@@ -121,9 +120,9 @@ mod test {
     fn check_default_bases_between_factories() {
         let factory_singular = PedersenCommitmentFactory::default();
         let factory_extended = ExtendedPedersenCommitmentFactory::default();
-        assert_eq!(factory_extended.0.extension_degree, ExtensionDegree::Zero);
-        assert_eq!(factory_singular.G, factory_extended.0.g_base_vec[0]);
-        assert_eq!(factory_singular.H, factory_extended.0.h_base);
+        assert_eq!(factory_extended.extension_degree, ExtensionDegree::DefaultPedersen);
+        assert_eq!(factory_singular.G, factory_extended.g_base_vec[0]);
+        assert_eq!(factory_singular.H, factory_extended.h_base);
     }
 
     /// A PedersenCommitmentFactory commitment and ExtendedPedersenCommitmentFactory commitment of degree zero must be

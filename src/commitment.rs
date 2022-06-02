@@ -46,9 +46,9 @@ use crate::{
 /// The Homomorphic part means, more or less, that commitments follow some of the standard rules of
 /// arithmetic. Adding two commitments is the same as committing to the sum of their parts:
 /// $$ \begin{aligned}
-///   C_1 &= v_1.G + k_1.H \\\\
-///   C_2 &= v_2.G + k_2.H \\\\
-///   \therefore C_1 + C_2 &= (v_1 + v_2)G + (k_1 + k_2)H
+///   C_1 &= v_1.H + k_1.G \\\\
+///   C_2 &= v_2.H + k_2.G \\\\
+///   \therefore C_1 + C_2 &= (v_1 + v_2)H + (k_1 + k_2)G
 /// \end{aligned} $$
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct HomomorphicCommitment<P>(pub(crate) P);

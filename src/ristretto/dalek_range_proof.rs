@@ -103,8 +103,8 @@ impl RangeProofService for DalekRangeProofService {
 
 impl RewindableRangeProofService for DalekRangeProofService {
     type K = RistrettoSecretKey;
-    type P = Vec<u8>;
     type PK = RistrettoPublicKey;
+    type Proof = Vec<u8>;
 
     fn construct_proof_with_rewind_key(
         &self,
@@ -139,7 +139,7 @@ impl RewindableRangeProofService for DalekRangeProofService {
 
     fn rewind_proof_value_only(
         &self,
-        proof: &Self::P,
+        proof: &Self::Proof,
         commitment: &PedersenCommitment,
         rewind_public_key: &RistrettoPublicKey,
         rewind_blinding_public_key: &RistrettoPublicKey,
@@ -173,7 +173,7 @@ impl RewindableRangeProofService for DalekRangeProofService {
 
     fn rewind_proof_commitment_data(
         &self,
-        proof: &Self::P,
+        proof: &Self::Proof,
         commitment: &PedersenCommitment,
         rewind_key: &RistrettoSecretKey,
         rewind_blinding_key: &RistrettoSecretKey,

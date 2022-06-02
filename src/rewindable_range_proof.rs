@@ -29,7 +29,7 @@ use crate::{
 pub const REWIND_USER_MESSAGE_LENGTH: usize = 21;
 
 pub trait RewindableRangeProofService {
-    type P: Sized;
+    type Proof: Sized;
     type K: SecretKey;
     type PK: PublicKey<K = Self::K>;
 
@@ -43,12 +43,12 @@ pub trait RewindableRangeProofService {
         rewind_key: &Self::K,
         rewind_blinding_key: &Self::K,
         proof_message: &[u8; REWIND_USER_MESSAGE_LENGTH],
-    ) -> Result<Self::P, RangeProofError>;
+    ) -> Result<Self::Proof, RangeProofError>;
 
     /// Rewind a rewindable range proof to reveal the committed value and the 19 byte proof message.
     fn rewind_proof_value_only(
         &self,
-        proof: &Self::P,
+        proof: &Self::Proof,
         commitment: &HomomorphicCommitment<Self::PK>,
         rewind_public_key: &Self::PK,
         rewind_blinding_public_key: &Self::PK,
@@ -58,7 +58,7 @@ pub trait RewindableRangeProofService {
     /// message.
     fn rewind_proof_commitment_data(
         &self,
-        proof: &Self::P,
+        proof: &Self::Proof,
         commitment: &HomomorphicCommitment<Self::PK>,
         rewind_key: &Self::K,
         rewind_blinding_key: &Self::K,
