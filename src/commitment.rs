@@ -29,7 +29,10 @@ use std::{
 use serde::{Deserialize, Serialize};
 use tari_utilities::{ByteArray, ByteArrayError};
 
-use crate::keys::{PublicKey, SecretKey};
+use crate::{
+    errors::CommitmentError,
+    keys::{PublicKey, SecretKey},
+};
 
 /// A commitment is like a sealed envelope. You put some information inside the envelope, and then seal (commit) it.
 /// You can't change what you've said, but also, no-one knows what you've said until you're ready to open (open) the
@@ -43,9 +46,9 @@ use crate::keys::{PublicKey, SecretKey};
 /// The Homomorphic part means, more or less, that commitments follow some of the standard rules of
 /// arithmetic. Adding two commitments is the same as committing to the sum of their parts:
 /// $$ \begin{aligned}
-///   C_1 &= v_1.G + k_1.H \\\\
-///   C_2 &= v_2.G + k_2.H \\\\
-///   \therefore C_1 + C_2 &= (v_1 + v_2)G + (k_1 + k_2)H
+///   C_1 &= v_1.H + k_1.G \\\\
+///   C_2 &= v_2.H + k_2.G \\\\
+///   \therefore C_1 + C_2 &= (v_1 + v_2)H + (k_1 + k_2)G
 /// \end{aligned} $$
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct HomomorphicCommitment<P>(pub(crate) P);
@@ -162,21 +165,56 @@ impl<P: PublicKey> Eq for HomomorphicCommitment<P> {}
 pub trait HomomorphicCommitmentFactory {
     type P: PublicKey;
 
-    /// Create a new commitment with the blinding factor k and value v provided. The implementing type will provide the
-    /// base values
+    /// Create a new commitment with the blinding factor _k_ and value _v_ provided. The implementing type will provide
+    /// the base values
     fn commit(&self, k: &<Self::P as PublicKey>::K, v: &<Self::P as PublicKey>::K) -> HomomorphicCommitment<Self::P>;
-    /// return an identity point for addition using the specified base point. This is a commitment to zero with a zero
+    /// Return an identity point for addition using the specified base point. This is a commitment to zero with a zero
     /// blinding factor on the base point
     fn zero(&self) -> HomomorphicCommitment<Self::P>;
-    /// Test whether the given blinding factor k and value v open the given commitment
+    /// Test whether the given blinding factor _k_ and value _v_ open the given commitment
     fn open(
         &self,
         k: &<Self::P as PublicKey>::K,
         v: &<Self::P as PublicKey>::K,
         commitment: &HomomorphicCommitment<Self::P>,
     ) -> bool;
-    /// Create a commitment from a blinding factor k and a integer value
+    /// Create a commitment from a blinding factor _k_ and an integer value
     fn commit_value(&self, k: &<Self::P as PublicKey>::K, value: u64) -> HomomorphicCommitment<Self::P>;
     /// Test whether the given private key and value open the given commitment
     fn open_value(&self, k: &<Self::P as PublicKey>::K, v: u64, commitment: &HomomorphicCommitment<Self::P>) -> bool;
+}
+
+pub trait ExtendedHomomorphicCommitmentFactory {
+    type P: PublicKey;
+
+    /// Create a new commitment with the blinding factor vector **k** and value _v_ provided. The implementing type will
+    /// provide the base values
+    fn commit_extended(
+        &self,
+        k_vec: &[<Self::P as PublicKey>::K],
+        v: &<Self::P as PublicKey>::K,
+    ) -> Result<HomomorphicCommitment<Self::P>, CommitmentError>;
+    /// Return an identity point for addition using the specified base points. This is a commitment to zero with a zero
+    /// blinding factor vector on the base points
+    fn zero_extended(&self) -> HomomorphicCommitment<Self::P>;
+    /// Test whether the given blinding factor vector **k** and value _v_ open the given commitment
+    fn open_extended(
+        &self,
+        k_vec: &[<Self::P as PublicKey>::K],
+        v: &<Self::P as PublicKey>::K,
+        commitment: &HomomorphicCommitment<Self::P>,
+    ) -> Result<bool, CommitmentError>;
+    /// Create a commitment from a blinding factor vector **k** and an integer value
+    fn commit_value_extended(
+        &self,
+        k_vec: &[<Self::P as PublicKey>::K],
+        value: u64,
+    ) -> Result<HomomorphicCommitment<Self::P>, CommitmentError>;
+    /// Test whether the given private keys and value open the given commitment
+    fn open_value_extended(
+        &self,
+        k_vec: &[<Self::P as PublicKey>::K],
+        v: u64,
+        commitment: &HomomorphicCommitment<Self::P>,
+    ) -> Result<bool, CommitmentError>;
 }

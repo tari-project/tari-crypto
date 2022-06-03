@@ -34,7 +34,7 @@ use crate::{
     common::Blake256,
     keys::{PublicKey, SecretKey},
     ristretto::{
-        pedersen::{PedersenCommitment, PedersenCommitmentFactory},
+        pedersen::{commitment_factory::PedersenCommitmentFactory, PedersenCommitment},
         RistrettoComSig,
         RistrettoPublicKey,
         RistrettoSchnorr,

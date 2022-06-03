@@ -22,6 +22,7 @@
 
 //! The Tari-compatible implementation of Ristretto based on the curve25519-dalek implementation
 use std::{
+    borrow::Borrow,
     cmp::Ordering,
     fmt,
     fmt::Debug,
@@ -175,6 +176,14 @@ impl From<u64> for RistrettoSecretKey {
     fn from(v: u64) -> Self {
         let s = Scalar::from(v);
         RistrettoSecretKey(s)
+    }
+}
+
+//---------------------------------------------      Borrow impl     -------------------------------------------------//
+
+impl<'a> Borrow<Scalar> for &'a RistrettoSecretKey {
+    fn borrow(&self) -> &Scalar {
+        &self.0
     }
 }
 

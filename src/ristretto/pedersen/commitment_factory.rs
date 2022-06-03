@@ -20,26 +20,19 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use std::{borrow::Borrow, iter::Sum};
-
 use curve25519_dalek::{
-    constants::RISTRETTO_BASEPOINT_POINT,
     ristretto::RistrettoPoint,
-    scalar::Scalar,
-    traits::MultiscalarMul,
+    traits::{Identity, MultiscalarMul},
 };
 
 use crate::{
     commitment::{HomomorphicCommitment, HomomorphicCommitmentFactory},
-    ristretto::{constants::RISTRETTO_NUMS_POINTS, RistrettoPublicKey, RistrettoSecretKey},
+    ristretto::{
+        pedersen::{PedersenCommitment, RISTRETTO_PEDERSEN_G, RISTRETTO_PEDERSEN_H},
+        RistrettoPublicKey,
+        RistrettoSecretKey,
+    },
 };
-
-pub const RISTRETTO_PEDERSEN_G: RistrettoPoint = RISTRETTO_BASEPOINT_POINT;
-lazy_static! {
-    pub static ref RISTRETTO_PEDERSEN_H: RistrettoPoint = RISTRETTO_NUMS_POINTS[0];
-}
-
-pub type PedersenCommitment = HomomorphicCommitment<RistrettoPublicKey>;
 
 /// Generates Pederson commitments `k.G + v.H` using the provided base
 /// [RistrettoPoints](curve25519_dalek::ristretto::RistrettoPoints).
@@ -75,9 +68,7 @@ impl HomomorphicCommitmentFactory for PedersenCommitmentFactory {
     }
 
     fn zero(&self) -> PedersenCommitment {
-        let zero = Scalar::zero();
-        let c = RistrettoPoint::multiscalar_mul(&[zero, zero], &[self.H, self.G]);
-        HomomorphicCommitment(RistrettoPublicKey::new_from_pk(c))
+        HomomorphicCommitment(RistrettoPublicKey::new_from_pk(RistrettoPoint::identity()))
     }
 
     fn open(&self, k: &RistrettoSecretKey, v: &RistrettoSecretKey, commitment: &PedersenCommitment) -> bool {
@@ -90,24 +81,9 @@ impl HomomorphicCommitmentFactory for PedersenCommitmentFactory {
         self.commit(k, &v)
     }
 
-    fn open_value(&self, k: &RistrettoSecretKey, v: u64, commitment: &HomomorphicCommitment<Self::P>) -> bool {
+    fn open_value(&self, k: &RistrettoSecretKey, v: u64, commitment: &PedersenCommitment) -> bool {
         let kv = RistrettoSecretKey::from(v);
         self.open(k, &kv, commitment)
-    }
-}
-
-impl<T> Sum<T> for PedersenCommitment
-where T: Borrow<PedersenCommitment>
-{
-    fn sum<I>(iter: I) -> Self
-    where I: Iterator<Item = T> {
-        let mut total = RistrettoPoint::default();
-        for c in iter {
-            let commitment = c.borrow();
-            total += RistrettoPoint::from(&commitment.0);
-        }
-        let sum = RistrettoPublicKey::new_from_pk(total);
-        HomomorphicCommitment(sum)
     }
 }
 
@@ -119,10 +95,15 @@ mod test {
         hash::{Hash, Hasher},
     };
 
-    use tari_utilities::{message_format::MessageFormat, ByteArray};
+    use curve25519_dalek::scalar::Scalar;
+    use tari_utilities::message_format::MessageFormat;
 
     use super::*;
-    use crate::keys::{PublicKey, SecretKey};
+    use crate::{
+        commitment::HomomorphicCommitmentFactory,
+        keys::{PublicKey, SecretKey},
+        ristretto::{pedersen::commitment_factory::PedersenCommitmentFactory, RistrettoSecretKey},
+    };
 
     #[test]
     fn check_default_base() {
@@ -132,30 +113,17 @@ mod test {
     }
 
     #[test]
-    fn pubkey_roundtrip() {
-        let mut rng = rand::thread_rng();
-        let (_, p) = RistrettoPublicKey::random_keypair(&mut rng);
-        let c = PedersenCommitment::from_public_key(&p);
-        assert_eq!(c.as_public_key(), &p);
-        let c2 = PedersenCommitment::from_bytes(c.as_bytes()).unwrap();
-        assert_eq!(c, c2);
-    }
-
-    #[test]
-    fn commitment_sub() {
-        let mut rng = rand::thread_rng();
-        let (_, a) = RistrettoPublicKey::random_keypair(&mut rng);
-        let (_, b) = RistrettoPublicKey::random_keypair(&mut rng);
-        let c = &a + &b;
-        let a = PedersenCommitment::from_public_key(&a);
-        let b = PedersenCommitment::from_public_key(&b);
-        let c = PedersenCommitment::from_public_key(&c);
-        assert_eq!(b, &c - &a);
-    }
-
-    #[test]
-    fn check_g_ne_h() {
-        assert_ne!(RISTRETTO_PEDERSEN_G, *RISTRETTO_PEDERSEN_H);
+    /// Verify that the identity point is equal to a commitment to zero with a zero blinding factor on the base point
+    fn check_zero() {
+        let c = RistrettoPoint::multiscalar_mul(&[Scalar::zero(), Scalar::zero()], &[
+            RISTRETTO_PEDERSEN_G,
+            *RISTRETTO_PEDERSEN_H,
+        ]);
+        let factory = PedersenCommitmentFactory::default();
+        assert_eq!(
+            HomomorphicCommitment(RistrettoPublicKey::new_from_pk(c)),
+            PedersenCommitmentFactory::zero(&factory)
+        );
     }
 
     /// Simple test for open: Generate 100 random sets of scalars and calculate the Pedersen commitment for them.
@@ -231,6 +199,12 @@ mod test {
         assert!(factory.open(&(&k1 + &k2), &v1, &c2));
     }
 
+    /// Test addition of individual homomorphic commitments to be equal to a single vector homomorphic commitment.
+    /// $$
+    ///   sum(C_j) = sum((v.H + k.G)_j) = sum(v_j).H + sum(k_j).G
+    /// $$
+    /// and
+    /// `open(sum(k_j), sum(v_j))` is true for `sum(C_j)`
     #[test]
     fn sum_commitment_vector() {
         let mut rng = rand::thread_rng();
@@ -275,31 +249,51 @@ mod test {
     fn derived_methods() {
         let factory = PedersenCommitmentFactory::default();
         let k = RistrettoSecretKey::from(1024);
-        let c1 = factory.commit_value(&k, 2048);
-        // Test Debug impl
+        let value = 2048;
+        let c1 = factory.commit_value(&k, value);
+
+        // Test 'Debug' implementation
         assert_eq!(
             format!("{:?}", c1),
             "HomomorphicCommitment(f09a7f46c5e3cbadc4c1e84c10278cffab2cb902f7b6f37223c88dd548877a6a)"
         );
-        // test Clone impl
+        // Test 'Clone' implementation
         let c2 = c1.clone();
         assert_eq!(c1, c2);
-        // test hash impl
+
+        // Test hash implementation
         let mut hasher = DefaultHasher::new();
         c1.hash(&mut hasher);
         let result = format!("{:x}", hasher.finish());
         assert_eq!(&result, "b1b43e91f6d6109f");
-        // test Ord and PartialOrd impl
-        let c3 = factory.commit_value(&k, 2049);
-        assert!(c2 > c3);
-        assert!(c2 != c3);
-        assert!(c3 < c2);
-        assert!(matches!(c2.cmp(&c3), std::cmp::Ordering::Greater));
-    }
 
-    #[test]
-    fn default_value() {
-        let c = PedersenCommitment::default();
-        assert_eq!(c, PedersenCommitment::from_public_key(&RistrettoPublicKey::default()));
+        // Test 'Ord' and 'PartialOrd' implementations
+        let mut values = (value - 100..value).collect::<Vec<_>>();
+        values.extend((value + 1..value + 101).collect::<Vec<_>>());
+        let (mut tested_less_than, mut tested_greater_than) = (false, false);
+        for val in values {
+            let c3 = factory.commit_value(&k, val);
+            assert_ne!(c2, c3);
+            assert_ne!(c2.cmp(&c3), c3.cmp(&c2));
+            if c2 > c3 {
+                assert!(c3 < c2);
+                assert!(matches!(c2.cmp(&c3), std::cmp::Ordering::Greater));
+                assert!(matches!(c3.cmp(&c2), std::cmp::Ordering::Less));
+                tested_less_than = true;
+            }
+            if c2 < c3 {
+                assert!(c3 > c2);
+                assert!(matches!(c2.cmp(&c3), std::cmp::Ordering::Less));
+                assert!(matches!(c3.cmp(&c2), std::cmp::Ordering::Greater));
+                tested_greater_than = true;
+            }
+            if tested_less_than && tested_greater_than {
+                break;
+            }
+        }
+        assert!(
+            tested_less_than && tested_greater_than,
+            "Try extending the range of values to compare"
+        );
     }
 }

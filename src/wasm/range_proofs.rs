@@ -28,7 +28,7 @@ use crate::{
     range_proof::RangeProofService,
     ristretto::{
         dalek_range_proof::DalekRangeProofService,
-        pedersen::{PedersenCommitment, PedersenCommitmentFactory},
+        pedersen::{commitment_factory::PedersenCommitmentFactory, PedersenCommitment},
         RistrettoSecretKey,
     },
     tari_utilities::hex::from_hex,

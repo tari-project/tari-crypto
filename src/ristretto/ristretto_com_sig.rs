@@ -58,6 +58,8 @@ use crate::{
 /// # use digest::Digest;
 /// # use tari_crypto::commitment::HomomorphicCommitmentFactory;
 /// # use tari_crypto::ristretto::pedersen::*;
+/// use tari_crypto::ristretto::pedersen::commitment_factory::PedersenCommitmentFactory;
+/// use tari_utilities::hex::Hex;
 ///
 /// let mut rng = rand::thread_rng();
 /// let a_val = RistrettoSecretKey::random(&mut rng);
@@ -67,7 +69,9 @@ use crate::{
 /// let e = Blake256::digest(b"Maskerade");
 /// let factory = PedersenCommitmentFactory::default();
 /// let commitment = factory.commit(&x_val, &a_val);
+/// // println!("commitment: {:?}", commitment.to_hex());
 /// let sig = RistrettoComSig::sign(&a_val, &x_val, &a_nonce, &x_nonce, &e, &factory).unwrap();
+/// // println!("sig: R {:?} u {:?} v {:?}", sig.public_nonce().to_hex(), sig.u().to_hex(), sig.v().to_hex());
 /// assert!(sig.verify_challenge(&commitment, &e, &factory));
 /// ```
 ///
@@ -85,6 +89,7 @@ use crate::{
 /// # use tari_utilities::hex::*;
 /// # use tari_utilities::ByteArray;
 /// # use digest::Digest;
+/// use tari_crypto::ristretto::pedersen::commitment_factory::PedersenCommitmentFactory;
 ///
 /// let commitment =
 ///     HomomorphicCommitment::from_hex("d6cca5cc4cc302c1854a118221d6cf64d100b7da76665dae5199368f3703c665").unwrap();
@@ -109,7 +114,7 @@ mod test {
         common::Blake256,
         keys::{PublicKey, SecretKey},
         ristretto::{
-            pedersen::{PedersenCommitment, PedersenCommitmentFactory},
+            pedersen::{commitment_factory::PedersenCommitmentFactory, PedersenCommitment},
             RistrettoComSig,
             RistrettoPublicKey,
             RistrettoSecretKey,

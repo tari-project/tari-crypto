@@ -25,14 +25,20 @@ use thiserror::Error;
 
 #[derive(Debug, Clone, Error, PartialEq, Deserialize, Serialize)]
 pub enum RangeProofError {
-    #[error("Could not construct range proof")]
-    ProofConstructionError,
+    #[error("Could not construct range proof: `{0}`")]
+    ProofConstructionError(String),
     #[error("The deserialization of the range proof failed")]
     InvalidProof,
-    #[error("Invalid input was provided to the RangeProofService constructor")]
-    InitializationError,
-    #[error("Invalid range proof provided")]
-    InvalidRangeProof,
+    #[error("Invalid input was provided to the RangeProofService constructor: `{0}`")]
+    InitializationError(String),
+    #[error("Invalid range proof provided: `{0}`")]
+    InvalidRangeProof(String),
     #[error("Invalid range proof rewind, the rewind keys provided must be invalid")]
     InvalidRewind,
+}
+
+#[derive(Debug, Clone, Error, PartialEq, Deserialize, Serialize)]
+pub enum CommitmentError {
+    #[error("Inconsistent extension degree: `{0}`")]
+    ExtensionDegree(String),
 }

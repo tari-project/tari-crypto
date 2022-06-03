@@ -79,13 +79,10 @@ lazy_static! {
     };
 }
 
-/// The NUMS Ristretto point `H`
-pub const RISTRETTO_PEDERSEN_H: CompressedRistretto = RISTRETTO_NUMS_POINTS_COMPRESSED[0];
-
 #[cfg(test)]
 mod test {
     use curve25519_dalek::{
-        constants::RISTRETTO_BASEPOINT_POINT,
+        constants::{RISTRETTO_BASEPOINT_COMPRESSED, RISTRETTO_BASEPOINT_POINT},
         ristretto::{CompressedRistretto, RistrettoPoint},
     };
     use sha2::{Digest, Sha512};
@@ -112,14 +109,26 @@ mod test {
     }
 
     /// Confirm that the [RISTRETTO_NUM_POINTS array](Const.RISTRETTO_NUMS_POINTS.html) is generated with Nothing Up
-    /// My Sleeve (NUMS).
+    /// My Sleeve (NUMS), unique, not equal to the identity value and not equal to the Ristretto base point.
     #[test]
     pub fn check_nums_points() {
         let n = RISTRETTO_NUMS_POINTS_COMPRESSED.len();
-        let v_arr = nums_ristretto(n);
+        let calculated_nums_points = nums_ristretto(n);
         for i in 0..n {
-            assert_eq!(v_arr.0[i], RISTRETTO_NUMS_POINTS[i]);
-            assert_eq!(v_arr.1[i], RISTRETTO_NUMS_POINTS_COMPRESSED[i]);
+            // Should be equal to the NUMS constants
+            assert_eq!(calculated_nums_points.0[i], RISTRETTO_NUMS_POINTS[i]);
+            assert_eq!(calculated_nums_points.1[i], RISTRETTO_NUMS_POINTS_COMPRESSED[i]);
+            // Should not be equal to the identity values
+            assert_ne!(RistrettoPoint::default(), RISTRETTO_NUMS_POINTS[i]);
+            assert_ne!(CompressedRistretto::default(), RISTRETTO_NUMS_POINTS_COMPRESSED[i]);
+            // Should not be equal to the Ristretto base point
+            assert_ne!(RISTRETTO_BASEPOINT_POINT, RISTRETTO_NUMS_POINTS[i]);
+            assert_ne!(RISTRETTO_BASEPOINT_COMPRESSED, RISTRETTO_NUMS_POINTS_COMPRESSED[i]);
+            // Should all be unique
+            for j in i + 1..n {
+                assert_ne!(RISTRETTO_NUMS_POINTS[i], RISTRETTO_NUMS_POINTS[j]);
+                assert_ne!(RISTRETTO_NUMS_POINTS_COMPRESSED[i], RISTRETTO_NUMS_POINTS_COMPRESSED[j]);
+            }
         }
     }
 }
