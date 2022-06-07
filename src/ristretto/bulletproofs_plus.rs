@@ -385,20 +385,27 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
         };
     }
 
-    fn verify_mask_against_commitment(
+    fn verify_mask(
         &self,
-        _commitment: &HomomorphicCommitment<Self::PK>,
-        _extended_mask: &RistrettoExtendedMask,
-        _value: u64,
+        commitment: &HomomorphicCommitment<Self::PK>,
+        extended_mask: &RistrettoExtendedMask,
+        value: u64,
     ) -> Result<bool, RangeProofError> {
-        // TODO: complete this
-        Ok(true)
+        match self
+            .generators
+            .pc_gens()
+            .commit(&Scalar::from(value), &extended_mask.as_scalar()?)
+            .map_err(|e| RangeProofError::ExtensionDegree(e.to_string()))
+        {
+            Ok(val) => Ok(val == commitment.0.point()),
+            Err(e) => Err(e),
+        }
     }
 }
 
 #[cfg(test)]
 mod test {
-    use std::borrow::Borrow;
+    use std::{borrow::Borrow, collections::HashMap};
 
     use bulletproofs_plus::protocols::scalar_protocol::ScalarProtocol;
     use curve25519_dalek::scalar::Scalar;
@@ -480,6 +487,7 @@ mod test {
     }
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn test_construct_verify_extended_proof() {
         static BIT_LENGTH: [usize; 2] = [2, 64];
         static AGGREGATION_SIZE: [usize; 2] = [2, 64];
@@ -497,6 +505,8 @@ mod test {
                 let mut proofs = vec![];
                 let mut statements_private = vec![];
                 let mut statements_public = vec![];
+                #[allow(clippy::mutable_key_type)]
+                let mut commitment_value_map_private = HashMap::new();
 
                 #[allow(clippy::cast_possible_truncation)]
                 let (value_min, value_max) = (0u64, (1u128 << (bit_length - 1)) as u64);
@@ -522,7 +532,8 @@ mod test {
                             vec![RistrettoSecretKey(Scalar::random_not_zero(&mut rng)); extension_degree as usize];
                         let extended_mask = RistrettoExtendedMask::assign(extension_degree, blindings.clone()).unwrap();
                         masks.push(extended_mask.clone());
-                        commitments.push(pc_gens.commit_value_extended(&blindings, value).unwrap());
+                        let commitment = pc_gens.commit_value_extended(&blindings, value).unwrap();
+                        commitments.push(commitment.clone());
                         if m == 0 {
                             if aggregation_size == 1 {
                                 private_masks.push(Some(extended_mask));
@@ -532,6 +543,7 @@ mod test {
                                 public_masks.push(None);
                             }
                         }
+                        commitment_value_map_private.insert(commitment, value);
                     }
 
                     // 3. Generate the statement
@@ -576,6 +588,17 @@ mod test {
                             .recover_mask(proof, &statements_private[i])
                             .unwrap();
                         assert_eq!(private_masks[i], recovered_private_mask);
+                        for commitment in &statements_private[i].commitments {
+                            if let Some(this_mask) = recovered_private_mask.clone() {
+                                assert!(bulletproofs_plus_service
+                                    .verify_mask(
+                                        commitment,
+                                        &this_mask,
+                                        *commitment_value_map_private.get(commitment).unwrap()
+                                    )
+                                    .unwrap());
+                            }
+                        }
                     }
                     // --- Recover the masks and verify the proofs
                     let statements_ref = statements_private.iter().collect::<Vec<_>>();
@@ -584,6 +607,19 @@ mod test {
                         .verify_batch_and_recover_masks(proofs_ref.clone(), statements_ref.clone())
                         .unwrap();
                     assert_eq!(private_masks, recovered_private_masks);
+                    for (index, statement) in statements_private.iter().enumerate() {
+                        for commitment in &statement.commitments {
+                            if let Some(this_mask) = recovered_private_masks[index].clone() {
+                                assert!(bulletproofs_plus_service
+                                    .verify_mask(
+                                        commitment,
+                                        &this_mask,
+                                        *commitment_value_map_private.get(commitment).unwrap()
+                                    )
+                                    .unwrap());
+                            }
+                        }
+                    }
 
                     // // 7. Verify the entire batch as public entity
                     let statements_ref = statements_public.iter().collect::<Vec<_>>();

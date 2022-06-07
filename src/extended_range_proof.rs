@@ -73,7 +73,7 @@ pub trait ExtendedRangeProofService {
     ) -> Result<Option<ExtendedMask<Self::K>>, RangeProofError>;
 
     /// Verify a recovered mask for a non-aggregated proof against the commitment.
-    fn verify_mask_against_commitment(
+    fn verify_mask(
         &self,
         commitment: &HomomorphicCommitment<Self::PK>,
         extended_mask: &ExtendedMask<Self::K>,
