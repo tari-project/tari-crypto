@@ -56,7 +56,7 @@ pub struct BulletproofsPlusService {
 }
 
 pub type RistrettoExtendedMask = extended_range_proof::ExtendedMask<RistrettoSecretKey>;
-pub type RistrettoExtendedStatement = ExtendedStatement<RistrettoSecretKey, RistrettoPublicKey>;
+pub type RistrettoExtendedStatement = ExtendedStatement<RistrettoPublicKey>;
 pub type BulletproofsPlusRistrettoPedersenGens = PedersenGens<RistrettoPoint>;
 
 impl RistrettoExtendedMask {

@@ -53,7 +53,7 @@ pub trait ExtendedRangeProofService {
     fn verify_batch_and_recover_masks(
         &self,
         proofs: Vec<&Self::Proof>,
-        statements: Vec<&ExtendedStatement<Self::K, Self::PK>>,
+        statements: Vec<&ExtendedStatement<Self::PK>>,
     ) -> Result<Vec<Option<ExtendedMask<Self::K>>>, RangeProofError>;
 
     /// Verify the batch of range proofs against the given commitments and optional minimum value promises. If this
@@ -62,14 +62,14 @@ pub trait ExtendedRangeProofService {
     fn verify_batch(
         &self,
         proofs: Vec<&Self::Proof>,
-        statements: Vec<&ExtendedStatement<Self::K, Self::PK>>,
+        statements: Vec<&ExtendedStatement<Self::PK>>,
     ) -> Result<(), RangeProofError>;
 
     /// Recover the (unverified) mask for a non-aggregated proof using the provided seed-nonce.
     fn recover_mask(
         &self,
         proof: &Self::Proof,
-        statement: &ExtendedStatement<Self::K, Self::PK>,
+        statement: &ExtendedStatement<Self::PK>,
     ) -> Result<Option<ExtendedMask<Self::K>>, RangeProofError>;
 
     /// Verify a recovered mask for a non-aggregated proof against the commitment.
@@ -118,30 +118,26 @@ where K: SecretKey
 /// The range proof statement contains thevector of commitments, vector of optional minimum promised
 /// values and a vector of optional seed nonces for mask recovery
 #[derive(Clone)]
-pub struct ExtendedStatement<K, PK>
-where
-    K: SecretKey,
-    PK: PublicKey<K = K>,
+pub struct ExtendedStatement<PK>
+where PK: PublicKey
 {
     /// The aggregated commitments
     pub commitments: Vec<HomomorphicCommitment<PK>>,
     /// Optional minimum promised values
     pub minimum_value_promises: Vec<Option<u64>>,
     /// Optional seed nonce for mask recovery
-    pub seed_nonce: Option<K>,
+    pub seed_nonce: Option<PK::K>,
 }
 
-impl<K, PK> ExtendedStatement<K, PK>
-where
-    K: SecretKey,
-    PK: PublicKey<K = K>,
+impl<PK> ExtendedStatement<PK>
+where PK: PublicKey
 {
     /// Initialize a new 'ExtendedStatement' with sanity checks
     #[allow(dead_code)]
     pub fn init(
         commitments: Vec<HomomorphicCommitment<PK>>,
         minimum_value_promises: Vec<Option<u64>>,
-        seed_nonce: Option<K>,
+        seed_nonce: Option<PK::K>,
     ) -> Result<Self, RangeProofError> {
         if !commitments.len().is_power_of_two() {
             return Err(RangeProofError::InitializationError(
