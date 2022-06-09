@@ -133,7 +133,6 @@ impl<PK> ExtendedStatement<PK>
 where PK: PublicKey
 {
     /// Initialize a new 'ExtendedStatement' with sanity checks
-    #[allow(dead_code)]
     pub fn init(
         commitments: Vec<HomomorphicCommitment<PK>>,
         minimum_value_promises: Vec<Option<u64>>,

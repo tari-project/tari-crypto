@@ -20,6 +20,7 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+pub mod bulletproofs_plus;
 pub mod constants;
 pub mod dalek_range_proof;
 #[cfg(feature = "musig")]
@@ -39,6 +40,5 @@ pub use self::{
 };
 
 // test modules
-mod bulletproofs_plus;
 #[cfg(test)]
 mod test_common;

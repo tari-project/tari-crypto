@@ -61,7 +61,6 @@ pub type BulletproofsPlusRistrettoPedersenGens = PedersenGens<RistrettoPoint>;
 
 impl RistrettoExtendedMask {
     /// Helper function to converts a RistrettoExtendedMask to a BulletproofsExtendedMask
-    #[allow(dead_code)]
     pub fn convert_to(&self) -> Result<BulletproofsExtendedMask, RangeProofError> {
         let extension_degree = BulletproofsExtensionDegree::try_from_size(self.blindings()?.len())
             .map_err(|e| RangeProofError::ExtensionDegree(e.to_string()))?;
@@ -90,7 +89,6 @@ impl RistrettoExtendedMask {
 impl BulletproofsPlusService {
     /// Create a new BulletProofsPlusService containing the generators - this will err if each of 'bit_length' and
     /// 'aggregation_factor' is not a power of two
-    #[allow(dead_code)]
     pub fn init(
         bit_length: usize,
         aggregation_factor: usize,
@@ -111,13 +109,11 @@ impl BulletproofsPlusService {
     }
 
     /// Use a custom domain separated transcript label
-    #[allow(dead_code)]
     pub fn custom_transcript_label(&mut self, transcript_label: &'static str) {
         self.transcript_label = transcript_label;
     }
 
     /// Helper function to return the serialized proof's extension degree
-    #[allow(dead_code)]
     pub fn extension_degree(serialized_proof: &[u8]) -> Result<RistrettoExtensionDegree, RangeProofError> {
         let extension_degree = RistrettoRangeProof::extension_degree_from_proof_bytes(serialized_proof)
             .map_err(|e| RangeProofError::InvalidRangeProof(e.to_string()))?;
