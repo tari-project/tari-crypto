@@ -39,9 +39,7 @@ pub trait ExtendedRangeProofService {
     /// promise and lies in the range determined by the service.
     fn construct_extended_proof(
         &self,
-        masks: Vec<ExtendedMask<Self::K>>,
-        values: Vec<u64>,
-        min_value_promises: Vec<Option<u64>>,
+        extended_witnesses: Vec<ExtendedWitness<Self::K>>,
         seed_nonce: Option<Self::K>,
     ) -> Result<Self::Proof, RangeProofError>;
 
@@ -50,10 +48,14 @@ pub trait ExtendedRangeProofService {
     /// the batch of commitments having values in the range [min_val_promise; 2^64-1] and  that the provers knew both
     /// the values and private keys for those commitments. Returned values other than 'None' indicates unverified masks
     /// for a non-aggregated proof.
+    /// Note:
+    ///   Batch recovery of masks is more expensive than linear mask recovery for the same amount of proofs, so
+    ///   that is not promoted. The primary action here is batch verification at a logarithmic cost, with the
+    ///   additional benefit to recover masks at an added linear cost.
     fn verify_batch_and_recover_masks(
         &self,
         proofs: Vec<&Self::Proof>,
-        statements: Vec<&ExtendedStatement<Self::PK>>,
+        statements: Vec<&AggregatedPrivateStatement<Self::PK>>,
     ) -> Result<Vec<Option<ExtendedMask<Self::K>>>, RangeProofError>;
 
     /// Verify the batch of range proofs against the given commitments and optional minimum value promises. If this
@@ -62,14 +64,14 @@ pub trait ExtendedRangeProofService {
     fn verify_batch(
         &self,
         proofs: Vec<&Self::Proof>,
-        statements: Vec<&ExtendedStatement<Self::PK>>,
+        statements: Vec<&AggregatedPublicStatement<Self::PK>>,
     ) -> Result<(), RangeProofError>;
 
     /// Recover the (unverified) mask for a non-aggregated proof using the provided seed-nonce.
     fn recover_mask(
         &self,
         proof: &Self::Proof,
-        statement: &ExtendedStatement<Self::PK>,
+        statement: &AggregatedPrivateStatement<Self::PK>,
     ) -> Result<Option<ExtendedMask<Self::K>>, RangeProofError>;
 
     /// Verify a recovered mask for a non-aggregated proof against the commitment.
@@ -81,82 +83,132 @@ pub trait ExtendedRangeProofService {
     ) -> Result<bool, RangeProofError>;
 }
 
-/// Rewind data extracted from a range proof containing the mask (e.g. blinding factor).
+/// Extended blinding factor vector used as part of the witness to construct an extended proof, or rewind data
+/// extracted from a range proof containing the mask (e.g. blinding factor vector).
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExtendedMask<K>
 where K: SecretKey
 {
-    blindings: Vec<K>,
+    secrets: Vec<K>,
 }
 
 impl<K> ExtendedMask<K>
 where K: SecretKey
 {
     /// Construct a new extended mask
-    pub fn assign(extension_degree: ExtensionDegree, blindings: Vec<K>) -> Result<ExtendedMask<K>, RangeProofError> {
-        if blindings.is_empty() || blindings.len() != extension_degree as usize {
+    pub fn assign(extension_degree: ExtensionDegree, secrets: Vec<K>) -> Result<ExtendedMask<K>, RangeProofError> {
+        if secrets.is_empty() || secrets.len() != extension_degree as usize {
             Err(RangeProofError::InitializationError(
                 "Extended mask length must correspond to the extension degree".to_string(),
             ))
         } else {
-            Ok(Self { blindings })
+            Ok(Self { secrets })
         }
     }
 
-    /// Return the extended mask blinding factors
-    pub fn blindings(&self) -> Result<Vec<K>, RangeProofError> {
-        if self.blindings.is_empty() {
-            Err(RangeProofError::InitializationError(
-                "Extended mask values not assigned yet".to_string(),
-            ))
-        } else {
-            Ok(self.blindings.clone())
-        }
+    /// Return the extended mask secrets
+    pub fn secrets(&self) -> Vec<K> {
+        self.secrets.clone()
     }
 }
 
-/// The range proof statement contains thevector of commitments, vector of optional minimum promised
-/// values and a vector of optional seed nonces for mask recovery
+/// The public statement contains the commitment and an optional minimum promised value
 #[derive(Clone)]
-pub struct ExtendedStatement<PK>
+pub struct Statement<PK>
 where PK: PublicKey
 {
-    /// The aggregated commitments
-    pub commitments: Vec<HomomorphicCommitment<PK>>,
-    /// Optional minimum promised values
-    pub minimum_value_promises: Vec<Option<u64>>,
-    /// Optional seed nonce for mask recovery
-    pub seed_nonce: Option<PK::K>,
+    /// The commitments
+    pub commitment: HomomorphicCommitment<PK>,
+    /// Optional minimum promised value
+    pub minimum_value_promise: Option<u64>,
 }
 
-impl<PK> ExtendedStatement<PK>
+/// The aggregated public range proof statement contains the vector of commitments and a vector of optional minimum
+/// promised values
+#[derive(Clone)]
+pub struct AggregatedPublicStatement<PK>
 where PK: PublicKey
 {
-    /// Initialize a new 'ExtendedStatement' with sanity checks
-    pub fn init(
-        commitments: Vec<HomomorphicCommitment<PK>>,
-        minimum_value_promises: Vec<Option<u64>>,
-        seed_nonce: Option<PK::K>,
-    ) -> Result<Self, RangeProofError> {
-        if !commitments.len().is_power_of_two() {
+    /// The aggregated statement
+    pub statements: Vec<Statement<PK>>,
+}
+
+impl<PK> AggregatedPublicStatement<PK>
+where PK: PublicKey
+{
+    /// Initialize a new public 'ExtendedStatement' with sanity checks:
+    /// - `commitments` must be a power of 2 as mandated by the `bulletproofs_plus` implementation
+    /// - `minimum_value_promises` must the same length as `commitments` as you need one for each
+    pub fn init(statements: Vec<Statement<PK>>) -> Result<Self, RangeProofError> {
+        if !statements.len().is_power_of_two() {
             return Err(RangeProofError::InitializationError(
                 "Number of commitments must be a power of two".to_string(),
             ));
         }
-        if !minimum_value_promises.len() == commitments.len() {
-            return Err(RangeProofError::InitializationError(
-                "Incorrect number of minimum value promises".to_string(),
-            ));
-        }
-        if seed_nonce.is_some() && commitments.len() > 1 {
+        Ok(Self { statements })
+    }
+}
+
+/// The aggregated private range proof statement contains the public range proof statement and an optional seed nonce
+/// for mask recovery
+#[derive(Clone)]
+pub struct AggregatedPrivateStatement<PK>
+where PK: PublicKey
+{
+    /// The aggregated commitments and optional minimum promised values
+    pub statements: Vec<Statement<PK>>,
+    /// Optional private seed nonce for mask recovery
+    pub recovery_seed_nonce: Option<PK::K>,
+}
+
+impl<PK> AggregatedPrivateStatement<PK>
+where PK: PublicKey
+{
+    /// Initialize a new private 'ExtendedStatement' with sanity checks that supports recovery:
+    /// - `commitments` must be a power of 2 as mandated by the `bulletproofs_plus` implementation
+    /// - `minimum_value_promises` must the same length as `commitments` as you need one for each
+    /// - mask recovery is not supported with an aggregated statement/proof
+    pub fn init(statements: Vec<Statement<PK>>, recovery_seed_nonce: Option<PK::K>) -> Result<Self, RangeProofError> {
+        if recovery_seed_nonce.is_some() && statements.len() > 1 {
             return Err(RangeProofError::InitializationError(
                 "Mask recovery is not supported with an aggregated statement".to_string(),
             ));
         }
+        if !statements.len().is_power_of_two() {
+            return Err(RangeProofError::InitializationError(
+                "Number of commitments must be a power of two".to_string(),
+            ));
+        }
         Ok(Self {
-            commitments,
-            minimum_value_promises,
-            seed_nonce,
+            statements,
+            recovery_seed_nonce,
         })
+    }
+}
+
+/// The private range proof statement contains the public range proof statement and an optional seed nonce for mask
+/// recovery
+#[derive(Clone)]
+pub struct ExtendedWitness<K>
+where K: SecretKey
+{
+    /// Extended blinding factors of the commitment
+    pub mask: ExtendedMask<K>,
+    /// Value of the commitment
+    pub value: u64,
+    /// Optional minimum promised values
+    pub minimum_value_promise: Option<u64>,
+}
+
+impl<K> ExtendedWitness<K>
+where K: SecretKey
+{
+    /// Create a new private 'ExtendedWitness' to construct an extended proof
+    pub fn new(mask: ExtendedMask<K>, value: u64, minimum_value_promise: Option<u64>) -> Self {
+        Self {
+            mask,
+            value,
+            minimum_value_promise,
+        }
     }
 }

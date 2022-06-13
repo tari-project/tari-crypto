@@ -97,13 +97,19 @@ impl ExtendedPedersenCommitmentFactory {
     }
 
     /// Creates a Pedersen commitment using the value scalar and a blinding factor vector
-    pub fn commit_scalars(&self, value: &Scalar, blindings: &[Scalar]) -> Result<RistrettoPoint, CommitmentError>
-    where for<'a> &'a Scalar: Borrow<Scalar> {
-        if blindings.is_empty() || blindings.len() > self.extension_degree as usize {
+    pub fn commit_scalars(
+        &self,
+        value: &Scalar,
+        blinding_factors: &[Scalar],
+    ) -> Result<RistrettoPoint, CommitmentError>
+    where
+        for<'a> &'a Scalar: Borrow<Scalar>,
+    {
+        if blinding_factors.is_empty() || blinding_factors.len() > self.extension_degree as usize {
             Err(CommitmentError::ExtensionDegree("blinding vector".to_string()))
         } else {
-            let scalars = once(value).chain(blindings);
-            let g_base_head = self.g_base_vec.iter().take(blindings.len());
+            let scalars = once(value).chain(blinding_factors);
+            let g_base_head = self.g_base_vec.iter().take(blinding_factors.len());
             let points = once(&self.h_base).chain(g_base_head);
             Ok(RistrettoPoint::multiscalar_mul(scalars, points))
         }
@@ -157,8 +163,8 @@ impl ExtendedHomomorphicCommitmentFactory for ExtendedPedersenCommitmentFactory 
         k_vec: &[RistrettoSecretKey],
         v: &RistrettoSecretKey,
     ) -> Result<PedersenCommitment, CommitmentError> {
-        let blindings: Vec<Scalar> = k_vec.iter().map(|k| k.0).collect();
-        let c = self.commit_scalars(&v.0, &blindings)?;
+        let blinding_factors: Vec<Scalar> = k_vec.iter().map(|k| k.0).collect();
+        let c = self.commit_scalars(&v.0, &blinding_factors)?;
         Ok(HomomorphicCommitment(RistrettoPublicKey::new_from_pk(c)))
     }
 
