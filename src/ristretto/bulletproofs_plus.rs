@@ -669,4 +669,111 @@ mod test {
             }
         }
     }
+
+    #[test]
+    fn test_construct_verify_simple_extended_proof() {
+        let bit_length = 64usize;
+        let aggregation_size = 1usize;
+        let extension_degree = CommitmentExtensionDegree::DefaultPedersen;
+        let mut rng = rand::thread_rng();
+        let factory = ExtendedPedersenCommitmentFactory::new_with_extension_degree(extension_degree).unwrap();
+        #[allow(clippy::cast_possible_truncation)]
+        let (value_min, value_max) = (0u64, (1u128 << (bit_length - 1)) as u64);
+        // 1. Prover's service
+        let mut provers_bulletproofs_plus_service =
+            BulletproofsPlusService::init(bit_length, aggregation_size, factory.clone()).unwrap();
+        provers_bulletproofs_plus_service.custom_transcript_label("123 range proof");
+
+        // 2. Create witness data
+        let value = rng.gen_range(value_min..value_max);
+        let minimum_value_promise = Some(value / 3);
+        let secrets = vec![RistrettoSecretKey(Scalar::random_not_zero(&mut rng)); extension_degree as usize];
+        let extended_mask = RistrettoExtendedMask::assign(extension_degree, secrets.clone()).unwrap();
+        let commitment = factory.commit_value_extended(&secrets, value).unwrap();
+        let extended_witness = RistrettoExtendedWitness {
+            mask: extended_mask.clone(),
+            value,
+            minimum_value_promise,
+        };
+        let private_mask = Some(extended_mask);
+
+        // 4. Create the proof
+        let seed_nonce = Some(RistrettoSecretKey(Scalar::random_not_zero(&mut rng)));
+        let proof = provers_bulletproofs_plus_service
+            .construct_extended_proof(vec![extended_witness.clone()], seed_nonce.clone())
+            .unwrap();
+
+        // 5. Verifier's service
+        let mut verifiers_bulletproofs_plus_service =
+            BulletproofsPlusService::init(bit_length, aggregation_size, factory.clone()).unwrap();
+
+        // 6. Verify as the commitment owner, i.e. the prover self
+        // --- Generate the private statement
+        let statement_private = RistrettoAggregatedPrivateStatement::init(
+            vec![RistrettoStatement {
+                commitment: commitment.clone(),
+                minimum_value_promise,
+            }],
+            seed_nonce,
+        )
+        .unwrap();
+        // --- Only recover the mask (use the wrong transcript label for the service - will fail)
+        let recovered_private_mask = verifiers_bulletproofs_plus_service
+            .recover_mask(&proof, &statement_private)
+            .unwrap();
+        assert_ne!(private_mask, recovered_private_mask);
+        // --- Only recover the mask (use the correct transcript label for the service)
+        verifiers_bulletproofs_plus_service.custom_transcript_label("123 range proof");
+        let recovered_private_mask = verifiers_bulletproofs_plus_service
+            .recover_mask(&proof, &statement_private)
+            .unwrap();
+        assert_eq!(private_mask, recovered_private_mask);
+        if let Some(this_mask) = recovered_private_mask {
+            assert!(verifiers_bulletproofs_plus_service
+                .verify_mask(
+                    &statement_private.statements[0].commitment,
+                    &this_mask,
+                    extended_witness.value,
+                )
+                .unwrap());
+        } else {
+            panic!("A mask should have been recovered!");
+        }
+        // --- Recover the masks and verify the proof
+        let recovered_private_masks = verifiers_bulletproofs_plus_service
+            .verify_batch_and_recover_masks(vec![&proof], vec![&statement_private])
+            .unwrap();
+        assert_eq!(vec![private_mask], recovered_private_masks);
+        if let Some(this_mask) = recovered_private_masks[0].clone() {
+            // Verify the recovered mask
+            assert!(verifiers_bulletproofs_plus_service
+                .verify_mask(
+                    &statement_private.statements[0].commitment,
+                    &this_mask,
+                    extended_witness.value,
+                )
+                .unwrap());
+
+            // Also verify that the extended commitment factory can open the commitment
+            assert!(factory
+                .open_value_extended(
+                    &*this_mask.secrets(),
+                    extended_witness.value,
+                    &statement_private.statements[0].commitment,
+                )
+                .unwrap());
+        } else {
+            panic!("A mask should have been recovered!");
+        }
+
+        // // 7. Verify the proof as public entity
+        let statement_public = RistrettoAggregatedPublicStatement::init(vec![RistrettoStatement {
+            commitment,
+            minimum_value_promise,
+        }])
+        .unwrap();
+        assert!(verifiers_bulletproofs_plus_service
+            .verify_batch(vec![&proof], vec![&statement_public])
+            .is_ok());
+    }
 }

@@ -112,7 +112,7 @@ where K: SecretKey
     }
 }
 
-/// The public statement contains the commitment and an optional minimum promised value
+/// The (public) statement contains the commitment and an optional minimum promised value
 #[derive(Clone)]
 pub struct Statement<PK>
 where PK: PublicKey
@@ -137,8 +137,7 @@ impl<PK> AggregatedPublicStatement<PK>
 where PK: PublicKey
 {
     /// Initialize a new public 'ExtendedStatement' with sanity checks:
-    /// - `commitments` must be a power of 2 as mandated by the `bulletproofs_plus` implementation
-    /// - `minimum_value_promises` must the same length as `commitments` as you need one for each
+    /// - `statements` must be a power of 2 as mandated by the `bulletproofs_plus` implementation
     pub fn init(statements: Vec<Statement<PK>>) -> Result<Self, RangeProofError> {
         if !statements.len().is_power_of_two() {
             return Err(RangeProofError::InitializationError(
@@ -149,7 +148,7 @@ where PK: PublicKey
     }
 }
 
-/// The aggregated private range proof statement contains the public range proof statement and an optional seed nonce
+/// The aggregated private range proof statement contains the (public) range proof statement and an optional seed nonce
 /// for mask recovery
 #[derive(Clone)]
 pub struct AggregatedPrivateStatement<PK>
@@ -165,8 +164,7 @@ impl<PK> AggregatedPrivateStatement<PK>
 where PK: PublicKey
 {
     /// Initialize a new private 'ExtendedStatement' with sanity checks that supports recovery:
-    /// - `commitments` must be a power of 2 as mandated by the `bulletproofs_plus` implementation
-    /// - `minimum_value_promises` must the same length as `commitments` as you need one for each
+    /// - `statements` must be a power of 2 as mandated by the `bulletproofs_plus` implementation
     /// - mask recovery is not supported with an aggregated statement/proof
     pub fn init(statements: Vec<Statement<PK>>, recovery_seed_nonce: Option<PK::K>) -> Result<Self, RangeProofError> {
         if recovery_seed_nonce.is_some() && statements.len() > 1 {
@@ -186,8 +184,8 @@ where PK: PublicKey
     }
 }
 
-/// The private range proof statement contains the public range proof statement and an optional seed nonce for mask
-/// recovery
+/// The extended witness contains the extended mask (blinding factor vector), value and an optional minimum value
+/// promise; this will be used to construct the extended range proof
 #[derive(Clone)]
 pub struct ExtendedWitness<K>
 where K: SecretKey
@@ -203,7 +201,7 @@ where K: SecretKey
 impl<K> ExtendedWitness<K>
 where K: SecretKey
 {
-    /// Create a new private 'ExtendedWitness' to construct an extended proof
+    /// Create a new private 'ExtendedWitness' to construct an extended range proof
     pub fn new(mask: ExtendedMask<K>, value: u64, minimum_value_promise: Option<u64>) -> Self {
         Self {
             mask,
