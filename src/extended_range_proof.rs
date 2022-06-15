@@ -32,10 +32,10 @@ pub trait ExtendedRangeProofService {
     type PK: PublicKey<K = Self::K>;
 
     /// Constructs a new extended range proof, which may be aggregated, for the given set(s) of secret key(s) value(s)
-    /// and optional minimum value promise(s). Other optional inputs are seed nonce(s) and mask(s) for mask embedding
+    /// and minimum value promise(s). Other optional inputs are seed nonce(s) and mask(s) for mask embedding
     /// and recovery. If no mask(s) are provided together with the seed nonce(s), the secret key(s), will be embedded.
     /// The resulting (aggregated) extended proof will be sufficient evidence that the prover knows the set(s) of
-    /// secret key(s) and value(s), and that each value is equal to or greater than zero or its optional minimum value
+    /// secret key(s) and value(s), and that each value is equal to or greater than zero or its minimum value
     /// promise and lies in the range determined by the service.
     fn construct_extended_proof(
         &self,
@@ -58,7 +58,7 @@ pub trait ExtendedRangeProofService {
         statements: Vec<&AggregatedPrivateStatement<Self::PK>>,
     ) -> Result<Vec<Option<ExtendedMask<Self::K>>>, RangeProofError>;
 
-    /// Verify the batch of range proofs against the given commitments and optional minimum value promises. If this
+    /// Verify the batch of range proofs against the given commitments and minimum value promises. If this
     /// function returns Ok, it attests to the batch of commitments having values in the range [min_val_promise; 2^64-1]
     /// and that the provers knew both the values and private keys for those commitments.
     fn verify_batch(
@@ -112,7 +112,7 @@ where K: SecretKey
     }
 }
 
-/// The (public) statement contains the commitment and an optional minimum promised value
+/// The (public) statement contains the commitment and a minimum promised value
 #[derive(Clone)]
 pub struct Statement<PK>
 where PK: PublicKey
@@ -123,7 +123,7 @@ where PK: PublicKey
     pub minimum_value_promise: u64,
 }
 
-/// The aggregated public range proof statement contains the vector of commitments and a vector of optional minimum
+/// The aggregated public range proof statement contains the vector of commitments and a vector of minimum
 /// promised values
 #[derive(Clone)]
 pub struct AggregatedPublicStatement<PK>
@@ -154,7 +154,7 @@ where PK: PublicKey
 pub struct AggregatedPrivateStatement<PK>
 where PK: PublicKey
 {
-    /// The aggregated commitments and optional minimum promised values
+    /// The aggregated commitments and minimum promised values
     pub statements: Vec<Statement<PK>>,
     /// Optional private seed nonce for mask recovery
     pub recovery_seed_nonce: Option<PK::K>,
@@ -184,7 +184,7 @@ where PK: PublicKey
     }
 }
 
-/// The extended witness contains the extended mask (blinding factor vector), value and an optional minimum value
+/// The extended witness contains the extended mask (blinding factor vector), value and a minimum value
 /// promise; this will be used to construct the extended range proof
 #[derive(Clone)]
 pub struct ExtendedWitness<K>
