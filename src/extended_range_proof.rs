@@ -119,8 +119,8 @@ where PK: PublicKey
 {
     /// The commitments
     pub commitment: HomomorphicCommitment<PK>,
-    /// Optional minimum promised value
-    pub minimum_value_promise: Option<u64>,
+    /// Minimum promised value
+    pub minimum_value_promise: u64,
 }
 
 /// The aggregated public range proof statement contains the vector of commitments and a vector of optional minimum
@@ -194,15 +194,15 @@ where K: SecretKey
     pub mask: ExtendedMask<K>,
     /// Value of the commitment
     pub value: u64,
-    /// Optional minimum promised values
-    pub minimum_value_promise: Option<u64>,
+    /// Minimum promised values
+    pub minimum_value_promise: u64,
 }
 
 impl<K> ExtendedWitness<K>
 where K: SecretKey
 {
     /// Create a new private 'ExtendedWitness' to construct an extended range proof
-    pub fn new(mask: ExtendedMask<K>, value: u64, minimum_value_promise: Option<u64>) -> Self {
+    pub fn new(mask: ExtendedMask<K>, value: u64, minimum_value_promise: u64) -> Self {
         Self {
             mask,
             value,

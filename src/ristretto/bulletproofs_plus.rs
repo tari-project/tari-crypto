@@ -154,7 +154,11 @@ impl BulletproofsPlusService {
                     .iter()
                     .map(|v| *v.commitment.0.compressed())
                     .collect(),
-                minimum_value_promises: statement.statements.iter().map(|v| v.minimum_value_promise).collect(),
+                minimum_value_promises: statement
+                    .statements
+                    .iter()
+                    .map(|v| Some(v.minimum_value_promise))
+                    .collect(),
                 seed_nonce: None,
             });
         }
@@ -176,7 +180,11 @@ impl BulletproofsPlusService {
                     .iter()
                     .map(|v| *v.commitment.0.compressed())
                     .collect(),
-                minimum_value_promises: statement.statements.iter().map(|v| v.minimum_value_promise).collect(),
+                minimum_value_promises: statement
+                    .statements
+                    .iter()
+                    .map(|v| Some(v.minimum_value_promise))
+                    .collect(),
                 seed_nonce: statement.recovery_seed_nonce.as_ref().map(|n| n.0),
             });
         }
@@ -310,7 +318,7 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
         let statement = RangeStatement::init(
             self.generators.clone(),
             commitments,
-            min_value_promises,
+            min_value_promises.iter().map(|v| Some(*v)).collect(),
             seed_nonce.map(|s| s.0),
         )
         .map_err(|e| RangeProofError::ProofConstructionError(e.to_string()))?;
@@ -560,7 +568,7 @@ mod test {
                     let mut extended_witnesses = vec![];
                     for m in 0..aggregation_size {
                         let value = rng.gen_range(value_min..value_max);
-                        let minimum_value_promise = if m == 0 { Some(value / 3) } else { None };
+                        let minimum_value_promise = if m == 0 { value / 3 } else { 0 };
                         let secrets =
                             vec![RistrettoSecretKey(Scalar::random_not_zero(&mut rng)); extension_degree as usize];
                         let extended_mask = RistrettoExtendedMask::assign(extension_degree, secrets.clone()).unwrap();
@@ -686,7 +694,7 @@ mod test {
 
         // 2. Create witness data
         let value = rng.gen_range(value_min..value_max);
-        let minimum_value_promise = Some(value / 3);
+        let minimum_value_promise = value / 3;
         let secrets = vec![RistrettoSecretKey(Scalar::random_not_zero(&mut rng)); extension_degree as usize];
         let extended_mask = RistrettoExtendedMask::assign(extension_degree, secrets.clone()).unwrap();
         let commitment = factory.commit_value_extended(&secrets, value).unwrap();
