@@ -164,7 +164,9 @@ impl RewindableRangeProofService for DalekRangeProofService {
             )
             .map_err(|e| RangeProofError::ProofConstructionError(e.to_string()))?;
         if &proof_message[..REWIND_CHECK_MESSAGE.len()] != REWIND_CHECK_MESSAGE {
-            return Err(RangeProofError::InvalidRewind);
+            return Err(RangeProofError::InvalidRewind(
+                "Rewind check message length".to_string(),
+            ));
         }
         let mut truncated_proof_message: [u8; REWIND_USER_MESSAGE_LENGTH] = [0u8; REWIND_USER_MESSAGE_LENGTH];
         truncated_proof_message.copy_from_slice(&proof_message[REWIND_CHECK_MESSAGE.len()..]);
@@ -204,7 +206,7 @@ impl RewindableRangeProofService for DalekRangeProofService {
                 &blinding_nonce_1,
                 &blinding_nonce_2,
             )
-            .map_err(|_| RangeProofError::InvalidRewind)?;
+            .map_err(|e| RangeProofError::InvalidRewind(e.to_string()))?;
 
         let mut truncated_proof_message: [u8; REWIND_USER_MESSAGE_LENGTH] = [0u8; REWIND_USER_MESSAGE_LENGTH];
         truncated_proof_message.copy_from_slice(&proof_message[REWIND_CHECK_MESSAGE.len()..]);
@@ -288,11 +290,15 @@ mod test {
         assert!(!format!("{:?}", proof).is_empty());
         assert_eq!(
             prover.rewind_proof_value_only(&proof, &c, &public_random_k, &public_rewind_blinding_k),
-            Err(RangeProofError::InvalidRewind)
+            Err(RangeProofError::InvalidRewind(
+                "Rewind check message length".to_string()
+            ))
         );
         assert_eq!(
             prover.rewind_proof_value_only(&proof, &c, &public_rewind_k, &public_random_k),
-            Err(RangeProofError::InvalidRewind)
+            Err(RangeProofError::InvalidRewind(
+                "Rewind check message length".to_string()
+            ))
         );
 
         let rewind_result = prover
@@ -305,11 +311,15 @@ mod test {
 
         assert_eq!(
             prover.rewind_proof_commitment_data(&proof, &c, &random_k, &rewind_blinding_k),
-            Err(RangeProofError::InvalidRewind)
+            Err(RangeProofError::InvalidRewind(
+                "Rewinding the proof failed, invalid commitment extracted".to_string()
+            ))
         );
         assert_eq!(
             prover.rewind_proof_commitment_data(&proof, &c, &rewind_k, &random_k),
-            Err(RangeProofError::InvalidRewind)
+            Err(RangeProofError::InvalidRewind(
+                "Rewinding the proof failed, invalid commitment extracted".to_string()
+            ))
         );
 
         let full_rewind_result = prover

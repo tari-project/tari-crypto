@@ -20,7 +20,7 @@
 // WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-use std::{borrow::Borrow, convert::TryFrom, iter::once};
+use std::{borrow::Borrow, iter::once};
 
 use curve25519_dalek::{
     ristretto::{CompressedRistretto, RistrettoPoint},
@@ -29,7 +29,12 @@ use curve25519_dalek::{
 };
 
 use crate::{
-    commitment::{ExtendedHomomorphicCommitmentFactory, HomomorphicCommitment, HomomorphicCommitmentFactory},
+    commitment::{
+        ExtendedHomomorphicCommitmentFactory,
+        ExtensionDegree,
+        HomomorphicCommitment,
+        HomomorphicCommitmentFactory,
+    },
     errors::CommitmentError,
     ristretto::{
         constants::{RISTRETTO_NUMS_POINTS, RISTRETTO_NUMS_POINTS_COMPRESSED},
@@ -44,50 +49,6 @@ use crate::{
         RistrettoSecretKey,
     },
 };
-
-/// The extension degree for extended Pedersen commitments. Currently this is limited to adding 5 base points to the
-/// default Pedersen commitment, but in theory it could be arbitrarily long, although practically, very few if any
-/// test cases will need to add more than 2 base points.
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub enum ExtensionDegree {
-    /// Default Pedersen commitment (`C = v.H + sum(k_i.G_i)|i=1`)
-    DefaultPedersen = 1,
-    /// Pedersen commitment extended with one degree (`C = v.H + sum(k_i.G_i)|i=1..2`)
-    AddOneBasePoint = 2,
-    /// Pedersen commitment extended with two degrees (`C = v.H + sum(k_i.G_i)|i=1..3`)
-    AddTwoBasePoints = 3,
-    /// Pedersen commitment extended with three degrees (`C = v.H + sum(k_i.G_i)|i=1..4`)
-    AddThreeBasePoints = 4,
-    /// Pedersen commitment extended with four degrees (`C = v.H + sum(k_i.G_i)|i=1..5`)
-    AddFourBasePoints = 5,
-    /// Pedersen commitment extended with five degrees (`C = v.H + sum(k_i.G_i)|i=1..6`)
-    AddFiveBasePoints = 6,
-}
-
-impl ExtensionDegree {
-    /// Helper function to convert a size into an extension degree
-    pub fn try_from_size(size: usize) -> Result<ExtensionDegree, CommitmentError> {
-        match size {
-            1 => Ok(ExtensionDegree::DefaultPedersen),
-            2 => Ok(ExtensionDegree::AddOneBasePoint),
-            3 => Ok(ExtensionDegree::AddTwoBasePoints),
-            4 => Ok(ExtensionDegree::AddThreeBasePoints),
-            5 => Ok(ExtensionDegree::AddFourBasePoints),
-            6 => Ok(ExtensionDegree::AddFiveBasePoints),
-            _ => Err(CommitmentError::ExtensionDegree(
-                "Extension degree not valid".to_string(),
-            )),
-        }
-    }
-}
-
-impl TryFrom<usize> for ExtensionDegree {
-    type Error = CommitmentError;
-
-    fn try_from(value: usize) -> Result<Self, Self::Error> {
-        Self::try_from_size(value)
-    }
-}
 
 /// Generates extended Pederson commitments `sum(k_i.G_i) + v.H` using the provided base
 /// [RistrettoPoints](curve25519_dalek::ristretto::RistrettoPoints).
@@ -136,13 +97,19 @@ impl ExtendedPedersenCommitmentFactory {
     }
 
     /// Creates a Pedersen commitment using the value scalar and a blinding factor vector
-    pub fn commit_scalars(&self, value: &Scalar, blindings: &[Scalar]) -> Result<RistrettoPoint, CommitmentError>
-    where for<'a> &'a Scalar: Borrow<Scalar> {
-        if blindings.is_empty() || blindings.len() > self.extension_degree as usize {
+    pub fn commit_scalars(
+        &self,
+        value: &Scalar,
+        blinding_factors: &[Scalar],
+    ) -> Result<RistrettoPoint, CommitmentError>
+    where
+        for<'a> &'a Scalar: Borrow<Scalar>,
+    {
+        if blinding_factors.is_empty() || blinding_factors.len() > self.extension_degree as usize {
             Err(CommitmentError::ExtensionDegree("blinding vector".to_string()))
         } else {
-            let scalars = once(value).chain(blindings);
-            let g_base_head = self.g_base_vec.iter().take(blindings.len());
+            let scalars = once(value).chain(blinding_factors);
+            let g_base_head = self.g_base_vec.iter().take(blinding_factors.len());
             let points = once(&self.h_base).chain(g_base_head);
             Ok(RistrettoPoint::multiscalar_mul(scalars, points))
         }
@@ -196,8 +163,8 @@ impl ExtendedHomomorphicCommitmentFactory for ExtendedPedersenCommitmentFactory 
         k_vec: &[RistrettoSecretKey],
         v: &RistrettoSecretKey,
     ) -> Result<PedersenCommitment, CommitmentError> {
-        let blindings: Vec<Scalar> = k_vec.iter().map(|k| k.0).collect();
-        let c = self.commit_scalars(&v.0, &blindings)?;
+        let blinding_factors: Vec<Scalar> = k_vec.iter().map(|k| k.0).collect();
+        let c = self.commit_scalars(&v.0, &blinding_factors)?;
         Ok(HomomorphicCommitment(RistrettoPublicKey::new_from_pk(c)))
     }
 
@@ -249,13 +216,18 @@ mod test {
     use tari_utilities::message_format::MessageFormat;
 
     use crate::{
-        commitment::{ExtendedHomomorphicCommitmentFactory, HomomorphicCommitment, HomomorphicCommitmentFactory},
+        commitment::{
+            ExtendedHomomorphicCommitmentFactory,
+            ExtensionDegree,
+            HomomorphicCommitment,
+            HomomorphicCommitmentFactory,
+        },
         keys::{PublicKey, SecretKey},
         ristretto::{
             constants::RISTRETTO_NUMS_POINTS,
             pedersen::{
                 commitment_factory::PedersenCommitmentFactory,
-                extended_commitment_factory::{ExtendedPedersenCommitmentFactory, ExtensionDegree},
+                extended_commitment_factory::ExtendedPedersenCommitmentFactory,
                 PedersenCommitment,
                 RISTRETTO_PEDERSEN_G,
                 RISTRETTO_PEDERSEN_H,

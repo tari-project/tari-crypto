@@ -34,7 +34,9 @@ pub enum RangeProofError {
     #[error("Invalid range proof provided: `{0}`")]
     InvalidRangeProof(String),
     #[error("Invalid range proof rewind, the rewind keys provided must be invalid")]
-    InvalidRewind,
+    InvalidRewind(String),
+    #[error("Inconsistent extension degree: `{0}`")]
+    ExtensionDegree(String),
 }
 
 #[derive(Debug, Clone, Error, PartialEq, Deserialize, Serialize)]

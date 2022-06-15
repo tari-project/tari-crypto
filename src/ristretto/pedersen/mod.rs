@@ -67,12 +67,12 @@ mod test {
     use tari_utilities::ByteArray;
 
     use crate::{
-        commitment::{ExtendedHomomorphicCommitmentFactory, HomomorphicCommitmentFactory},
+        commitment::{ExtendedHomomorphicCommitmentFactory, ExtensionDegree, HomomorphicCommitmentFactory},
         keys::{PublicKey, SecretKey},
         ristretto::{
             pedersen::{
                 commitment_factory::PedersenCommitmentFactory,
-                extended_commitment_factory::{ExtendedPedersenCommitmentFactory, ExtensionDegree},
+                extended_commitment_factory::ExtendedPedersenCommitmentFactory,
                 PedersenCommitment,
                 RISTRETTO_PEDERSEN_G,
                 RISTRETTO_PEDERSEN_H,

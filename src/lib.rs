@@ -1,3 +1,10 @@
+// Copyright 2022 The Tari Project
+// SPDX-License-Identifier: BSD-3-Clause
+
+//! Tari-Crypto
+
+#![recursion_limit = "256"]
+
 #[macro_use]
 extern crate lazy_static;
 
@@ -20,6 +27,7 @@ pub mod ristretto;
 pub mod wasm;
 
 pub mod errors;
+mod extended_range_proof;
 #[cfg(feature = "ffi")]
 pub mod ffi;
 

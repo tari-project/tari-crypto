@@ -22,6 +22,7 @@
 
 use std::{
     cmp::Ordering,
+    convert::TryFrom,
     hash::{Hash, Hasher},
     ops::{Add, Mul, Sub},
 };
@@ -217,4 +218,48 @@ pub trait ExtendedHomomorphicCommitmentFactory {
         v: u64,
         commitment: &HomomorphicCommitment<Self::P>,
     ) -> Result<bool, CommitmentError>;
+}
+
+/// The extension degree for extended Pedersen commitments. Currently this is limited to adding 5 base points to the
+/// default Pedersen commitment, but in theory it could be arbitrarily long, although practically, very few if any
+/// test cases will need to add more than 2 base points.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum ExtensionDegree {
+    /// Default Pedersen commitment (`C = v.H + sum(k_i.G_i)|i=1`)
+    DefaultPedersen = 1,
+    /// Pedersen commitment extended with one degree (`C = v.H + sum(k_i.G_i)|i=1..2`)
+    AddOneBasePoint = 2,
+    /// Pedersen commitment extended with two degrees (`C = v.H + sum(k_i.G_i)|i=1..3`)
+    AddTwoBasePoints = 3,
+    /// Pedersen commitment extended with three degrees (`C = v.H + sum(k_i.G_i)|i=1..4`)
+    AddThreeBasePoints = 4,
+    /// Pedersen commitment extended with four degrees (`C = v.H + sum(k_i.G_i)|i=1..5`)
+    AddFourBasePoints = 5,
+    /// Pedersen commitment extended with five degrees (`C = v.H + sum(k_i.G_i)|i=1..6`)
+    AddFiveBasePoints = 6,
+}
+
+impl ExtensionDegree {
+    /// Helper function to convert a size into an extension degree
+    pub fn try_from_size(size: usize) -> Result<ExtensionDegree, CommitmentError> {
+        match size {
+            1 => Ok(ExtensionDegree::DefaultPedersen),
+            2 => Ok(ExtensionDegree::AddOneBasePoint),
+            3 => Ok(ExtensionDegree::AddTwoBasePoints),
+            4 => Ok(ExtensionDegree::AddThreeBasePoints),
+            5 => Ok(ExtensionDegree::AddFourBasePoints),
+            6 => Ok(ExtensionDegree::AddFiveBasePoints),
+            _ => Err(CommitmentError::ExtensionDegree(
+                "Extension degree not valid".to_string(),
+            )),
+        }
+    }
+}
+
+impl TryFrom<usize> for ExtensionDegree {
+    type Error = CommitmentError;
+
+    fn try_from(value: usize) -> Result<Self, Self::Error> {
+        Self::try_from_size(value)
+    }
 }
