@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.13.2](https://github.com/tari-project/tari-crypto/compare/v0.13.1...v0.13.2) (2022-06-15)
+
+
+### Features
+
+* add extended range proofs ([#102](https://github.com/tari-project/tari-crypto/issues/102)) ([b7f7761](https://github.com/tari-project/tari-crypto/commit/b7f77612d9903d70a0770e017a60288149ba6597))
+
 ### [0.13.1](https://github.com/tari-project/tari-crypto/compare/v0.13.0...v0.13.1) (2022-06-13)
 
 
