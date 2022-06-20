@@ -31,6 +31,31 @@ pub trait ExtendedRangeProofService {
     type K: SecretKey;
     type PK: PublicKey<K = Self::K>;
 
+    /// Construct a simple non-aggregated range proof with default minimum value promise of `0` and the ability to
+    /// rewind it. Requires a rewind key (seed nonce) to be included in the range proof.
+    fn construct_proof_with_recovery_seed_nonce(
+        &self,
+        mask: &Self::K,
+        value: u64,
+        seed_nonce: &Self::K,
+    ) -> Result<Self::Proof, RangeProofError>;
+
+    /// Recover the (unverified) mask for a simple non-aggregated proof using the provided seed-nonce.
+    fn recover_mask(
+        &self,
+        proof: &Self::Proof,
+        commitment: &HomomorphicCommitment<Self::PK>,
+        seed_nonce: &Self::K,
+    ) -> Result<Self::K, RangeProofError>;
+
+    /// Verify a recovered mask for a simple non-aggregated proof against the commitment.
+    fn verify_mask(
+        &self,
+        commitment: &HomomorphicCommitment<Self::PK>,
+        mask: &Self::K,
+        value: u64,
+    ) -> Result<bool, RangeProofError>;
+
     /// Constructs a new extended range proof, which may be aggregated, for the given set(s) of secret key(s) value(s)
     /// and minimum value promise(s). Other optional inputs are seed nonce(s) and mask(s) for mask embedding
     /// and recovery. If no mask(s) are provided together with the seed nonce(s), the secret key(s), will be embedded.
@@ -67,15 +92,15 @@ pub trait ExtendedRangeProofService {
         statements: Vec<&AggregatedPublicStatement<Self::PK>>,
     ) -> Result<(), RangeProofError>;
 
-    /// Recover the (unverified) mask for a non-aggregated proof using the provided seed-nonce.
-    fn recover_mask(
+    /// Recover the (unverified) extended mask for a non-aggregated proof using the provided seed-nonce.
+    fn recover_extended_mask(
         &self,
         proof: &Self::Proof,
         statement: &AggregatedPrivateStatement<Self::PK>,
     ) -> Result<Option<ExtendedMask<Self::K>>, RangeProofError>;
 
-    /// Verify a recovered mask for a non-aggregated proof against the commitment.
-    fn verify_mask(
+    /// Verify a recovered extended mask for a non-aggregated proof against the commitment.
+    fn verify_extended_mask(
         &self,
         commitment: &HomomorphicCommitment<Self::PK>,
         extended_mask: &ExtendedMask<Self::K>,

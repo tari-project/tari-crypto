@@ -179,6 +179,12 @@ impl From<u64> for RistrettoSecretKey {
     }
 }
 
+impl From<Scalar> for RistrettoSecretKey {
+    fn from(s: Scalar) -> Self {
+        RistrettoSecretKey(s)
+    }
+}
+
 //---------------------------------------------      Borrow impl     -------------------------------------------------//
 
 impl<'a> Borrow<Scalar> for &'a RistrettoSecretKey {

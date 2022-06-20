@@ -290,6 +290,34 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
     type PK = RistrettoPublicKey;
     type Proof = Vec<u8>;
 
+    fn construct_proof_with_recovery_seed_nonce(
+        &self,
+        mask: &Self::K,
+        value: u64,
+        seed_nonce: &Self::K,
+    ) -> Result<Self::Proof, RangeProofError> {
+        let commitment = self
+            .generators
+            .pc_gens()
+            .commit(&Scalar::from(value), &[mask.0])
+            .map_err(|e| RangeProofError::ProofConstructionError(e.to_string()))?;
+        let opening = CommitmentOpening::new(value, vec![mask.0]);
+        let witness =
+            RangeWitness::init(vec![opening]).map_err(|e| RangeProofError::ProofConstructionError(e.to_string()))?;
+        let statement = RangeStatement::init(
+            self.generators.clone(),
+            vec![commitment],
+            vec![None],
+            Some(seed_nonce.0),
+        )
+        .map_err(|e| RangeProofError::ProofConstructionError(e.to_string()))?;
+
+        let proof = RistrettoRangeProof::prove(self.transcript_label, &statement, &witness)
+            .map_err(|e| RangeProofError::ProofConstructionError(e.to_string()))?;
+
+        Ok(proof.to_bytes())
+    }
+
     fn construct_extended_proof(
         &self,
         extended_witnesses: Vec<RistrettoExtendedWitness>,
@@ -394,6 +422,53 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
     fn recover_mask(
         &self,
         proof: &Self::Proof,
+        commitment: &HomomorphicCommitment<Self::PK>,
+        seed_nonce: &Self::K,
+    ) -> Result<Self::K, RangeProofError> {
+        match RistrettoRangeProof::from_bytes(proof).map_err(|e| RangeProofError::InvalidRangeProof(e.to_string())) {
+            Ok(rp) => {
+                let statement = RangeStatement {
+                    generators: self.generators.clone(),
+                    commitments: vec![commitment.0.point()],
+                    commitments_compressed: vec![*commitment.0.compressed()],
+                    minimum_value_promises: vec![None],
+                    seed_nonce: Some(seed_nonce.0),
+                };
+                // Prepare the range statement
+
+                match RistrettoRangeProof::recover_masks_ony(self.transcript_label, &vec![statement], &[rp]) {
+                    Ok(recovered_mask) => {
+                        if recovered_mask.is_empty() {
+                            Err(RangeProofError::InvalidRewind(
+                                "Mask could not be recovered".to_string(),
+                            ))
+                        } else if let Some(mask) = &recovered_mask[0] {
+                            Ok(RistrettoSecretKey(
+                                mask.blindings()
+                                    .map_err(|e| RangeProofError::InvalidRewind(e.to_string()))?[0],
+                            ))
+                        } else {
+                            Err(RangeProofError::InvalidRewind(
+                                "Mask could not be recovered".to_string(),
+                            ))
+                        }
+                    },
+                    Err(e) => Err(RangeProofError::InvalidRangeProof(format!(
+                        "Internal range proof error ({})",
+                        e
+                    ))),
+                }
+            },
+            Err(e) => Err(RangeProofError::InvalidRangeProof(format!(
+                "Range proof could not be deserialized ({})",
+                e
+            ))),
+        }
+    }
+
+    fn recover_extended_mask(
+        &self,
+        proof: &Self::Proof,
         statement: &RistrettoAggregatedPrivateStatement,
     ) -> Result<Option<RistrettoExtendedMask>, RangeProofError> {
         return match RistrettoRangeProof::from_bytes(proof)
@@ -427,6 +502,23 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
     }
 
     fn verify_mask(
+        &self,
+        commitment: &HomomorphicCommitment<Self::PK>,
+        mask: &Self::K,
+        value: u64,
+    ) -> Result<bool, RangeProofError> {
+        match self
+            .generators
+            .pc_gens()
+            .commit(&Scalar::from(value), &[mask.0])
+            .map_err(|e| RangeProofError::ExtensionDegree(e.to_string()))
+        {
+            Ok(val) => Ok(val == commitment.0.point()),
+            Err(e) => Err(e),
+        }
+    }
+
+    fn verify_extended_mask(
         &self,
         commitment: &HomomorphicCommitment<Self::PK>,
         extended_mask: &RistrettoExtendedMask,
@@ -506,7 +598,7 @@ mod test {
     /// The 'BulletproofsPlusService' interface 'construct_proof' should only accept Pedersen generators of
     /// 'ExtensionDegree::Zero' with 'aggregation_size == 1' and values proportional to the bit length
     #[test]
-    fn test_construct_verify_proof() {
+    fn test_construct_verify_proof_no_recovery() {
         let mut rng = rand::thread_rng();
         for extension_degree in EXTENSION_DEGREE {
             let factory = ExtendedPedersenCommitmentFactory::new_with_extension_degree(extension_degree).unwrap();
@@ -536,7 +628,7 @@ mod test {
 
     #[test]
     #[allow(clippy::too_many_lines)]
-    fn test_construct_verify_extended_proof() {
+    fn test_construct_verify_extended_proof_with_recovery() {
         static BIT_LENGTH: [usize; 2] = [2, 64];
         static AGGREGATION_SIZE: [usize; 2] = [2, 64];
         let mut rng = rand::thread_rng();
@@ -622,13 +714,13 @@ mod test {
                     // --- Only recover the masks
                     for (i, proof) in proofs.iter().enumerate() {
                         let recovered_private_mask = bulletproofs_plus_service
-                            .recover_mask(proof, &statements_private[i])
+                            .recover_extended_mask(proof, &statements_private[i])
                             .unwrap();
                         assert_eq!(private_masks[i], recovered_private_mask);
                         for statement in &statements_private[i].statements {
                             if let Some(this_mask) = recovered_private_mask.clone() {
                                 assert!(bulletproofs_plus_service
-                                    .verify_mask(
+                                    .verify_extended_mask(
                                         &statement.commitment,
                                         &this_mask,
                                         *commitment_value_map_private.get(&statement.commitment).unwrap()
@@ -649,7 +741,7 @@ mod test {
                             if let Some(this_mask) = recovered_private_masks[index].clone() {
                                 // Verify the recovered mask
                                 assert!(bulletproofs_plus_service
-                                    .verify_mask(
+                                    .verify_extended_mask(
                                         &statement.commitment,
                                         &this_mask,
                                         *commitment_value_map_private.get(&statement.commitment).unwrap()
@@ -679,7 +771,7 @@ mod test {
     }
 
     #[test]
-    fn test_construct_verify_simple_extended_proof() {
+    fn test_construct_verify_simple_extended_proof_with_recovery() {
         let bit_length = 64usize;
         let aggregation_size = 1usize;
         let extension_degree = CommitmentExtensionDegree::DefaultPedersen;
@@ -727,18 +819,18 @@ mod test {
         .unwrap();
         // --- Only recover the mask (use the wrong transcript label for the service - will fail)
         let recovered_private_mask = verifiers_bulletproofs_plus_service
-            .recover_mask(&proof, &statement_private)
+            .recover_extended_mask(&proof, &statement_private)
             .unwrap();
         assert_ne!(private_mask, recovered_private_mask);
         // --- Only recover the mask (use the correct transcript label for the service)
         verifiers_bulletproofs_plus_service.custom_transcript_label("123 range proof");
         let recovered_private_mask = verifiers_bulletproofs_plus_service
-            .recover_mask(&proof, &statement_private)
+            .recover_extended_mask(&proof, &statement_private)
             .unwrap();
         assert_eq!(private_mask, recovered_private_mask);
         if let Some(this_mask) = recovered_private_mask {
             assert!(verifiers_bulletproofs_plus_service
-                .verify_mask(
+                .verify_extended_mask(
                     &statement_private.statements[0].commitment,
                     &this_mask,
                     extended_witness.value,
@@ -755,7 +847,7 @@ mod test {
         if let Some(this_mask) = recovered_private_masks[0].clone() {
             // Verify the recovered mask
             assert!(verifiers_bulletproofs_plus_service
-                .verify_mask(
+                .verify_extended_mask(
                     &statement_private.statements[0].commitment,
                     &this_mask,
                     extended_witness.value,
@@ -783,5 +875,57 @@ mod test {
         assert!(verifiers_bulletproofs_plus_service
             .verify_batch(vec![&proof], vec![&statement_public])
             .is_ok());
+    }
+
+    #[test]
+    fn test_construct_verify_simple_proof_with_recovery() {
+        let bit_length = 64usize;
+        let aggregation_size = 1usize;
+        let extension_degree = CommitmentExtensionDegree::DefaultPedersen;
+        let mut rng = rand::thread_rng();
+        let factory = ExtendedPedersenCommitmentFactory::new_with_extension_degree(extension_degree).unwrap();
+        #[allow(clippy::cast_possible_truncation)]
+        let (value_min, value_max) = (0u64, (1u128 << (bit_length - 1)) as u64);
+        // 1. Prover's service
+        let mut provers_bulletproofs_plus_service =
+            BulletproofsPlusService::init(bit_length, aggregation_size, factory.clone()).unwrap();
+        provers_bulletproofs_plus_service.custom_transcript_label("123 range proof");
+
+        // 2. Create witness data
+        let value = rng.gen_range(value_min..value_max);
+        let mask = RistrettoSecretKey(Scalar::random_not_zero(&mut rng));
+        let commitment = factory.commit_value(&mask, value);
+
+        // 4. Create the proof
+        let seed_nonce = RistrettoSecretKey(Scalar::random_not_zero(&mut rng));
+        let proof = provers_bulletproofs_plus_service
+            .construct_proof_with_recovery_seed_nonce(&mask, value, &seed_nonce)
+            .unwrap();
+
+        // 5. Verifier's service
+        let mut verifiers_bulletproofs_plus_service =
+            BulletproofsPlusService::init(bit_length, aggregation_size, factory.clone()).unwrap();
+
+        // 6. Mask recovery as the commitment owner, i.e. the prover self
+        // --- Recover the mask (use the wrong transcript label for the service - will fail)
+        let recovered_mask = verifiers_bulletproofs_plus_service
+            .recover_mask(&proof, &commitment, &seed_nonce)
+            .unwrap();
+        assert_ne!(mask, recovered_mask);
+        // --- Recover the mask (use the correct transcript label for the service)
+        verifiers_bulletproofs_plus_service.custom_transcript_label("123 range proof");
+        let recovered_mask = verifiers_bulletproofs_plus_service
+            .recover_mask(&proof, &commitment, &seed_nonce)
+            .unwrap();
+        assert_eq!(mask, recovered_mask);
+        // --- Verify that the mask opens the commitment
+        assert!(verifiers_bulletproofs_plus_service
+            .verify_mask(&commitment, &recovered_mask, value)
+            .unwrap());
+        // --- Also verify that the commitment factory can open the commitment
+        assert!(factory.open_value(&recovered_mask, value, &commitment));
+
+        // 7. Verify the proof as private or public entity
+        assert!(verifiers_bulletproofs_plus_service.verify(&proof, &commitment));
     }
 }

@@ -27,7 +27,7 @@ pub mod ristretto;
 pub mod wasm;
 
 pub mod errors;
-mod extended_range_proof;
+pub mod extended_range_proof;
 #[cfg(feature = "ffi")]
 pub mod ffi;
 

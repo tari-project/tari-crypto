@@ -33,7 +33,7 @@ pub trait RewindableRangeProofService {
     type K: SecretKey;
     type PK: PublicKey<K = Self::K>;
 
-    /// Construct a rangeproof with the ability to rewind it. Requires two rewind keys and a 19-byte message to be
+    /// Construct a range proof with the ability to rewind it. Requires two rewind keys and a 19-byte message to be
     /// included in the range proof. The proof can contain 23 bytes but 4 bytes are used to confirm that a rewind
     /// was performed correctly
     fn construct_proof_with_rewind_key(
@@ -65,7 +65,7 @@ pub trait RewindableRangeProofService {
     ) -> Result<FullRewindResult<Self::K>, RangeProofError>;
 }
 
-/// Rewind data extracted from a rangeproof containing the committed value and the 19 byte proof message.
+/// Rewind data extracted from a range proof containing the committed value and the 19 byte proof message.
 #[derive(Debug, PartialEq)]
 pub struct RewindResult {
     pub committed_value: u64,
