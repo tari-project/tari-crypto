@@ -43,7 +43,11 @@ use rand::{CryptoRng, Rng};
 use tari_utilities::{hex::Hex, ByteArray, ByteArrayError, Hashable};
 use zeroize::Zeroize;
 
-use crate::keys::{DiffieHellmanSharedSecret, PublicKey, SecretKey};
+use crate::{
+    errors::HashingError,
+    hashing::{DerivedKeyDomain, DomainSeparatedHasher, DomainSeparation},
+    keys::{DiffieHellmanSharedSecret, PublicKey, SecretKey},
+};
 
 /// The [SecretKey](trait.SecretKey.html) implementation for [Ristretto](https://ristretto.group) is a thin wrapper
 /// around the Dalek [Scalar](struct.Scalar.html) type, representing a 256-bit integer (mod the group order).
@@ -240,6 +244,19 @@ impl RistrettoPublicKey {
         })
     }
 
+    /// A verifiable group generator using a domain separated hasher
+    pub fn group_generator(label: &str) -> Result<RistrettoPublicKey, HashingError> {
+        // This function requires 512 bytes of data, so let's be opinionated here and use blake2b
+        let hash = DomainSeparatedHasher::<Blake2b, RistrettoGroupGenerator>::new(label).finalize();
+        if hash.as_ref().len() < 64 {
+            return Err(HashingError::DigestTooShort(64));
+        }
+        let mut bytes = [0u8; 64];
+        bytes.copy_from_slice(hash.as_ref());
+        let point = RistrettoPoint::from_uniform_bytes(&bytes);
+        Ok(RistrettoPublicKey::new_from_pk(point))
+    }
+
     /// Return the embedded RistrettoPoint representation
     pub fn point(&self) -> RistrettoPoint {
         self.point
@@ -247,6 +264,36 @@ impl RistrettoPublicKey {
 
     pub(super) fn compressed(&self) -> &CompressedRistretto {
         self.compressed.get_or_init(|| self.point.compress())
+    }
+}
+
+//---------------------------------------   Ristretto Hashing Applications  ------------------------------------------//
+
+/// The Domain Separation Tag type for the KDF algorithm, version 1
+pub struct RistrettoKdf;
+impl DerivedKeyDomain for RistrettoKdf {
+    type DerivedKeyType = RistrettoSecretKey;
+}
+
+impl DomainSeparation for RistrettoKdf {
+    fn version() -> u8 {
+        1
+    }
+
+    fn domain() -> &'static str {
+        "com.tari.kdf.ristretto"
+    }
+}
+
+pub struct RistrettoGroupGenerator;
+
+impl DomainSeparation for RistrettoGroupGenerator {
+    fn version() -> u8 {
+        1
+    }
+
+    fn domain() -> &'static str {
+        "com.tari.groups.ristretto"
     }
 }
 
@@ -459,10 +506,12 @@ impl From<RistrettoPublicKey> for CompressedRistretto {
 
 #[cfg(test)]
 mod test {
+    use std::assert_matches::assert_matches;
+
     use tari_utilities::{message_format::MessageFormat, ByteArray};
 
     use super::*;
-    use crate::{keys::PublicKey, ristretto::test_common::get_keypair};
+    use crate::{common::Blake256, keys::PublicKey, ristretto::test_common::get_keypair};
 
     fn assert_completely_equal(k1: &RistrettoPublicKey, k2: &RistrettoPublicKey) {
         assert_eq!(k1, k2);
@@ -727,5 +776,38 @@ mod test {
         let pk = RistrettoPublicKey::from_hex(hex).unwrap();
         assert_eq!(format!("{}", pk), hex);
         assert_eq!(format!("{:?}", pk), hex);
+    }
+
+    #[test]
+    // Regression test
+    fn ristretto_kdf_metadata() {
+        assert_eq!(RistrettoKdf::version(), 1);
+        assert_eq!(RistrettoKdf::domain(), "com.tari.kdf.ristretto");
+        assert_eq!(
+            RistrettoKdf::domain_separation_tag("test"),
+            "com.tari.kdf.ristretto.v1.test"
+        );
+    }
+
+    #[test]
+    fn kdf_key_too_short() {
+        let err = RistrettoKdf::generate::<Blake256, _>(b"this_key_is_too_short", b"data", "test").err();
+        assert_matches!(err, Some(HashingError::InputTooShort));
+    }
+
+    #[test]
+    fn kdf_test() {
+        let key =
+            RistrettoSecretKey::from_hex("b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c").unwrap();
+        let derived1 = RistrettoKdf::generate::<Blake256, _>(key.as_bytes(), b"derived1", "test").unwrap();
+        let derived2 = RistrettoKdf::generate::<Blake256, _>(key.as_bytes(), b"derived2", "test").unwrap();
+        assert_eq!(
+            derived1.to_hex(),
+            "bff7bca19295c6cdfef98832145bff5dc92e5415b8768e1fc37b89e3f1501b01"
+        );
+        assert_eq!(
+            derived2.to_hex(),
+            "f03e669647806a7196554a854d929c9271c49d5b16ca2dc72ea04b316dc8270d"
+        );
     }
 }
