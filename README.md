@@ -26,6 +26,10 @@ To generate a module for use in node.js, use this command:
 
     $ wasm-pack build --target nodejs -d tari_js . -- --features "wasm"
 
+To run the wasm bindings unit tests, use this command:
+
+    $ wasm-pack test --node --features wasm
+
 Note: Node v10+ is needed for the WASM
 
 ## Example (Node.js)
