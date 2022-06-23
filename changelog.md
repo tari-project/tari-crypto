@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.13.3](https://github.com/tari-project/tari-crypto/compare/v0.13.2...v0.13.3) (2022-06-23)
+
+
+### Features
+
+* add bulletproof_plus to wasm ([#107](https://github.com/tari-project/tari-crypto/issues/107)) ([62cb98d](https://github.com/tari-project/tari-crypto/commit/62cb98d7e94e4324bf7077105ee3d517cc3a5254))
+* add simple bulletproofs plus interface([#105](https://github.com/tari-project/tari-crypto/issues/105)) ([4f9500c](https://github.com/tari-project/tari-crypto/commit/4f9500c9bd3a346c4d045f79139961b6344c1968))
+
 ### [0.13.2](https://github.com/tari-project/tari-crypto/compare/v0.13.1...v0.13.2) (2022-06-15)
 
 
