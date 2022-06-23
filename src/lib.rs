@@ -18,6 +18,7 @@ pub mod musig;
 pub mod range_proof;
 pub mod rewindable_range_proof;
 pub mod signatures;
+pub mod value_encryption;
 
 // Implementations
 #[allow(clippy::op_ref)]

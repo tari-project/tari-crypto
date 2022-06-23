@@ -17,6 +17,7 @@ base64 = "0.10.1"
 blake2 = "0.9.1"
 bulletproofs = { package = "tari_bulletproofs", git = "https://github.com/tari-project/bulletproofs", tag = "v4.2.1" }
 bulletproofs_plus = { package = "tari_bulletproofs_plus", git = "https://github.com/tari-project/bulletproofs-plus", tag = "v0.0.6" }
+chacha20poly1305 = "0.9.0"
 curve25519-dalek = { package = "curve25519-dalek-ng", version = "4.1", default-features = false, features = ["u64_backend", "serde", "alloc"] }
 digest = "0.9.0"
 getrandom = { version = "0.2.3", default-features = false, optional = true }
