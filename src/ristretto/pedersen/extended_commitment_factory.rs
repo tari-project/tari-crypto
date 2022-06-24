@@ -599,7 +599,7 @@ mod test {
         // Test 'Debug' implementation
         assert_eq!(
             format!("{:?}", c1),
-            "HomomorphicCommitment(f09a7f46c5e3cbadc4c1e84c10278cffab2cb902f7b6f37223c88dd548877a6a)"
+            "HomomorphicCommitment(601cdc5c97e94bb16ae56f75430f8ab3ef4703c7d89ca9592e8acadc81629f0e)"
         );
         // Test 'Clone' implementation
         let c2 = c1.clone();
@@ -609,7 +609,7 @@ mod test {
         let mut hasher = DefaultHasher::new();
         c1.hash(&mut hasher);
         let result = format!("{:x}", hasher.finish());
-        assert_eq!(&result, "b1b43e91f6d6109f");
+        assert_eq!(&result, "699d38210741194e");
 
         // Test 'Ord' and 'PartialOrd' implementations
         let mut values = (value - 100..value).collect::<Vec<_>>();
@@ -660,50 +660,50 @@ mod test {
                 ExtensionDegree::DefaultPedersen => {
                     assert_eq!(
                         format!("{:?}", c1),
-                        "HomomorphicCommitment(f09a7f46c5e3cbadc4c1e84c10278cffab2cb902f7b6f37223c88dd548877a6a)"
+                        "HomomorphicCommitment(601cdc5c97e94bb16ae56f75430f8ab3ef4703c7d89ca9592e8acadc81629f0e)"
                     );
                     let result = format!("{:x}", hasher.finish());
-                    assert_eq!(&result, "b1b43e91f6d6109f");
+                    assert_eq!(&result, "699d38210741194e");
                 },
                 ExtensionDegree::AddOneBasePoint => {
                     assert_eq!(
                         format!("{:?}", c1),
-                        "HomomorphicCommitment(2486eca30cadb896bc192e53de7d26361b44ddf892ee3e67a6b232483a8e167e)"
+                        "HomomorphicCommitment(f0019440ae20b39ba55a88f27ebd7ca56857251beca1047a3b195dc93642d829)"
                     );
                     let result = format!("{:x}", hasher.finish());
-                    assert_eq!(&result, "85b6de79a0c73eef");
+                    assert_eq!(&result, "fb68d75431b3a0b0");
                 },
                 ExtensionDegree::AddTwoBasePoints => {
                     assert_eq!(
                         format!("{:?}", c1),
-                        "HomomorphicCommitment(9c46efbf4652570045bcd519631aba3e13265a5f75e2b90473b2f556b4a5cc4c)"
+                        "HomomorphicCommitment(b09789e597115f592491009f18ef4ec13ba7018a77e9df1729f1e2611b237a06)"
                     );
                     let result = format!("{:x}", hasher.finish());
-                    assert_eq!(&result, "5784c866707a1107");
+                    assert_eq!(&result, "61dd716dc29a5fc5");
                 },
                 ExtensionDegree::AddThreeBasePoints => {
                     assert_eq!(
                         format!("{:?}", c1),
-                        "HomomorphicCommitment(4cb95250992c6c71260957403e331d6a7d1f3dd82500699007a2c32b4dff7a23)"
+                        "HomomorphicCommitment(f8356cbea349191683f84818ab5203e48b04fef42f812ddf7d9b92df966c8473)"
                     );
                     let result = format!("{:x}", hasher.finish());
-                    assert_eq!(&result, "7b2c5512ec8a20ee");
+                    assert_eq!(&result, "49e988f621628ebc");
                 },
                 ExtensionDegree::AddFourBasePoints => {
                     assert_eq!(
                         format!("{:?}", c1),
-                        "HomomorphicCommitment(9c877782e158d5fc982ef4cb88a3d3d7eec58f86e55f2e662eacbf6faa6fe21e)"
+                        "HomomorphicCommitment(1e113af7e33ac15b328e298239f3796e5061a0863d1a69e297ee8d81ee6e1f22)"
                     );
                     let result = format!("{:x}", hasher.finish());
-                    assert_eq!(&result, "bde140256c260df0");
+                    assert_eq!(&result, "aff1b9967c7bffe7");
                 },
                 ExtensionDegree::AddFiveBasePoints => {
                     assert_eq!(
                         format!("{:?}", c1),
-                        "HomomorphicCommitment(86384602b8f880c75df5ce0629d5c472ec7d882c00d7de7c5d68463a7a6ec35b)"
+                        "HomomorphicCommitment(126844ee6889dd065ccc0c47e16ea23697f72e6ecce70f5e3fef320d843c332e)"
                     );
                     let result = format!("{:x}", hasher.finish());
-                    assert_eq!(&result, "88db07fcdaf311d8");
+                    assert_eq!(&result, "e27df20b2dd195ee");
                 },
             }
 
