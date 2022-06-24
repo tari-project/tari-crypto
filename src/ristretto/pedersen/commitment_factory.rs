@@ -255,7 +255,7 @@ mod test {
         // Test 'Debug' implementation
         assert_eq!(
             format!("{:?}", c1),
-            "HomomorphicCommitment(f09a7f46c5e3cbadc4c1e84c10278cffab2cb902f7b6f37223c88dd548877a6a)"
+            "HomomorphicCommitment(601cdc5c97e94bb16ae56f75430f8ab3ef4703c7d89ca9592e8acadc81629f0e)"
         );
         // Test 'Clone' implementation
         let c2 = c1.clone();
@@ -265,7 +265,7 @@ mod test {
         let mut hasher = DefaultHasher::new();
         c1.hash(&mut hasher);
         let result = format!("{:x}", hasher.finish());
-        assert_eq!(&result, "b1b43e91f6d6109f");
+        assert_eq!(&result, "699d38210741194e");
 
         // Test 'Ord' and 'PartialOrd' implementations
         let mut values = (value - 100..value).collect::<Vec<_>>();
