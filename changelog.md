@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.14.0](https://github.com/tari-project/tari-crypto/compare/v0.13.2...v0.14.0) (2022-06-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* - any project based on a specific commitment in `tari_crypto` needs to be updated, as a commitment for the same value and blinding factor will now yield a different commitment. This was a necessary change as as described below.
+
+
+### Features
+
+* change to nums constants ([#111](https://github.com/tari-project/tari-crypto/issues/111)) ([04d5d1e](https://github.com/tari-project/tari-crypto/commit/04d5d1e739c328f4b4ba2ea5088d217529deeacd))
+
 ### [0.13.3](https://github.com/tari-project/tari-crypto/compare/v0.13.2...v0.13.3) (2022-06-23)
 
 
