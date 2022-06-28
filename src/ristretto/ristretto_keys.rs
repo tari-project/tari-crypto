@@ -506,8 +506,6 @@ impl From<RistrettoPublicKey> for CompressedRistretto {
 
 #[cfg(test)]
 mod test {
-    use std::assert_matches::assert_matches;
-
     use tari_utilities::{message_format::MessageFormat, ByteArray};
 
     use super::*;
@@ -792,7 +790,7 @@ mod test {
     #[test]
     fn kdf_key_too_short() {
         let err = RistrettoKdf::generate::<Blake256, _>(b"this_key_is_too_short", b"data", "test").err();
-        assert_matches!(err, Some(HashingError::InputTooShort));
+        assert!(matches!(err, Some(HashingError::InputTooShort)));
     }
 
     #[test]

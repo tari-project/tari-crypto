@@ -273,7 +273,7 @@ impl DomainSeparation for MacDomain {
 /// # Examples
 ///
 /// You cannot use a vulnerable digest function to generate a MAC:
-/// ```ignore
+/// ```text
 /// use sha2::Sha256;
 /// let _ = Mac::generate::<Sha256, _, _>(b"secret key", "a message", "invalid digest");
 ///         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `LengthExtensionAttackResistant` is not implemented for `Sha256`
