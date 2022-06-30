@@ -801,11 +801,11 @@ mod test {
         let derived2 = RistrettoKdf::generate::<Blake256, _>(key.as_bytes(), b"derived2", "test").unwrap();
         assert_eq!(
             derived1.to_hex(),
-            "bff7bca19295c6cdfef98832145bff5dc92e5415b8768e1fc37b89e3f1501b01"
+            "e8df6fa40344c1fde721e9a35d46daadb48dc66f7901a9795ebb0374474ea601"
         );
         assert_eq!(
             derived2.to_hex(),
-            "f03e669647806a7196554a854d929c9271c49d5b16ca2dc72ea04b316dc8270d"
+            "3ae035e2663d9c561300cca67743ccdb56ea07ca7dacd8394356c4354b030e0c"
         );
     }
 }

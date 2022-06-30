@@ -150,7 +150,7 @@ impl AsRef<[u8]> for DomainSeparatedHash {
 /// assert_eq!(id.domain_separation_tag(), "com.tari.generic.v1.card_id");
 /// assert_eq!(
 ///     to_hex(id.as_ref()),
-///     "597a73459101ebc5b56545f98bf0c93b1631844b0ff6b13f0123d796c5159a16"
+///     "44fb39bfdd20c93ddf542e4b2d1f4b06448aa1fa2b9c4d138d8e7bbb19aa7c65"
 /// );
 /// ```
 ///
@@ -180,7 +180,7 @@ impl AsRef<[u8]> for DomainSeparatedHash {
 /// );
 /// assert_eq!(
 ///     to_hex(challenge.as_ref()),
-///     "f358c075dd820679905447f27a4cf771c2aca91d3985a3f90b54dd2f8d025c47"
+///     "6cd8efe7d7f1673ed8cfc0ac67d6979eb50afdbf276adf5221caabfbfd01da8c"
 /// );
 /// ```
 pub struct DomainSeparatedHasher<D, M> {
@@ -192,12 +192,14 @@ pub struct DomainSeparatedHasher<D, M> {
 impl<D: Digest, M: DomainSeparation> DomainSeparatedHasher<D, M> {
     pub fn new<S>(label: S) -> Self
     where S: AsRef<str> {
-        let inner = D::new().chain(M::domain_separation_tag(&label).as_bytes());
-        Self {
+        let inner = D::new();
+        let mut result = Self {
             inner,
             label: label.as_ref().to_string(),
             dst: PhantomData::<M>::default(),
-        }
+        };
+        result.update(M::domain_separation_tag(&label).as_bytes());
+        result
     }
 
     /// Adds the data to the digest function by first appending the length of the data in the byte array, and then
@@ -292,7 +294,7 @@ impl DomainSeparation for MacDomain {
 /// assert_eq!(mac.domain_separation_tag(), "com.tari.mac.v1.api.auth");
 /// assert_eq!(
 ///     to_hex(mac.as_ref()),
-///     "9d36cc40c9e4831efbdd1cd4305fe78bd014b30abd47ae752bf6c15da8644443"
+///     "796eb496b6672b1b7c4021e603d6b833121d35cd282a1555e3f9dd2eda5658b8"
 /// );
 /// ```
 pub struct Mac {
@@ -366,12 +368,12 @@ impl Deref for Mac {
 /// let key_1 = wallet_keys(&key, 1).unwrap();
 /// assert_eq!(
 ///     key_1.to_hex(),
-///     "be4b10a3f6669b04c840c34a36312fa6f54df858d1b8a4ea46a7a9e82be2670e"
+///     "b778b8b5041fbde6c78be5bafd6d62633824bf303c97736d7337b3f6f70c4e0b"
 /// );
 /// let key_64 = wallet_keys(&key, 64).unwrap();
 /// assert_eq!(
 ///     key_64.to_hex(),
-///     "5c3c8fda79509681caa267bfdad872b912307c0b2bc49a317de534839ee3c60d"
+///     "09e5204c93406ef3334ff5f7a4d5d84199ceb9119fafcb98928fa95e95f0ae05"
 /// );
 /// ```
 pub trait DerivedKeyDomain: DomainSeparation {
@@ -402,6 +404,7 @@ pub trait DerivedKeyDomain: DomainSeparation {
 #[cfg(test)]
 mod test {
     use blake2::Blake2b;
+    use digest::Digest;
     use tari_utilities::hex::{from_hex, to_hex};
 
     use crate::{
@@ -430,8 +433,28 @@ mod test {
         assert_eq!(hash.as_ref(), hash2.as_ref());
         assert_eq!(
             to_hex(hash.as_ref()),
-            "9ec75b89b25f4c63eb39c717867b4330b66b612cc7c35d698612c9caeda4b281"
+            "a8326620e305430a0b632a0a5e33c6c1124d7513b4bd84736faaa3a0b9ba557f"
         );
+    }
+
+    #[test]
+    fn deconstruction() {
+        // Illustrate exactly what gets hashed and how we try and avoid collisions
+        let hash = DomainSeparatedHasher::<Blake256, GenericHashDomain>::new("mytest")
+            .chain("rincewind")
+            .chain("hex")
+            .finalize();
+        assert_eq!(hash.domain_separation_tag(), "com.tari.generic.v1.mytest");
+        assert_eq!(hash.domain_separation_tag().len(), 26);
+        let expected = Blake256::new()
+            .chain(26usize.to_le_bytes())
+            .chain("com.tari.generic.v1.mytest".as_bytes())
+            .chain(9usize.to_le_bytes())
+            .chain("rincewind".as_bytes())
+            .chain(3usize.to_le_bytes())
+            .chain("hex".as_bytes())
+            .finalize();
+        assert_eq!(hash.as_ref(), expected.as_slice());
     }
 
     #[test]
@@ -451,7 +474,7 @@ mod test {
             .chain("elephants")
             .finalize();
         assert_eq!(hash.domain_separation_tag(), "com.discworld.v42.turtles");
-        assert_eq!(to_hex(hash.as_ref()), "b3a7c29cfb9d9ef1a7cc78015fce04ee43c8448f8d928083ddcdc177d1345e84fc9bfdd9b7120c4d0a23e9d07b1d3a5a552aa11e3e45261dd3e303e879794120");
+        assert_eq!(to_hex(hash.as_ref()), "64a89c7160a1076a725fac97d3f67803abd0991d82518a595072fa62df4c870bddee9160f591231c381087831bf6925616013de317ce0b02846585caf41942ac");
     }
 
     #[test]
@@ -465,7 +488,7 @@ mod test {
         assert_eq!(mac.domain_separation_tag(), "com.tari.mac.v1.test");
         assert_eq!(
             to_hex(mac.as_ref()),
-            "12be06eab67794f1a53dd724c0b4bc72dbefcac0f081685b576e511c0b1419d0"
+            "9bcfbe2bad73b14ac42f673ddca34e82ce03cbbac69d34526004f5d108dff061"
         )
     }
 }
