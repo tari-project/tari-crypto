@@ -245,9 +245,9 @@ impl RistrettoPublicKey {
     }
 
     /// A verifiable group generator using a domain separated hasher
-    pub fn group_generator(label: &str) -> Result<RistrettoPublicKey, HashingError> {
+    pub fn new_generator(label: &str) -> Result<RistrettoPublicKey, HashingError> {
         // This function requires 512 bytes of data, so let's be opinionated here and use blake2b
-        let hash = DomainSeparatedHasher::<Blake2b, RistrettoGroupGenerator>::new(label).finalize();
+        let hash = DomainSeparatedHasher::<Blake2b, RistrettoGeneratorPoint>::new(label).finalize();
         if hash.as_ref().len() < 64 {
             return Err(HashingError::DigestTooShort(64));
         }
@@ -285,9 +285,9 @@ impl DomainSeparation for RistrettoKdf {
     }
 }
 
-pub struct RistrettoGroupGenerator;
+pub struct RistrettoGeneratorPoint;
 
-impl DomainSeparation for RistrettoGroupGenerator {
+impl DomainSeparation for RistrettoGeneratorPoint {
     fn version() -> u8 {
         1
     }

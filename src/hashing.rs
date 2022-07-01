@@ -205,7 +205,8 @@ impl<D: Digest, M: DomainSeparation> DomainSeparatedHasher<D, M> {
     /// Adds the data to the digest function by first appending the length of the data in the byte array, and then
     /// supplying the data itself.
     pub fn update(&mut self, data: impl AsRef<[u8]>) {
-        self.inner.update(data.as_ref().len().to_le_bytes());
+        let len = (data.as_ref().len() as u64).to_le_bytes();
+        self.inner.update(len);
         self.inner.update(data);
     }
 
@@ -447,11 +448,11 @@ mod test {
         assert_eq!(hash.domain_separation_tag(), "com.tari.generic.v1.mytest");
         assert_eq!(hash.domain_separation_tag().len(), 26);
         let expected = Blake256::new()
-            .chain(26usize.to_le_bytes())
+            .chain(26u64.to_le_bytes())
             .chain("com.tari.generic.v1.mytest".as_bytes())
-            .chain(9usize.to_le_bytes())
+            .chain(9u64.to_le_bytes())
             .chain("rincewind".as_bytes())
-            .chain(3usize.to_le_bytes())
+            .chain(3u64.to_le_bytes())
             .chain("hex".as_bytes())
             .finalize();
         assert_eq!(hash.as_ref(), expected.as_slice());
