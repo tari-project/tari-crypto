@@ -21,6 +21,7 @@
 // USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 use serde::{Deserialize, Serialize};
+use tari_utilities::ByteArrayError;
 use thiserror::Error;
 
 #[derive(Debug, Clone, Error, PartialEq, Deserialize, Serialize)]
@@ -43,4 +44,14 @@ pub enum RangeProofError {
 pub enum CommitmentError {
     #[error("Inconsistent extension degree: `{0}`")]
     ExtensionDegree(String),
+}
+
+#[derive(Debug, Error)]
+pub enum HashingError {
+    #[error("The input to the hashing function is too short.")]
+    InputTooShort,
+    #[error("Converting a byte string into a secret key failed. {0}")]
+    ConversionFromBytes(#[from] ByteArrayError),
+    #[error("The digest does does produce enough output. {0} bytes are required.")]
+    DigestTooShort(usize),
 }

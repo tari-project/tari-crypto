@@ -12,6 +12,7 @@ extern crate lazy_static;
 pub mod macros;
 pub mod commitment;
 pub mod hash;
+pub mod hashing;
 pub mod keys;
 #[cfg(feature = "musig")]
 pub mod musig;
