@@ -1,3 +1,6 @@
+# Copyright 2019. The Tari Project
+# SPDX-License-Identifier: BSD-3-Clause
+
 ifeq ($(shell uname),Darwin)
     LDFLAGS := -Ltarget/release/
 else

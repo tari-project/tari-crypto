@@ -10,6 +10,7 @@ use crate::{
     keys::{PublicKey, SecretKey},
 };
 
+/// A service to generate a proof that value is non-negative.
 pub trait RangeProofService {
     /// The type of proof, usually a byte array
     type Proof: Sized;

@@ -266,6 +266,7 @@ impl DomainSeparation for RistrettoKdf {
     }
 }
 
+/// A generator point on the Ristretto curve
 pub struct RistrettoGeneratorPoint;
 
 impl DomainSeparation for RistrettoGeneratorPoint {
@@ -490,7 +491,7 @@ mod test {
     use tari_utilities::{message_format::MessageFormat, ByteArray};
 
     use super::*;
-    use crate::{common::Blake256, keys::PublicKey, ristretto::test_common::get_keypair};
+    use crate::{hash::blake2::Blake256, keys::PublicKey, ristretto::test_common::get_keypair};
 
     fn assert_completely_equal(k1: &RistrettoPublicKey, k2: &RistrettoPublicKey) {
         assert_eq!(k1, k2);

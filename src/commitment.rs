@@ -92,7 +92,7 @@ where
 }
 
 /// Add a public key to a commitment. Note! There is no check that the bases are equal.
-impl<'a, 'b, P> Add<&'b P> for &'b HomomorphicCommitment<P>
+impl<'b, P> Add<&'b P> for &'b HomomorphicCommitment<P>
 where
     P: PublicKey,
     &'b P: Add<&'b P, Output = P>,
@@ -170,7 +170,9 @@ pub trait HomomorphicCommitmentFactory {
     fn open_value(&self, k: &<Self::P as PublicKey>::K, v: u64, commitment: &HomomorphicCommitment<Self::P>) -> bool;
 }
 
+/// A trait for creating extended commitments that are based on a public key
 pub trait ExtendedHomomorphicCommitmentFactory {
+    /// The type of public key that the underlying commitment will be based on
     type P: PublicKey;
 
     /// Create a new commitment with the blinding factor vector **k** and value _v_ provided. The implementing type will
@@ -208,7 +210,7 @@ pub trait ExtendedHomomorphicCommitmentFactory {
 /// The extension degree for extended Pedersen commitments. Currently this is limited to adding 5 base points to the
 /// default Pedersen commitment, but in theory it could be arbitrarily long, although practically, very few if any
 /// test cases will need to add more than 2 base points.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ExtensionDegree {
     /// Default Pedersen commitment (`C = v.H + sum(k_i.G_i)|i=1`)
     DefaultPedersen = 1,

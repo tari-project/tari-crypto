@@ -1,3 +1,6 @@
+// Copyright 2020. The Tari Project
+// SPDX-License-Identifier: BSD-3-Clause
+
 #include "tari_crypto.h"
 #include <stdio.h>
 
@@ -10,9 +13,9 @@ void print_key(uint8_t key[]) {
 }
 
 /*
- * This demo generates 
+ * This demo generates
  * (a) a key pair, signs a message and then validates the signature;
- * (b) secrets, a Pedersen commitment for the secrets, signs a message using the commitment secrets, then 
+ * (b) secrets, a Pedersen commitment for the secrets, signs a message using the commitment secrets, then
  *     validates that the signature is for the commitment and message.
  * All memory in this FFI is managed by the caller. In this demo, the data is kept on the stack, and so explicit
  * memory management is not done, but in general, you have to allocate and free memory yourself.

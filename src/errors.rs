@@ -1,57 +1,53 @@
 // Copyright 2019. The Tari Project
-//
-// Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
-// following conditions are met:
-//
-// 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following
-// disclaimer.
-//
-// 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
-// following disclaimer in the documentation and/or other materials provided with the distribution.
-//
-// 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote
-// products derived from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
-// INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-// SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
-// WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
-// USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// SPDX-License-Identifier: BSD-3-Clause
+
+//! Errors used in the Tari Crypto crate
 
 use serde::{Deserialize, Serialize};
 use tari_utilities::ByteArrayError;
 use thiserror::Error;
 
-#[derive(Debug, Clone, Error, PartialEq, Deserialize, Serialize)]
+/// Errors encountered when creating of verifying range proofs
+#[derive(Debug, Clone, Error, PartialEq, Eq, Deserialize, Serialize)]
 pub enum RangeProofError {
+    /// Cold not construct a range proof
     #[error("Could not construct range proof: `{0}`")]
     ProofConstructionError(String),
+    /// The deserialization of the range proof failed
     #[error("The deserialization of the range proof failed")]
     InvalidProof,
+    /// Invalid input was provided to the RangeProofService constructor
     #[error("Invalid input was provided to the RangeProofService constructor: `{0}`")]
     InitializationError(String),
+    /// Invalid range proof provided
     #[error("Invalid range proof provided: `{0}`")]
     InvalidRangeProof(String),
+    /// Invalid range proof rewind, the rewind keys provided must be invalid
     #[error("Invalid range proof rewind, the rewind keys provided must be invalid")]
     InvalidRewind(String),
+    /// Inconsistent extension degree
     #[error("Inconsistent extension degree: `{0}`")]
     ExtensionDegree(String),
 }
 
-#[derive(Debug, Clone, Error, PartialEq, Deserialize, Serialize)]
+/// Errors encountered when committing values
+#[derive(Debug, Clone, Error, PartialEq, Eq, Deserialize, Serialize)]
 pub enum CommitmentError {
+    /// Inconsistent extension degree
     #[error("Inconsistent extension degree: `{0}`")]
     ExtensionDegree(String),
 }
 
+/// Errors encountered when hashing
 #[derive(Debug, Error)]
 pub enum HashingError {
+    /// The input to the hashing function is too short
     #[error("The input to the hashing function is too short.")]
     InputTooShort,
+    /// Converting a byte string into a secret key failed
     #[error("Converting a byte string into a secret key failed. {0}")]
     ConversionFromBytes(#[from] ByteArrayError),
-    #[error("The digest does does produce enough output. {0} bytes are required.")]
+    /// The digest does not produce enough output
+    #[error("The digest does produce enough output. {0} bytes are required.")]
     DigestTooShort(usize),
 }

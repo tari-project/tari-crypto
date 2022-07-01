@@ -1,24 +1,7 @@
-// Copyright 2019 The Tari Project
-//
-// Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
-// following conditions are met:
-//
-// 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following
-// disclaimer.
-//
-// 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
-// following disclaimer in the documentation and/or other materials provided with the distribution.
-//
-// 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote
-// products derived from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
-// INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-// SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
-// WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
-// USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Copyright 2019. The Tari Project
+// SPDX-License-Identifier: BSD-3-Clause
+
+//! Bulletproofs+ implementation
 
 use std::convert::TryFrom;
 
@@ -63,11 +46,17 @@ pub struct BulletproofsPlusService {
     transcript_label: &'static str,
 }
 
+/// An extended mask for the Ristretto curve
 pub type RistrettoExtendedMask = extended_range_proof::ExtendedMask<RistrettoSecretKey>;
+/// An extended witness for the Ristretto curve
 pub type RistrettoExtendedWitness = ExtendedWitness<RistrettoSecretKey>;
+/// A range proof statement for the Ristretto curve
 pub type RistrettoStatement = Statement<RistrettoPublicKey>;
+/// An aggregated statement for the Ristretto curve
 pub type RistrettoAggregatedPublicStatement = AggregatedPublicStatement<RistrettoPublicKey>;
+/// An aggregated private statement for the Ristretto curve
 pub type RistrettoAggregatedPrivateStatement = AggregatedPrivateStatement<RistrettoPublicKey>;
+/// A set of generators for the Ristretto curve
 pub type BulletproofsPlusRistrettoPedersenGens = PedersenGens<RistrettoPoint>;
 
 impl TryFrom<&RistrettoExtendedMask> for Vec<Scalar> {
@@ -239,9 +228,7 @@ impl RangeProofService for BulletproofsPlusService {
     }
 
     fn verify(&self, proof: &Self::Proof, commitment: &HomomorphicCommitment<Self::PK>) -> bool {
-        return match RistrettoRangeProof::from_bytes(proof)
-            .map_err(|e| RangeProofError::InvalidRangeProof(e.to_string()))
-        {
+        match RistrettoRangeProof::from_bytes(proof).map_err(|e| RangeProofError::InvalidRangeProof(e.to_string())) {
             Ok(rp) => {
                 let statement = RangeStatement {
                     generators: self.generators.clone(),
@@ -277,7 +264,7 @@ impl RangeProofService for BulletproofsPlusService {
                 );
                 false
             },
-        };
+        }
     }
 
     fn range(&self) -> usize {
@@ -471,9 +458,7 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
         proof: &Self::Proof,
         statement: &RistrettoAggregatedPrivateStatement,
     ) -> Result<Option<RistrettoExtendedMask>, RangeProofError> {
-        return match RistrettoRangeProof::from_bytes(proof)
-            .map_err(|e| RangeProofError::InvalidRangeProof(e.to_string()))
-        {
+        match RistrettoRangeProof::from_bytes(proof).map_err(|e| RangeProofError::InvalidRangeProof(e.to_string())) {
             Ok(rp) => {
                 // Prepare the range statement
                 let range_statements = self.prepare_private_range_statements(vec![statement]);
@@ -498,7 +483,7 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
                 "Range proof could not be deserialized ({})",
                 e
             ))),
-        };
+        }
     }
 
     fn verify_mask(

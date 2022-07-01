@@ -12,12 +12,12 @@ use crate::{
     range_proof::RangeProofService,
     ristretto::{
         bulletproofs_plus::BulletproofsPlusService,
-        dalek_range_proof::DalekRangeProofService,
         pedersen::{
             commitment_factory::PedersenCommitmentFactory,
             extended_commitment_factory::ExtendedPedersenCommitmentFactory,
             PedersenCommitment,
         },
+        DalekRangeProofService,
         RistrettoSecretKey,
     },
     tari_utilities::hex::from_hex,
@@ -37,6 +37,7 @@ pub struct VerificationResult {
     error: String,
 }
 
+/// Generated from [RangeProofFactory::create_proof]
 #[derive(Default, Serialize, Deserialize)]
 pub struct RecoverResult {
     mask: String,
@@ -105,6 +106,7 @@ impl Default for RangeProofFactory {
     }
 }
 
+/// A factory to prove and verify extended range proofs
 #[wasm_bindgen]
 pub struct ExtendedRangeProofFactory {
     range_proof_service: BulletproofsPlusService,
@@ -157,6 +159,7 @@ impl ExtendedRangeProofFactory {
         JsValue::from_serde(&result).unwrap()
     }
 
+    /// Construct a proof with a recovery seed nonce
     pub fn construct_proof_with_recovery_seed_nonce(&self, mask: &str, value: u64, seed_nonce: &str) -> JsValue {
         let mut result = RangeProofResult::default();
         let mask = match RistrettoSecretKey::from_hex(mask) {
@@ -183,6 +186,7 @@ impl ExtendedRangeProofFactory {
         JsValue::from_serde(&result).unwrap()
     }
 
+    /// Recover a mask from a proof
     pub fn recover_mask(&self, proof: &str, commitment: &str, seed_nonce: &str) -> JsValue {
         let mut result = RecoverResult::default();
         let proof = match from_hex(proof) {
@@ -213,6 +217,7 @@ impl ExtendedRangeProofFactory {
         JsValue::from_serde(&result).unwrap()
     }
 
+    /// Verify that a mask and value is the one used in a proof
     pub fn verify_mask(&self, commitment: &str, mask: &str, value: u64) -> JsValue {
         let mut result = VerificationResult::default();
         let commitment = match PedersenCommitment::from_hex(commitment) {
