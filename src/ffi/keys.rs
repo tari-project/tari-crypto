@@ -16,7 +16,7 @@ use crate::{
     hash::blake2::Blake256,
     keys::{PublicKey, SecretKey},
     ristretto::{
-        pedersen::PedersenCommitmentFactory,
+        pedersen::commitment_factory::PedersenCommitmentFactory,
         RistrettoComSig,
         RistrettoPublicKey,
         RistrettoSchnorr,

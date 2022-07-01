@@ -10,7 +10,7 @@ use tari_crypto::{
     keys::SecretKey,
     range_proof::RangeProofService,
     ristretto::{
-        pedersen::{PedersenCommitment, PedersenCommitmentFactory},
+        pedersen::{commitment_factory::PedersenCommitmentFactory, PedersenCommitment},
         DalekRangeProofService,
         RistrettoSecretKey,
     },

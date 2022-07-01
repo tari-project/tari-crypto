@@ -3,6 +3,7 @@
 
 //! This module contains implementations using the Ristretto curve.
 
+pub mod bulletproofs_plus;
 pub mod constants;
 mod dalek_range_proof;
 #[cfg(feature = "musig")]

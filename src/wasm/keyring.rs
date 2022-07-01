@@ -11,7 +11,7 @@ use crate::{
     commitment::HomomorphicCommitmentFactory,
     keys::PublicKey,
     ristretto::{
-        pedersen::{PedersenCommitment, PedersenCommitmentFactory},
+        pedersen::{commitment_factory::PedersenCommitmentFactory, PedersenCommitment},
         RistrettoPublicKey,
         RistrettoSecretKey,
     },

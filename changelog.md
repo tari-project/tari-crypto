@@ -1,5 +1,53 @@
 # Changelog
 
+All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+
+## [0.14.0](https://github.com/tari-project/tari-crypto/compare/v0.13.2...v0.14.0) (2022-06-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* - any project based on a specific commitment in `tari_crypto` needs to be updated, as a commitment for the same value and blinding factor will now yield a different commitment. This was a necessary change as as described below.
+
+
+### Features
+
+* change to nums constants ([#111](https://github.com/tari-project/tari-crypto/issues/111)) ([04d5d1e](https://github.com/tari-project/tari-crypto/commit/04d5d1e739c328f4b4ba2ea5088d217529deeacd))
+
+### [0.13.3](https://github.com/tari-project/tari-crypto/compare/v0.13.2...v0.13.3) (2022-06-23)
+
+
+### Features
+
+* add bulletproof_plus to wasm ([#107](https://github.com/tari-project/tari-crypto/issues/107)) ([62cb98d](https://github.com/tari-project/tari-crypto/commit/62cb98d7e94e4324bf7077105ee3d517cc3a5254))
+* add simple bulletproofs plus interface([#105](https://github.com/tari-project/tari-crypto/issues/105)) ([4f9500c](https://github.com/tari-project/tari-crypto/commit/4f9500c9bd3a346c4d045f79139961b6344c1968))
+
+### [0.13.2](https://github.com/tari-project/tari-crypto/compare/v0.13.1...v0.13.2) (2022-06-15)
+
+
+### Features
+
+* add extended range proofs ([#102](https://github.com/tari-project/tari-crypto/issues/102)) ([b7f7761](https://github.com/tari-project/tari-crypto/commit/b7f77612d9903d70a0770e017a60288149ba6597))
+
+### [0.13.1](https://github.com/tari-project/tari-crypto/compare/v0.13.0...v0.13.1) (2022-06-13)
+
+
+### Features
+
+* add extended ristretto commitment factory and pedersen generators ([#99](https://github.com/tari-project/tari-crypto/issues/99)) ([9a579f6](https://github.com/tari-project/tari-crypto/commit/9a579f6029c3ef3513887ef69dafe96152d073f3))
+
+## [0.13.0](https://github.com/tari-project/tari-crypto/compare/v0.12.5...v0.13.0) (2022-04-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* changes method signature of RistrettoComSig::sign to pass in references (#91)
+
+### Bug Fixes
+
+* clippy lints ([#93](https://github.com/tari-project/tari-crypto/issues/93)) ([fa0d728](https://github.com/tari-project/tari-crypto/commit/fa0d7286e941b06038a10de5adead415339d4603))
+* adds clippy lints config and fix lints ([#91](https://github.com/tari-project/tari-crypto/issues/91)) ([5de3d45](https://github.com/tari-project/tari-crypto/commit/5de3d45661386d5c6af9ebbc2c5af9fe62fca1ed))
+
 ### [0.12.2](https://github.com/tari-project/tari-crypto/compare/v0.12.1...v0.12.2) (2022-03-25)
 
 ### Bug Fixes

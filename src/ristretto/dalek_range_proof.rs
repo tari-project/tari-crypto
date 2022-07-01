@@ -11,18 +11,12 @@ use bulletproofs::{
 use merlin::Transcript;
 
 use crate::{
+    errors::RangeProofError,
     keys::PublicKey,
-    range_proof::{
-        FullRewindResult,
-        RangeProofError,
-        RangeProofService,
-        RewindResult,
-        REWIND_CHECK_MESSAGE,
-        REWIND_PROOF_MESSAGE_LENGTH,
-        REWIND_USER_MESSAGE_LENGTH,
-    },
+    range_proof::RangeProofService,
+    rewindable_range_proof::{FullRewindResult, RewindResult, RewindableRangeProofService, REWIND_USER_MESSAGE_LENGTH},
     ristretto::{
-        pedersen::{PedersenCommitment, PedersenCommitmentFactory},
+        pedersen::{commitment_factory::PedersenCommitmentFactory, PedersenCommitment},
         RistrettoPublicKey,
         RistrettoSecretKey,
     },
@@ -36,19 +30,21 @@ pub struct DalekRangeProofService {
 }
 
 const MASK: usize = 0b111_1000; // Mask for 8,16,32,64; the valid ranges on the Dalek library
+pub const REWIND_PROOF_MESSAGE_LENGTH: usize = 23;
+pub const REWIND_CHECK_MESSAGE: &[u8; 2] = b"TR";
 
 impl DalekRangeProofService {
     /// Create a new RangeProofService. The Dalek library can only generate proofs for ranges between [0; 2^range),
     /// where valid range values are 8, 16, 32 and 64.
     pub fn new(range: usize, base: &PedersenCommitmentFactory) -> Result<DalekRangeProofService, RangeProofError> {
         if range == 0 || (range | MASK != MASK) {
-            return Err(RangeProofError::InitializationError);
+            return Err(RangeProofError::InitializationError("Range not valid".to_string()));
         }
         let pc_gens = PedersenGens {
             B_blinding: base.G,
             B: base.H,
         };
-        let bp_gens = BulletproofGens::new(64, 1);
+        let bp_gens = BulletproofGens::new(range, 1);
         Ok(DalekRangeProofService {
             range,
             pc_gens,
@@ -66,7 +62,7 @@ impl RangeProofService for DalekRangeProofService {
         let mut pt = Transcript::new(b"tari");
         let k = key.0;
         let (proof, _) = DalekProof::prove_single(&self.bp_gens, &self.pc_gens, &mut pt, value, &k, self.range)
-            .map_err(|_| RangeProofError::ProofConstructionError)?;
+            .map_err(|e| RangeProofError::ProofConstructionError(e.to_string()))?;
         Ok(proof.to_bytes())
     }
 
@@ -85,6 +81,12 @@ impl RangeProofService for DalekRangeProofService {
     fn range(&self) -> usize {
         self.range
     }
+}
+
+impl RewindableRangeProofService for DalekRangeProofService {
+    type K = RistrettoSecretKey;
+    type PK = RistrettoPublicKey;
+    type Proof = Vec<u8>;
 
     fn construct_proof_with_rewind_key(
         &self,
@@ -113,7 +115,7 @@ impl RangeProofService for DalekRangeProofService {
             &rbk,
             &full_proof_message,
         )
-        .map_err(|_| RangeProofError::ProofConstructionError)?;
+        .map_err(|e| RangeProofError::ProofConstructionError(e.to_string()))?;
         Ok(proof.to_bytes())
     }
 
@@ -142,9 +144,11 @@ impl RangeProofService for DalekRangeProofService {
                 &rewind_nonce_1,
                 &rewind_nonce_2,
             )
-            .map_err(|_| RangeProofError::ProofConstructionError)?;
+            .map_err(|e| RangeProofError::ProofConstructionError(e.to_string()))?;
         if &proof_message[..REWIND_CHECK_MESSAGE.len()] != REWIND_CHECK_MESSAGE {
-            return Err(RangeProofError::InvalidRewind);
+            return Err(RangeProofError::InvalidRewind(
+                "Rewind check message length".to_string(),
+            ));
         }
         let mut truncated_proof_message: [u8; REWIND_USER_MESSAGE_LENGTH] = [0u8; REWIND_USER_MESSAGE_LENGTH];
         truncated_proof_message.copy_from_slice(&proof_message[REWIND_CHECK_MESSAGE.len()..]);
@@ -184,7 +188,7 @@ impl RangeProofService for DalekRangeProofService {
                 &blinding_nonce_1,
                 &blinding_nonce_2,
             )
-            .map_err(|_| RangeProofError::InvalidRewind)?;
+            .map_err(|e| RangeProofError::InvalidRewind(e.to_string()))?;
 
         let mut truncated_proof_message: [u8; REWIND_USER_MESSAGE_LENGTH] = [0u8; REWIND_USER_MESSAGE_LENGTH];
         truncated_proof_message.copy_from_slice(&proof_message[REWIND_CHECK_MESSAGE.len()..]);
@@ -202,11 +206,13 @@ mod test {
 
     use crate::{
         commitment::HomomorphicCommitmentFactory,
+        errors::RangeProofError,
         keys::{PublicKey, SecretKey},
-        range_proof::{RangeProofError, RangeProofService},
+        range_proof::RangeProofService,
+        rewindable_range_proof::RewindableRangeProofService,
         ristretto::{
             dalek_range_proof::DalekRangeProofService,
-            pedersen::PedersenCommitmentFactory,
+            pedersen::commitment_factory::PedersenCommitmentFactory,
             RistrettoPublicKey,
             RistrettoSecretKey,
         },
@@ -266,11 +272,15 @@ mod test {
         assert!(!format!("{:?}", proof).is_empty());
         assert_eq!(
             prover.rewind_proof_value_only(&proof, &c, &public_random_k, &public_rewind_blinding_k),
-            Err(RangeProofError::InvalidRewind)
+            Err(RangeProofError::InvalidRewind(
+                "Rewind check message length".to_string()
+            ))
         );
         assert_eq!(
             prover.rewind_proof_value_only(&proof, &c, &public_rewind_k, &public_random_k),
-            Err(RangeProofError::InvalidRewind)
+            Err(RangeProofError::InvalidRewind(
+                "Rewind check message length".to_string()
+            ))
         );
 
         let rewind_result = prover
@@ -283,11 +293,15 @@ mod test {
 
         assert_eq!(
             prover.rewind_proof_commitment_data(&proof, &c, &random_k, &rewind_blinding_k),
-            Err(RangeProofError::InvalidRewind)
+            Err(RangeProofError::InvalidRewind(
+                "Rewinding the proof failed, invalid commitment extracted".to_string()
+            ))
         );
         assert_eq!(
             prover.rewind_proof_commitment_data(&proof, &c, &rewind_k, &random_k),
-            Err(RangeProofError::InvalidRewind)
+            Err(RangeProofError::InvalidRewind(
+                "Rewinding the proof failed, invalid commitment extracted".to_string()
+            ))
         );
 
         let full_rewind_result = prover
@@ -303,10 +317,8 @@ mod test {
     #[test]
     fn non_power_of_two_range() {
         let base = PedersenCommitmentFactory::default();
-        assert!(matches!(
-            DalekRangeProofService::new(10, &base),
-            Err(RangeProofError::InitializationError)
-        ));
+        let _error = RangeProofError::InitializationError("Range not valid".to_string());
+        assert!(matches!(DalekRangeProofService::new(10, &base), Err(_error)));
     }
 
     #[test]
