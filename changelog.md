@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.15.0](https://github.com/tari-project/tari-crypto/compare/v0.14.0...v0.15.0) (2022-07-04)
+
+
+### ⚠ BREAKING CHANGES
+
+BREAKING CHANGE: `Blake256` no longer re-exposed under the `common` mod and must be imported as `hash::blake2::Blake256`
+BREAKING CHANGE: `avx2` and `simd` features have been removed. Use `simd_backend` instead
+BREAKING CHANGE: `macros` mod is now private
+BREAKING CHANGE: Various constants have been made private
+BREAKING CHANGE: `DalekRangeProofService` moved from `ristretto::dalek_range_proof` to `ristretto`
+BREAKING CHANGE: `ristretto_com_sig` and `ristretto_sig` mods have been made private. The structs and methods inside were already re-exposed under `ristretto`
+
+### Features
+
+* hashing api ([#106](https://github.com/tari-project/tari-crypto/issues/106)) ([fcb02af](https://github.com/tari-project/tari-crypto/commit/fcb02af03e68f0eacffd9db78cb786a0985bbc96))
+
+
+### Bug Fixes
+
+* remove unneeded pub uses ([#94](https://github.com/tari-project/tari-crypto/issues/94)) ([b81f1bb](https://github.com/tari-project/tari-crypto/commit/b81f1bbe72b217be379fcd8250ab403f06af741b))
+
 ## [0.14.0](https://github.com/tari-project/tari-crypto/compare/v0.13.2...v0.14.0) (2022-06-24)
 
 
