@@ -1,3 +1,6 @@
+// Copyright 2022. The Tari Project
+// SPDX-License-Identifier: BSD-3-Clause
+
 //! Schnorr Signature module
 //! This module defines generic traits for handling the digital signature operations, agnostic
 //! of the underlying elliptic curve implementation
@@ -13,7 +16,9 @@ use thiserror::Error;
 
 use crate::keys::{PublicKey, SecretKey};
 
+/// An error occurred during construction of a SchnorrSignature
 #[derive(Clone, Debug, Error, PartialEq, Eq, Deserialize, Serialize)]
+#[allow(missing_docs)]
 pub enum SchnorrSignatureError {
     #[error("An invalid challenge was provided")]
     InvalidChallenge,

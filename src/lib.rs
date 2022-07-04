@@ -3,13 +3,11 @@
 
 //! Tari-Crypto
 
-#![recursion_limit = "256"]
-
 #[macro_use]
 extern crate lazy_static;
 
 #[macro_use]
-pub mod macros;
+mod macros;
 pub mod commitment;
 pub mod hash;
 pub mod hashing;
@@ -33,5 +31,4 @@ pub mod extended_range_proof;
 pub mod ffi;
 
 // Re-export tari_utils
-pub use hash::blake2 as common;
 pub use tari_utilities;

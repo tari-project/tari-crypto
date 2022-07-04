@@ -1,3 +1,6 @@
+// Copyright 2019. The Tari Project
+// SPDX-License-Identifier: BSD-3-Clause
+
 //! # The Hashing API
 //!
 //! ## A brief justification for this API
@@ -32,7 +35,7 @@ use digest::Digest;
 use sha3::Sha3_256;
 use tari_utilities::ByteArray;
 
-use crate::{common::Blake256, errors::HashingError, keys::SecretKey};
+use crate::{errors::HashingError, hash::blake2::Blake256, keys::SecretKey};
 
 /// The `DomainSeparation` trait is used to inject domain separation tags into the [`DomainSeparatedHasher`] in a way
 /// that can be applied consistently, but without hard-coding anything into the hasher itself.
@@ -158,7 +161,7 @@ impl AsRef<[u8]> for DomainSeparatedHash {
 ///
 /// ```
 /// use tari_crypto::{
-///     common::Blake256,
+///     hash::blake2::Blake256,
 ///     hashing::{DomainSeparatedHash, DomainSeparatedHasher, GenericHashDomain},
 /// };
 /// use tari_utilities::hex::{to_hex, Hex};
@@ -190,6 +193,7 @@ pub struct DomainSeparatedHasher<D, M> {
 }
 
 impl<D: Digest, M: DomainSeparation> DomainSeparatedHasher<D, M> {
+    /// Create a new instance of [`DomainSeparatedHasher`] for the given label.
     pub fn new<S>(label: S) -> Self
     where S: AsRef<str> {
         let inner = D::new();
@@ -354,7 +358,7 @@ impl Deref for Mac {
 /// ```
 /// # use tari_utilities::ByteArray;
 /// # use tari_utilities::hex::Hex;
-/// # use tari_crypto::common::Blake256;
+/// # use tari_crypto::hash::blake2::Blake256;
 /// # use tari_crypto::errors::HashingError;
 /// # use tari_crypto::hashing::{DerivedKeyDomain, MacDomain};
 /// # use tari_crypto::keys::SecretKey;
@@ -409,7 +413,7 @@ mod test {
     use tari_utilities::hex::{from_hex, to_hex};
 
     use crate::{
-        common::Blake256,
+        hash::blake2::Blake256,
         hashing::{DomainSeparatedHasher, DomainSeparation, GenericHashDomain, Mac, MacDomain},
     };
 

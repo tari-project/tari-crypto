@@ -1,24 +1,7 @@
 // Copyright 2020. The Tari Project
-//
-// Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
-// following conditions are met:
-//
-// 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following
-// disclaimer.
-//
-// 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
-// following disclaimer in the documentation and/or other materials provided with the distribution.
-//
-// 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote
-// products derived from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
-// INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-// SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
-// WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
-// USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// SPDX-License-Identifier: BSD-3-Clause
+
+//! Range proof proving and verification functions
 
 use serde::{Deserialize, Serialize};
 use tari_utilities::hex::Hex;
@@ -29,35 +12,39 @@ use crate::{
     range_proof::RangeProofService,
     ristretto::{
         bulletproofs_plus::BulletproofsPlusService,
-        dalek_range_proof::DalekRangeProofService,
         pedersen::{
             commitment_factory::PedersenCommitmentFactory,
             extended_commitment_factory::ExtendedPedersenCommitmentFactory,
             PedersenCommitment,
         },
+        DalekRangeProofService,
         RistrettoSecretKey,
     },
     tari_utilities::hex::from_hex,
 };
 
+/// Generated from [RangeProofFactory::create_proof]
 #[derive(Default, Serialize, Deserialize)]
 pub struct RangeProofResult {
     proof: String,
     error: String,
 }
 
+/// Generated when calling [RangeProofFactory::verify]
 #[derive(Default, Serialize, Deserialize)]
 pub struct VerificationResult {
     valid: bool,
     error: String,
 }
 
+/// Generated from [RangeProofFactory::create_proof]
 #[derive(Default, Serialize, Deserialize)]
 pub struct RecoverResult {
     mask: String,
     error: String,
 }
 
+/// A factory to prove and verify range proofs
 #[wasm_bindgen]
 pub struct RangeProofFactory {
     range_proof_service: DalekRangeProofService,
@@ -73,7 +60,8 @@ impl RangeProofFactory {
         RangeProofFactory { range_proof_service }
     }
 
-    /// Creates a new range proof for the given key-value pair.
+    /// Creates a new range proof for the given key-value pair. Returns a [JsValue] of a serialized
+    /// [RangeProofResult]
     pub fn create_proof(&self, key: &str, value: u64) -> JsValue {
         let mut result = RangeProofResult::default();
         let key = match RistrettoSecretKey::from_hex(key) {
@@ -90,7 +78,7 @@ impl RangeProofFactory {
         JsValue::from_serde(&result).unwrap()
     }
 
-    /// Verifies the given range proof and commitment.
+    /// Verifies the given range proof and commitment. Returns a [JsValue] of a serialized [VerificationResult]
     pub fn verify(&self, commitment: &str, proof: &str) -> JsValue {
         let mut result = VerificationResult::default();
         let commitment = match PedersenCommitment::from_hex(commitment) {
@@ -118,6 +106,7 @@ impl Default for RangeProofFactory {
     }
 }
 
+/// A factory to prove and verify extended range proofs
 #[wasm_bindgen]
 pub struct ExtendedRangeProofFactory {
     range_proof_service: BulletproofsPlusService,
@@ -170,6 +159,7 @@ impl ExtendedRangeProofFactory {
         JsValue::from_serde(&result).unwrap()
     }
 
+    /// Construct a proof with a recovery seed nonce
     pub fn construct_proof_with_recovery_seed_nonce(&self, mask: &str, value: u64, seed_nonce: &str) -> JsValue {
         let mut result = RangeProofResult::default();
         let mask = match RistrettoSecretKey::from_hex(mask) {
@@ -196,6 +186,7 @@ impl ExtendedRangeProofFactory {
         JsValue::from_serde(&result).unwrap()
     }
 
+    /// Recover a mask from a proof
     pub fn recover_mask(&self, proof: &str, commitment: &str, seed_nonce: &str) -> JsValue {
         let mut result = RecoverResult::default();
         let proof = match from_hex(proof) {
@@ -226,6 +217,7 @@ impl ExtendedRangeProofFactory {
         JsValue::from_serde(&result).unwrap()
     }
 
+    /// Verify that a mask and value is the one used in a proof
     pub fn verify_mask(&self, commitment: &str, mask: &str, value: u64) -> JsValue {
         let mut result = VerificationResult::default();
         let commitment = match PedersenCommitment::from_hex(commitment) {
