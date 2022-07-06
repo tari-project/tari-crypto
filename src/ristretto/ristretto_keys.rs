@@ -6,7 +6,6 @@ use std::{
     borrow::Borrow,
     cmp::Ordering,
     fmt,
-    fmt::Debug,
     hash::{Hash, Hasher},
     ops::{Add, Mul, Sub},
 };
@@ -50,7 +49,7 @@ use crate::{
 /// let _k2 = RistrettoSecretKey::from_hex(&"100000002000000030000000040000000");
 /// let _k3 = RistrettoSecretKey::random(&mut rng);
 /// ```
-#[derive(Eq, Clone, Debug, Default)]
+#[derive(Eq, Clone, Default)]
 pub struct RistrettoSecretKey(pub(crate) Scalar);
 
 const SCALAR_LENGTH: usize = 32;
@@ -108,6 +107,39 @@ impl Hash for RistrettoSecretKey {
 impl PartialEq for RistrettoSecretKey {
     fn eq(&self, other: &Self) -> bool {
         self.0.eq(&other.0)
+    }
+}
+
+//----------------------------------   RistrettoSecretKey Debug --------------------------------------------//
+impl fmt::Debug for RistrettoSecretKey {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "RistrettoSecretKey(***)")
+    }
+}
+
+/// A secret key that can be printed with `Debug` or `Display`.
+pub struct RevealedSecretKey<'a> {
+    secret: &'a RistrettoSecretKey,
+}
+
+impl RistrettoSecretKey {
+    /// Make a secret key printable.
+    pub fn reveal(&self) -> RevealedSecretKey<'_> {
+        RevealedSecretKey { secret: self }
+    }
+}
+
+impl<'a> fmt::Display for RevealedSecretKey<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.secret.to_hex())
+    }
+}
+
+impl<'a> fmt::Debug for RevealedSecretKey<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_tuple("RistrettoSecretKey")
+            .field(&self.secret.to_hex())
+            .finish()
     }
 }
 
@@ -789,5 +821,15 @@ mod test {
             derived2.to_hex(),
             "3ae035e2663d9c561300cca67743ccdb56ea07ca7dacd8394356c4354b030e0c"
         );
+    }
+
+    #[test]
+    fn visibility_test() {
+        let key =
+            RistrettoSecretKey::from_hex("b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c").unwrap();
+        let invisible = format!("{:?}", key);
+        assert!(!invisible.contains("016c"));
+        let visible = format!("{:?}", key.reveal());
+        assert!(visible.contains("016c"));
     }
 }
