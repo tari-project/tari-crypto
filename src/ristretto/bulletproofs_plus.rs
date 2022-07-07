@@ -63,7 +63,7 @@ impl TryFrom<&RistrettoExtendedMask> for Vec<Scalar> {
     type Error = RangeProofError;
 
     fn try_from(extended_mask: &RistrettoExtendedMask) -> Result<Self, Self::Error> {
-        Ok(extended_mask.secrets().iter().map(|k| k.0).collect())
+        Ok(extended_mask.secrets().iter().map(|k| k.reveal().clone()).collect())
     }
 }
 
@@ -77,7 +77,7 @@ impl TryFrom<&BulletproofsExtendedMask> for RistrettoExtendedMask {
         RistrettoExtendedMask::assign(
             CommitmentExtensionDegree::try_from_size(secrets.len())
                 .map_err(|e| RangeProofError::ExtensionDegree(e.to_string()))?,
-            secrets.iter().map(|k| RistrettoSecretKey(*k)).collect(),
+            secrets.iter().map(|k| RistrettoSecretKey::new(*k)).collect(),
         )
     }
 }
@@ -174,7 +174,7 @@ impl BulletproofsPlusService {
                     .iter()
                     .map(|v| Some(v.minimum_value_promise))
                     .collect(),
-                seed_nonce: statement.recovery_seed_nonce.as_ref().map(|n| n.0),
+                seed_nonce: statement.recovery_seed_nonce.as_ref().map(|n| n.reveal().clone()),
             });
         }
         range_statements
@@ -213,9 +213,9 @@ impl RangeProofService for BulletproofsPlusService {
         let commitment = self
             .generators
             .pc_gens()
-            .commit(&Scalar::from(value), &[key.0])
+            .commit(&Scalar::from(value), &[key.reveal().clone()])
             .map_err(|e| RangeProofError::ProofConstructionError(e.to_string()))?;
-        let opening = CommitmentOpening::new(value, vec![key.0]);
+        let opening = CommitmentOpening::new(value, vec![key.reveal().clone()]);
         let witness =
             RangeWitness::init(vec![opening]).map_err(|e| RangeProofError::ProofConstructionError(e.to_string()))?;
         let statement = RangeStatement::init(self.generators.clone(), vec![commitment], vec![None], None)
@@ -286,16 +286,16 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
         let commitment = self
             .generators
             .pc_gens()
-            .commit(&Scalar::from(value), &[mask.0])
+            .commit(&Scalar::from(value), &[mask.reveal().clone()])
             .map_err(|e| RangeProofError::ProofConstructionError(e.to_string()))?;
-        let opening = CommitmentOpening::new(value, vec![mask.0]);
+        let opening = CommitmentOpening::new(value, vec![mask.reveal().clone()]);
         let witness =
             RangeWitness::init(vec![opening]).map_err(|e| RangeProofError::ProofConstructionError(e.to_string()))?;
         let statement = RangeStatement::init(
             self.generators.clone(),
             vec![commitment],
             vec![None],
-            Some(seed_nonce.0),
+            Some(seed_nonce.reveal().clone()),
         )
         .map_err(|e| RangeProofError::ProofConstructionError(e.to_string()))?;
 
@@ -334,7 +334,7 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
             self.generators.clone(),
             commitments,
             min_value_promises.iter().map(|v| Some(*v)).collect(),
-            seed_nonce.map(|s| s.0),
+            seed_nonce.map(|s| s.reveal().clone()),
         )
         .map_err(|e| RangeProofError::ProofConstructionError(e.to_string()))?;
 
@@ -419,7 +419,7 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
                     commitments: vec![commitment.0.point()],
                     commitments_compressed: vec![*commitment.0.compressed()],
                     minimum_value_promises: vec![None],
-                    seed_nonce: Some(seed_nonce.0),
+                    seed_nonce: Some(seed_nonce.reveal().clone()),
                 };
                 // Prepare the range statement
 
@@ -430,7 +430,7 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
                                 "Mask could not be recovered".to_string(),
                             ))
                         } else if let Some(mask) = &recovered_mask[0] {
-                            Ok(RistrettoSecretKey(
+                            Ok(RistrettoSecretKey::new(
                                 mask.blindings()
                                     .map_err(|e| RangeProofError::InvalidRewind(e.to_string()))?[0],
                             ))
@@ -495,7 +495,7 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
         match self
             .generators
             .pc_gens()
-            .commit(&Scalar::from(value), &[mask.0])
+            .commit(&Scalar::from(value), &[mask.reveal().clone()])
             .map_err(|e| RangeProofError::ExtensionDegree(e.to_string()))
         {
             Ok(val) => Ok(val == commitment.0.point()),
@@ -593,7 +593,7 @@ mod test {
                     let bulletproofs_plus_service =
                         BulletproofsPlusService::init(bit_length, aggregation_size, factory.clone()).unwrap();
                     for value in [0, 1, 10, u64::MAX] {
-                        let key = RistrettoSecretKey(Scalar::random_not_zero(&mut rng));
+                        let key = RistrettoSecretKey::new(Scalar::random_not_zero(&mut rng));
                         let proof = bulletproofs_plus_service.construct_proof(&key, value);
                         if extension_degree == CommitmentExtensionDegree::DefaultPedersen &&
                             aggregation_size == 1 &&
@@ -647,7 +647,7 @@ mod test {
                         let value = rng.gen_range(value_min..value_max);
                         let minimum_value_promise = if m == 0 { value / 3 } else { 0 };
                         let secrets =
-                            vec![RistrettoSecretKey(Scalar::random_not_zero(&mut rng)); extension_degree as usize];
+                            vec![RistrettoSecretKey::new(Scalar::random_not_zero(&mut rng)); extension_degree as usize];
                         let extended_mask = RistrettoExtendedMask::assign(extension_degree, secrets.clone()).unwrap();
                         let commitment = factory.commit_value_extended(&secrets, value).unwrap();
                         statements.push(RistrettoStatement {
@@ -673,7 +673,7 @@ mod test {
 
                     // 3. Generate the statement
                     let seed_nonce = if aggregation_size == 1 {
-                        Some(RistrettoSecretKey(Scalar::random_not_zero(&mut rng)))
+                        Some(RistrettoSecretKey::new(Scalar::random_not_zero(&mut rng)))
                     } else {
                         None
                     };
@@ -772,7 +772,7 @@ mod test {
         // 2. Create witness data
         let value = rng.gen_range(value_min..value_max);
         let minimum_value_promise = value / 3;
-        let secrets = vec![RistrettoSecretKey(Scalar::random_not_zero(&mut rng)); extension_degree as usize];
+        let secrets = vec![RistrettoSecretKey::new(Scalar::random_not_zero(&mut rng)); extension_degree as usize];
         let extended_mask = RistrettoExtendedMask::assign(extension_degree, secrets.clone()).unwrap();
         let commitment = factory.commit_value_extended(&secrets, value).unwrap();
         let extended_witness = RistrettoExtendedWitness {
@@ -783,7 +783,7 @@ mod test {
         let private_mask = Some(extended_mask);
 
         // 4. Create the proof
-        let seed_nonce = Some(RistrettoSecretKey(Scalar::random_not_zero(&mut rng)));
+        let seed_nonce = Some(RistrettoSecretKey::new(Scalar::random_not_zero(&mut rng)));
         let proof = provers_bulletproofs_plus_service
             .construct_extended_proof(vec![extended_witness.clone()], seed_nonce.clone())
             .unwrap();
@@ -878,11 +878,11 @@ mod test {
 
         // 2. Create witness data
         let value = rng.gen_range(value_min..value_max);
-        let mask = RistrettoSecretKey(Scalar::random_not_zero(&mut rng));
+        let mask = RistrettoSecretKey::new(Scalar::random_not_zero(&mut rng));
         let commitment = factory.commit_value(&mask, value);
 
         // 4. Create the proof
-        let seed_nonce = RistrettoSecretKey(Scalar::random_not_zero(&mut rng));
+        let seed_nonce = RistrettoSecretKey::new(Scalar::random_not_zero(&mut rng));
         let proof = provers_bulletproofs_plus_service
             .construct_proof_with_recovery_seed_nonce(&mask, value, &seed_nonce)
             .unwrap();

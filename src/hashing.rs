@@ -394,7 +394,7 @@ pub trait DerivedKeyDomain: DomainSeparation {
         D: Digest,
         S: AsRef<str>,
     {
-        if primary_key.as_ref().len() < D::output_size() {
+        if primary_key.len() < D::output_size() {
             return Err(HashingError::InputTooShort);
         }
         let hash = DomainSeparatedHasher::<D, Self>::new(label)

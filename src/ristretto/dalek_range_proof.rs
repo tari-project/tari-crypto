@@ -60,7 +60,7 @@ impl RangeProofService for DalekRangeProofService {
 
     fn construct_proof(&self, key: &RistrettoSecretKey, value: u64) -> Result<Self::Proof, RangeProofError> {
         let mut pt = Transcript::new(b"tari");
-        let k = key.0;
+        let k = key.reveal();
         let (proof, _) = DalekProof::prove_single(&self.bp_gens, &self.pc_gens, &mut pt, value, &k, self.range)
             .map_err(|e| RangeProofError::ProofConstructionError(e.to_string()))?;
         Ok(proof.to_bytes())
@@ -101,18 +101,18 @@ impl RewindableRangeProofService for DalekRangeProofService {
         full_proof_message[0..REWIND_CHECK_MESSAGE.len()].clone_from_slice(REWIND_CHECK_MESSAGE);
         full_proof_message[REWIND_CHECK_MESSAGE.len()..].clone_from_slice(proof_message);
 
-        let k = key.0;
-        let rk = rewind_key.0;
-        let rbk = rewind_blinding_key.0;
+        let k = key.reveal();
+        let rk = rewind_key.reveal();
+        let rbk = rewind_blinding_key.reveal();
         let (proof, _) = DalekProof::prove_single_with_rewind_key(
             &self.bp_gens,
             &self.pc_gens,
             &mut pt,
             value,
-            &k,
+            k,
             self.range,
-            &rk,
-            &rbk,
+            rk,
+            rbk,
             &full_proof_message,
         )
         .map_err(|e| RangeProofError::ProofConstructionError(e.to_string()))?;
@@ -173,9 +173,10 @@ impl RewindableRangeProofService for DalekRangeProofService {
             rewind_blinding_public_key.compressed(),
             commitment.as_public_key().compressed(),
         );
-        let blinding_nonce_1 = get_secret_nonce_from_pvt_key(&rewind_key.0, commitment.as_public_key().compressed());
+        let blinding_nonce_1 =
+            get_secret_nonce_from_pvt_key(rewind_key.reveal(), commitment.as_public_key().compressed());
         let blinding_nonce_2 =
-            get_secret_nonce_from_pvt_key(&rewind_blinding_key.0, commitment.as_public_key().compressed());
+            get_secret_nonce_from_pvt_key(rewind_blinding_key.reveal(), commitment.as_public_key().compressed());
         let (confidential_value, blinding_factor, proof_message) = rp
             .rewind_single_get_commitment_data(
                 &self.bp_gens,
@@ -195,7 +196,7 @@ impl RewindableRangeProofService for DalekRangeProofService {
         Ok(FullRewindResult::new(
             confidential_value,
             truncated_proof_message,
-            RistrettoSecretKey(blinding_factor),
+            RistrettoSecretKey::new(blinding_factor),
         ))
     }
 }

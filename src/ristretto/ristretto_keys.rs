@@ -7,7 +7,7 @@ use std::{
     cmp::Ordering,
     fmt,
     hash::{Hash, Hasher},
-    ops::{Add, Mul, Sub, Deref},
+    ops::{Add, Deref, Mul, Sub},
 };
 
 use blake2::Blake2b;
@@ -21,27 +21,13 @@ use digest::Digest;
 use once_cell::sync::OnceCell;
 use rand::{CryptoRng, Rng};
 use tari_utilities::{hex::Hex, ByteArray, ByteArrayError, Hashable};
-use zeroize::Zeroize;
 
 use crate::{
-    guard::{Guarded, GuardedSecret},
     errors::HashingError,
+    guard::{Guarded, GuardedSecret},
     hashing::{DerivedKeyDomain, DomainSeparatedHasher, DomainSeparation},
     keys::{DiffieHellmanSharedSecret, PublicKey, SecretKey},
 };
-
-pub struct RistrettoSecretKey2(GuardedSecret<Self>);
-
-impl Deref for RistrettoSecretKey2 {
-    type Target = GuardedSecret<Self>;
-    fn deref(&self) -> &GuardedSecret<Self> {
-        &self.0
-    }
-}
-
-impl Guarded for RistrettoSecretKey2 {
-    type Secret = Scalar;
-}
 
 /// The [SecretKey](trait.SecretKey.html) implementation for [Ristretto](https://ristretto.group) is a thin wrapper
 /// around the Dalek [Scalar](struct.Scalar.html) type, representing a 256-bit integer (mod the group order).
@@ -63,8 +49,8 @@ impl Guarded for RistrettoSecretKey2 {
 /// let _k2 = RistrettoSecretKey::from_hex(&"100000002000000030000000040000000");
 /// let _k3 = RistrettoSecretKey::random(&mut rng);
 /// ```
-#[derive(Eq, Clone, Default)]
-pub struct RistrettoSecretKey(GuardedSecret<Self>);
+#[derive(PartialEq, Eq, Clone, Default, Debug)]
+pub struct RistrettoSecretKey(GuardedSecret<Scalar>);
 
 const SCALAR_LENGTH: usize = 32;
 const PUBLIC_KEY_LENGTH: usize = 32;
@@ -74,9 +60,16 @@ impl Guarded for RistrettoSecretKey {
 }
 
 impl Deref for RistrettoSecretKey {
-    type Target = GuardedSecret<Self>;
-    fn deref(&self) -> &GuardedSecret<Self> {
+    type Target = GuardedSecret<Scalar>;
+
+    fn deref(&self) -> &GuardedSecret<Scalar> {
         &self.0
+    }
+}
+
+impl RistrettoSecretKey {
+    pub(crate) fn new(scalar: Scalar) -> Self {
+        Self(GuardedSecret::new(scalar))
     }
 }
 
@@ -88,19 +81,14 @@ impl SecretKey for RistrettoSecretKey {
 
     /// Return a random secret key on the `ristretto255` curve using the supplied CSPRNG.
     fn random<R: Rng + CryptoRng>(rng: &mut R) -> Self {
-        RistrettoSecretKey(Scalar::random(rng))
-    }
-}
-
-impl Drop for RistrettoSecretKey {
-    /// Clear the secret key value in memory when it goes out of scope
-    fn drop(&mut self) {
-        self.0.zeroize()
+        let k = Scalar::random(rng);
+        RistrettoSecretKey(GuardedSecret::new(k))
     }
 }
 
 //-------------------------------------  Ristretto Secret Key ByteArray  ---------------------------------------------//
 
+// TODO: Consider moving it to guard
 impl ByteArray for RistrettoSecretKey {
     /// Create a secret key on the Ristretto255 curve using the given little-endian byte array. If the byte array is
     /// not exactly 32 bytes long, `from_bytes` returns an error. This function is guaranteed to return a valid key
@@ -113,12 +101,12 @@ impl ByteArray for RistrettoSecretKey {
         let mut a = [0u8; 32];
         a.copy_from_slice(bytes);
         let k = Scalar::from_bytes_mod_order(a);
-        Ok(RistrettoSecretKey(k))
+        Ok(RistrettoSecretKey(GuardedSecret::new(k)))
     }
 
     /// Return the byte array for the secret key in little-endian order
     fn as_bytes(&self) -> &[u8] {
-        self.0.as_bytes()
+        self.reveal().as_bytes()
     }
 }
 
@@ -129,52 +117,13 @@ impl Hash for RistrettoSecretKey {
     }
 }
 
-impl PartialEq for RistrettoSecretKey {
-    fn eq(&self, other: &Self) -> bool {
-        self.0.eq(&other.0)
-    }
-}
-
-//----------------------------------   RistrettoSecretKey Debug --------------------------------------------//
-impl fmt::Debug for RistrettoSecretKey {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "RistrettoSecretKey(***)")
-    }
-}
-
-/// A secret key that can be printed with `Debug` or `Display`.
-pub struct RevealedSecretKey<'a> {
-    secret: &'a RistrettoSecretKey,
-}
-
-impl RistrettoSecretKey {
-    /// Make a secret key printable.
-    pub fn reveal(&self) -> RevealedSecretKey<'_> {
-        RevealedSecretKey { secret: self }
-    }
-}
-
-impl<'a> fmt::Display for RevealedSecretKey<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.secret.to_hex())
-    }
-}
-
-impl<'a> fmt::Debug for RevealedSecretKey<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_tuple("RistrettoSecretKey")
-            .field(&self.secret.to_hex())
-            .finish()
-    }
-}
-
 //----------------------------------   RistrettoSecretKey Mul / Add / Sub --------------------------------------------//
 
 impl<'a, 'b> Mul<&'b RistrettoPublicKey> for &'a RistrettoSecretKey {
     type Output = RistrettoPublicKey;
 
     fn mul(self, rhs: &'b RistrettoPublicKey) -> RistrettoPublicKey {
-        let p = self.0 * rhs.point;
+        let p = self.reveal() * rhs.point;
         RistrettoPublicKey::new_from_pk(p)
     }
 }
@@ -183,8 +132,8 @@ impl<'a, 'b> Add<&'b RistrettoSecretKey> for &'a RistrettoSecretKey {
     type Output = RistrettoSecretKey;
 
     fn add(self, rhs: &'b RistrettoSecretKey) -> RistrettoSecretKey {
-        let k = self.0 + rhs.0;
-        RistrettoSecretKey(k)
+        let k = self.reveal() + rhs.reveal();
+        RistrettoSecretKey(GuardedSecret::new(k))
     }
 }
 
@@ -192,7 +141,8 @@ impl<'a, 'b> Sub<&'b RistrettoSecretKey> for &'a RistrettoSecretKey {
     type Output = RistrettoSecretKey;
 
     fn sub(self, rhs: &'b RistrettoSecretKey) -> RistrettoSecretKey {
-        RistrettoSecretKey(self.0 - rhs.0)
+        let k = self.reveal() - rhs.reveal();
+        RistrettoSecretKey(GuardedSecret::new(k))
     }
 }
 
@@ -217,21 +167,22 @@ define_mul_variants!(
 impl From<u64> for RistrettoSecretKey {
     fn from(v: u64) -> Self {
         let s = Scalar::from(v);
-        RistrettoSecretKey(s)
+        RistrettoSecretKey(GuardedSecret::new(s))
     }
 }
 
 impl From<Scalar> for RistrettoSecretKey {
     fn from(s: Scalar) -> Self {
-        RistrettoSecretKey(s)
+        RistrettoSecretKey(GuardedSecret::new(s))
     }
 }
 
 //---------------------------------------------      Borrow impl     -------------------------------------------------//
 
+// TODO: Consider removing...
 impl<'a> Borrow<Scalar> for &'a RistrettoSecretKey {
     fn borrow(&self) -> &Scalar {
-        &self.0
+        self.reveal()
     }
 }
 
@@ -341,7 +292,7 @@ impl PublicKey for RistrettoPublicKey {
 
     /// Generates a new Public key from the given secret key
     fn from_secret_key(k: &Self::K) -> RistrettoPublicKey {
-        let pk = &k.0 * &RISTRETTO_BASEPOINT_TABLE;
+        let pk = k.reveal() * &RISTRETTO_BASEPOINT_TABLE;
         RistrettoPublicKey::new_from_pk(pk)
     }
 
@@ -351,7 +302,7 @@ impl PublicKey for RistrettoPublicKey {
 
     fn batch_mul(scalars: &[Self::K], points: &[Self]) -> Self {
         let p: Vec<&RistrettoPoint> = points.iter().map(|p| &p.point).collect();
-        let s: Vec<&Scalar> = scalars.iter().map(|k| &k.0).collect();
+        let s: Vec<&Scalar> = scalars.iter().map(|k| k.reveal()).collect();
         let p = RistrettoPoint::multiscalar_mul(s, p);
         RistrettoPublicKey::new_from_pk(p)
     }
@@ -478,7 +429,7 @@ impl<'a, 'b> Mul<&'b RistrettoSecretKey> for &'a RistrettoPublicKey {
     type Output = RistrettoPublicKey;
 
     fn mul(self, rhs: &'b RistrettoSecretKey) -> RistrettoPublicKey {
-        let p = rhs.0 * self.point;
+        let p = rhs.reveal() * self.point;
         RistrettoPublicKey::new_from_pk(p)
     }
 }
@@ -487,8 +438,8 @@ impl<'a, 'b> Mul<&'b RistrettoSecretKey> for &'a RistrettoSecretKey {
     type Output = RistrettoSecretKey;
 
     fn mul(self, rhs: &'b RistrettoSecretKey) -> RistrettoSecretKey {
-        let p = &rhs.0 * &self.0;
-        RistrettoSecretKey(p)
+        let p = rhs.reveal() * self.reveal();
+        RistrettoSecretKey(GuardedSecret::new(p))
     }
 }
 
@@ -517,7 +468,7 @@ define_mul_variants!(
 
 impl From<RistrettoSecretKey> for Scalar {
     fn from(k: RistrettoSecretKey) -> Self {
-        k.0
+        k.reveal().clone()
     }
 }
 

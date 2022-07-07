@@ -113,7 +113,7 @@ impl HomomorphicCommitmentFactory for ExtendedPedersenCommitmentFactory {
 
     fn commit(&self, k: &RistrettoSecretKey, v: &RistrettoSecretKey) -> PedersenCommitment {
         let c = self
-            .commit_scalars(&v.0, &[k.0])
+            .commit_scalars(v.reveal(), &[k.reveal().clone()])
             .expect("Default commitments will never fail");
         HomomorphicCommitment(RistrettoPublicKey::new_from_pk(c))
     }
@@ -146,8 +146,8 @@ impl ExtendedHomomorphicCommitmentFactory for ExtendedPedersenCommitmentFactory 
         k_vec: &[RistrettoSecretKey],
         v: &RistrettoSecretKey,
     ) -> Result<PedersenCommitment, CommitmentError> {
-        let blinding_factors: Vec<Scalar> = k_vec.iter().map(|k| k.0).collect();
-        let c = self.commit_scalars(&v.0, &blinding_factors)?;
+        let blinding_factors: Vec<Scalar> = k_vec.iter().map(|k| k.reveal().clone()).collect();
+        let c = self.commit_scalars(v.reveal(), &blinding_factors)?;
         Ok(HomomorphicCommitment(RistrettoPublicKey::new_from_pk(c)))
     }
 
@@ -294,9 +294,9 @@ mod test {
                 let v = RistrettoSecretKey::random(&mut rng);
                 let k_vec = vec![RistrettoSecretKey::random(&mut rng); extension_degree as usize];
                 let c_extended = factory.commit_extended(&k_vec, &v).unwrap();
-                let mut c_calc: RistrettoPoint = v.0 * H + k_vec[0].0 * RISTRETTO_PEDERSEN_G;
+                let mut c_calc: RistrettoPoint = v.reveal() * H + k_vec[0].reveal() * RISTRETTO_PEDERSEN_G;
                 for i in 1..(extension_degree as usize) {
-                    c_calc += k_vec[i].reveal().0 * RISTRETTO_NUMS_POINTS[i];
+                    c_calc += k_vec[i].reveal() * RISTRETTO_NUMS_POINTS[i];
                 }
                 assert_eq!(RistrettoPoint::from(c_extended.as_public_key()), c_calc);
 
@@ -419,7 +419,7 @@ mod test {
             k_vec.append(&mut vec![Scalar::default(); extension_degree as usize - 1]);
         }
         (
-            RistrettoSecretKey(k_vec[0]),
+            RistrettoSecretKey::new(k_vec[0]),
             RistrettoPublicKey::new_from_pk(RistrettoPoint::multiscalar_mul(k_vec, &factory.g_base_vec)),
         )
     }

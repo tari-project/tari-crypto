@@ -46,7 +46,7 @@ impl HomomorphicCommitmentFactory for PedersenCommitmentFactory {
     type P = RistrettoPublicKey;
 
     fn commit(&self, k: &RistrettoSecretKey, v: &RistrettoSecretKey) -> PedersenCommitment {
-        let c = RistrettoPoint::multiscalar_mul(&[v.0, k.0], &[self.H, self.G]);
+        let c = RistrettoPoint::multiscalar_mul(&[v.reveal().clone(), k.reveal().clone()], &[self.H, self.G]);
         HomomorphicCommitment(RistrettoPublicKey::new_from_pk(c))
     }
 
@@ -121,7 +121,7 @@ mod test {
             let v = RistrettoSecretKey::random(&mut rng);
             let k = RistrettoSecretKey::random(&mut rng);
             let c = factory.commit(&k, &v);
-            let c_calc: RistrettoPoint = v.0 * H + k.0 * RISTRETTO_PEDERSEN_G;
+            let c_calc: RistrettoPoint = v.reveal() * H + k.reveal() * RISTRETTO_PEDERSEN_G;
             assert_eq!(RistrettoPoint::from(c.as_public_key()), c_calc);
             assert!(factory.open(&k, &v, &c));
             // A different value doesn't open the commitment
