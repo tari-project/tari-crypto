@@ -7,7 +7,7 @@ use std::{
     cmp::Ordering,
     fmt,
     hash::{Hash, Hasher},
-    ops::{Add, Mul, Sub},
+    ops::{Add, Mul, Sub, Deref},
 };
 
 use blake2::Blake2b;
@@ -24,10 +24,24 @@ use tari_utilities::{hex::Hex, ByteArray, ByteArrayError, Hashable};
 use zeroize::Zeroize;
 
 use crate::{
+    guard::{Guarded, GuardedSecret},
     errors::HashingError,
     hashing::{DerivedKeyDomain, DomainSeparatedHasher, DomainSeparation},
     keys::{DiffieHellmanSharedSecret, PublicKey, SecretKey},
 };
+
+pub struct RistrettoSecretKey2(GuardedSecret<Self>);
+
+impl Deref for RistrettoSecretKey2 {
+    type Target = GuardedSecret<Self>;
+    fn deref(&self) -> &GuardedSecret<Self> {
+        &self.0
+    }
+}
+
+impl Guarded for RistrettoSecretKey2 {
+    type Secret = Scalar;
+}
 
 /// The [SecretKey](trait.SecretKey.html) implementation for [Ristretto](https://ristretto.group) is a thin wrapper
 /// around the Dalek [Scalar](struct.Scalar.html) type, representing a 256-bit integer (mod the group order).
