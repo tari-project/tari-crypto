@@ -296,7 +296,7 @@ mod test {
                 let c_extended = factory.commit_extended(&k_vec, &v).unwrap();
                 let mut c_calc: RistrettoPoint = v.0 * H + k_vec[0].0 * RISTRETTO_PEDERSEN_G;
                 for i in 1..(extension_degree as usize) {
-                    c_calc += k_vec[i].0 * RISTRETTO_NUMS_POINTS[i];
+                    c_calc += k_vec[i].reveal().0 * RISTRETTO_NUMS_POINTS[i];
                 }
                 assert_eq!(RistrettoPoint::from(c_extended.as_public_key()), c_calc);
 

@@ -64,10 +64,21 @@ impl Guarded for RistrettoSecretKey2 {
 /// let _k3 = RistrettoSecretKey::random(&mut rng);
 /// ```
 #[derive(Eq, Clone, Default)]
-pub struct RistrettoSecretKey(pub(crate) Scalar);
+pub struct RistrettoSecretKey(GuardedSecret<Self>);
 
 const SCALAR_LENGTH: usize = 32;
 const PUBLIC_KEY_LENGTH: usize = 32;
+
+impl Guarded for RistrettoSecretKey {
+    type Secret = Scalar;
+}
+
+impl Deref for RistrettoSecretKey {
+    type Target = GuardedSecret<Self>;
+    fn deref(&self) -> &GuardedSecret<Self> {
+        &self.0
+    }
+}
 
 //-----------------------------------------   Ristretto Secret Key    ------------------------------------------------//
 impl SecretKey for RistrettoSecretKey {
@@ -728,7 +739,7 @@ mod test {
         let ptr;
         {
             let k = RistrettoSecretKey::random(&mut rng);
-            ptr = (k.0).as_bytes().as_ptr();
+            ptr = (k.0).reveal().as_bytes().as_ptr();
         }
         // In release mode, the memory can already be reclaimed by this stage due to optimisations, and so this test
         // can fail in release mode, even though the values were effectively scrubbed.
