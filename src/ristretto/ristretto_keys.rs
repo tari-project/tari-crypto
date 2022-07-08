@@ -82,7 +82,9 @@ impl ByteArray for RistrettoSecretKey {
     /// not exactly 32 bytes long, `from_bytes` returns an error. This function is guaranteed to return a valid key
     /// in the group since it performs a mod _l_ on the input.
     fn from_bytes(bytes: &[u8]) -> Result<RistrettoSecretKey, ByteArrayError>
-    where Self: Sized {
+    where
+        Self: Sized,
+    {
         if bytes.len() != 32 {
             return Err(ByteArrayError::IncorrectLength);
         }
@@ -377,7 +379,9 @@ impl ByteArray for RistrettoPublicKey {
     /// * The byte array is not exactly 32 bytes
     /// * The byte array does not represent a valid (compressed) point on the ristretto255 curve
     fn from_bytes(bytes: &[u8]) -> Result<RistrettoPublicKey, ByteArrayError>
-    where Self: Sized {
+    where
+        Self: Sized,
+    {
         // Check the length here, because The Ristretto constructor panics rather than returning an error
         if bytes.len() != 32 {
             return Err(ByteArrayError::IncorrectLength);
@@ -765,7 +769,7 @@ mod test {
         assert_eq!(RistrettoKdf::domain(), "com.tari.kdf.ristretto");
         assert_eq!(
             RistrettoKdf::domain_separation_tag("test"),
-            "com.tari.kdf.ristretto.v1.test"
+            "com.tari.kdf.ristretto.v\u{1}.test"
         );
     }
 
@@ -783,11 +787,11 @@ mod test {
         let derived2 = RistrettoKdf::generate::<Blake256, _>(key.as_bytes(), b"derived2", "test").unwrap();
         assert_eq!(
             derived1.to_hex(),
-            "e8df6fa40344c1fde721e9a35d46daadb48dc66f7901a9795ebb0374474ea601"
+            "2597f69a8c8bd4254f5f994192fdb69a4e507eff0e50fa10d366cf0af125ad03"
         );
         assert_eq!(
             derived2.to_hex(),
-            "3ae035e2663d9c561300cca67743ccdb56ea07ca7dacd8394356c4354b030e0c"
+            "ca5e1254c3aa119be3cd5f7a1173b7e15cf0197a1a14ce8a6146e29ed3d89f0b"
         );
     }
 }
