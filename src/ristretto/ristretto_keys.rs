@@ -50,7 +50,7 @@ use crate::{
 /// let _k3 = RistrettoSecretKey::random(&mut rng);
 /// ```
 #[derive(PartialEq, Eq, Clone, Default, Debug)]
-pub struct RistrettoSecretKey(GuardedSecret<Scalar>);
+pub struct RistrettoSecretKey(pub(crate) GuardedSecret<Scalar>);
 
 const SCALAR_LENGTH: usize = 32;
 const PUBLIC_KEY_LENGTH: usize = 32;
@@ -466,12 +466,6 @@ define_mul_variants!(
 
 //----------------------------------         PublicKey From implementations      -------------------------------------//
 
-impl From<RistrettoSecretKey> for Scalar {
-    fn from(k: RistrettoSecretKey) -> Self {
-        k.reveal().clone()
-    }
-}
-
 impl From<RistrettoPublicKey> for RistrettoPoint {
     fn from(pk: RistrettoPublicKey) -> Self {
         pk.point
@@ -803,9 +797,10 @@ mod test {
     fn visibility_test() {
         let key =
             RistrettoSecretKey::from_hex("b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c").unwrap();
+        // Checking for both: bytes or hex representation
         let invisible = format!("{:?}", key);
-        assert!(!invisible.contains("016c"));
+        assert!(!invisible.contains("016c") && !invisible.contains("198"));
         let visible = format!("{:?}", key.reveal());
-        assert!(visible.contains("016c"));
+        assert!(visible.contains("016c") || visible.contains("198"));
     }
 }
