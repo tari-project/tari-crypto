@@ -12,19 +12,25 @@ use digest::{
     Update,
 };
 
+use super::error::HashError;
+
 /// A convenience wrapper produce 256 bit hashes from Blake2b
 #[derive(Clone, Debug)]
 pub struct Blake256(VarBlake2b);
 
 impl Blake256 {
     /// Constructs a `Blake256` hashing context with parameters that allow hash keying, salting and personalization.
-    pub fn with_params(key: &[u8], salt: &[u8], persona: &[u8]) -> Self {
-        Self(VarBlake2b::with_params(
-            key,
-            salt,
-            persona,
-            <Self as FixedOutput>::OutputSize::USIZE,
-        ))
+    pub fn with_params(key: &[u8], salt: &[u8], persona: &[u8]) -> Result<Self, HashError> {
+        if salt.len() > 16 || persona.len() > 16 {
+            Err(HashError::WrongLength)
+        } else {
+            Ok(Self(VarBlake2b::with_params(
+                key,
+                salt,
+                persona,
+                <Self as FixedOutput>::OutputSize::USIZE,
+            )))
+        }
     }
 }
 
@@ -122,12 +128,17 @@ mod test {
     fn personalisation() {
         let default = Blake256::new().chain(b"onetwo").finalize();
         let personalised = Blake256::with_params(&[], &[], b"unit-test")
+            .unwrap()
             .chain(b"onetwo")
             .finalize();
         let salted = Blake256::with_params(&[], b"unit-test", &[])
+            .unwrap()
             .chain(b"onetwo")
             .finalize();
-        let keyed = Blake256::with_params(&[1u8; 64], &[], &[]).chain(b"onetwo").finalize();
+        let keyed = Blake256::with_params(&[1u8; 64], &[], &[])
+            .unwrap()
+            .chain(b"onetwo")
+            .finalize();
 
         assert_ne!(default, personalised);
         assert_ne!(default, salted);
