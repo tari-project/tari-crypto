@@ -50,7 +50,7 @@ use crate::{
 /// let _k3 = RistrettoSecretKey::random(&mut rng);
 /// ```
 #[derive(PartialEq, Eq, Clone, Default, Debug)]
-pub struct RistrettoSecretKey(pub(crate) GuardedSecret<Scalar>);
+pub struct RistrettoSecretKey(GuardedSecret<Scalar>);
 
 const SCALAR_LENGTH: usize = 32;
 const PUBLIC_KEY_LENGTH: usize = 32;
