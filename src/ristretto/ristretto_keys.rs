@@ -82,7 +82,7 @@ impl SecretKey for RistrettoSecretKey {
     /// Return a random secret key on the `ristretto255` curve using the supplied CSPRNG.
     fn random<R: Rng + CryptoRng>(rng: &mut R) -> Self {
         let k = Scalar::random(rng);
-        RistrettoSecretKey(GuardedSecret::new(k))
+        RistrettoSecretKey::new(k)
     }
 }
 
@@ -101,7 +101,7 @@ impl ByteArray for RistrettoSecretKey {
         let mut a = [0u8; 32];
         a.copy_from_slice(bytes);
         let k = Scalar::from_bytes_mod_order(a);
-        Ok(RistrettoSecretKey(GuardedSecret::new(k)))
+        Ok(RistrettoSecretKey::new(k))
     }
 
     /// Return the byte array for the secret key in little-endian order
@@ -133,7 +133,7 @@ impl<'a, 'b> Add<&'b RistrettoSecretKey> for &'a RistrettoSecretKey {
 
     fn add(self, rhs: &'b RistrettoSecretKey) -> RistrettoSecretKey {
         let k = self.reveal() + rhs.reveal();
-        RistrettoSecretKey(GuardedSecret::new(k))
+        RistrettoSecretKey::new(k)
     }
 }
 
@@ -142,7 +142,7 @@ impl<'a, 'b> Sub<&'b RistrettoSecretKey> for &'a RistrettoSecretKey {
 
     fn sub(self, rhs: &'b RistrettoSecretKey) -> RistrettoSecretKey {
         let k = self.reveal() - rhs.reveal();
-        RistrettoSecretKey(GuardedSecret::new(k))
+        RistrettoSecretKey::new(k)
     }
 }
 
@@ -167,13 +167,13 @@ define_mul_variants!(
 impl From<u64> for RistrettoSecretKey {
     fn from(v: u64) -> Self {
         let s = Scalar::from(v);
-        RistrettoSecretKey(GuardedSecret::new(s))
+        RistrettoSecretKey::new(s)
     }
 }
 
 impl From<Scalar> for RistrettoSecretKey {
     fn from(s: Scalar) -> Self {
-        RistrettoSecretKey(GuardedSecret::new(s))
+        RistrettoSecretKey::new(s)
     }
 }
 
@@ -439,7 +439,7 @@ impl<'a, 'b> Mul<&'b RistrettoSecretKey> for &'a RistrettoSecretKey {
 
     fn mul(self, rhs: &'b RistrettoSecretKey) -> RistrettoSecretKey {
         let p = rhs.reveal() * self.reveal();
-        RistrettoSecretKey(GuardedSecret::new(p))
+        RistrettoSecretKey::new(p)
     }
 }
 
