@@ -765,7 +765,7 @@ mod test {
         assert_eq!(RistrettoKdf::domain(), "com.tari.kdf.ristretto");
         assert_eq!(
             RistrettoKdf::domain_separation_tag("test"),
-            "com.tari.kdf.ristretto.v\u{1}.test"
+            "com.tari.kdf.ristretto.v1.test"
         );
     }
 
@@ -783,11 +783,11 @@ mod test {
         let derived2 = RistrettoKdf::generate::<Blake256, _>(key.as_bytes(), b"derived2", "test").unwrap();
         assert_eq!(
             derived1.to_hex(),
-            "2597f69a8c8bd4254f5f994192fdb69a4e507eff0e50fa10d366cf0af125ad03"
+            "e8df6fa40344c1fde721e9a35d46daadb48dc66f7901a9795ebb0374474ea601"
         );
         assert_eq!(
             derived2.to_hex(),
-            "ca5e1254c3aa119be3cd5f7a1173b7e15cf0197a1a14ce8a6146e29ed3d89f0b"
+            "3ae035e2663d9c561300cca67743ccdb56ea07ca7dacd8394356c4354b030e0c"
         );
     }
 }
