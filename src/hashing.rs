@@ -76,9 +76,9 @@ pub trait DomainSeparation {
     }
 }
 
-/// Converts a byte value to ASCII bytes that represent its value. This function returns a tuple containing the
-/// inclusive index of the most significant decimal value byte. For example,
-/// byte_to_decimal_ascii_bytes(0) returns (2, [0, 0, 48]).
+/// Converts a byte value to ASCII bytes that represent its value in big-endian order. This function returns a tuple
+/// containing the inclusive index of the most significant decimal value byte, and the 3 ASCII bytes (big-endian). For
+/// example, byte_to_decimal_ascii_bytes(0) returns (2, [0, 0, 48]).
 /// byte_to_decimal_ascii_bytes(42) returns (1, [0, 52, 50]).
 /// byte_to_decimal_ascii_bytes(255) returns (0, [50, 53, 53]).
 fn byte_to_decimal_ascii_bytes(mut byte: u8) -> (usize, [u8; 3]) {
@@ -187,11 +187,11 @@ impl<D: Digest> AsRef<[u8]> for DomainSeparatedHash<D> {
 /// Calculating a signature challenge
 ///
 /// ```
-/// # use tari_crypto::{
-/// #    hash::blake2::Blake256,
-/// #    hashing::{DomainSeparatedHash, DomainSeparatedHasher, GenericHashDomain, DomainSeparation},
-/// # };
 /// # use tari_utilities::hex::{to_hex, Hex};
+/// use tari_crypto::{
+///     hash::blake2::Blake256,
+///     hashing::{DomainSeparatedHash, DomainSeparatedHasher, DomainSeparation, GenericHashDomain},
+/// };
 ///
 /// struct Card {
 ///     name: &'static str,
