@@ -5,7 +5,7 @@
 
 use blake2::{digest::VariableOutput, VarBlake2b};
 use digest::{
-    consts::U32,
+    consts::{U32, U64},
     generic_array::{typenum::Unsigned, GenericArray},
     FixedOutput,
     Reset,
@@ -21,15 +21,20 @@ pub struct Blake256(VarBlake2b);
 impl Blake256 {
     /// Constructs a `Blake256` hashing context with parameters that allow hash keying, salting and personalization.
     pub fn with_params(key: &[u8], salt: &[u8], persona: &[u8]) -> Result<Self, HashError> {
-        if salt.len() > 16 || persona.len() > 16 {
+        Self::with_params_var_size(key, salt, persona, <Self as FixedOutput>::OutputSize::USIZE)
+    }
+
+    /// Constructs a `Blake256` hashing context with an explicitly specified output size.
+    pub fn with_params_var_size(
+        key: &[u8],
+        salt: &[u8],
+        persona: &[u8],
+        output_size: usize,
+    ) -> Result<Self, HashError> {
+        if salt.len() > 16 || persona.len() > 16 || output_size < 1 || output_size > U64::to_usize() {
             Err(HashError::WrongLength)
         } else {
-            Ok(Self(VarBlake2b::with_params(
-                key,
-                salt,
-                persona,
-                <Self as FixedOutput>::OutputSize::USIZE,
-            )))
+            Ok(Self(VarBlake2b::with_params(key, salt, persona, output_size)))
         }
     }
 }
