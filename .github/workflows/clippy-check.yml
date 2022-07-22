@@ -13,6 +13,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
+          toolchain: nightly-2022-01-17
           args: --all -- --check
       - name: Install cargo-lints
         uses: actions-rs/cargo@v1

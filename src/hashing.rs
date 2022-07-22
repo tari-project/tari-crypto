@@ -31,7 +31,7 @@
 use std::{marker::PhantomData, ops::Deref};
 
 use blake2::VarBlake2b;
-use digest::Digest;
+use digest::{Digest, Output, Update};
 use sha3::Sha3_256;
 use tari_utilities::ByteArray;
 
@@ -57,6 +57,45 @@ pub trait DomainSeparation {
     fn domain_separation_tag<S: AsRef<str>>(label: S) -> String {
         format!("{}.v{}.{}", Self::domain(), Self::version(), label.as_ref())
     }
+
+    /// Adds the domain separation tag to the given digest. The domain separation tag is defined as
+    /// `{domain}.v{version}.{label}`, where the version and tag are typically hard-coded into the implementing
+    /// type, and the label is provided per specific application of the domain.
+    fn add_domain_separation_tag<S: AsRef<[u8]>, D: Digest>(digest: &mut D, label: S) {
+        let domain = Self::domain();
+        let (version_offset, version) = byte_to_decimal_ascii_bytes(Self::version());
+        // 3 additional bytes are 2 x '.' delimiters and 'v' tag for version
+        let len = domain.len() + (3 - version_offset) + label.as_ref().len() + 3;
+        let len = (len as u64).to_le_bytes();
+        digest.update(len);
+        digest.update(domain);
+        digest.update(b".v");
+        digest.update(&version[version_offset..]);
+        digest.update(b".");
+        digest.update(label.as_ref());
+    }
+}
+
+/// Converts a byte value to ASCII bytes that represent its value in big-endian order. This function returns a tuple
+/// containing the inclusive index of the most significant decimal value byte, and the 3 ASCII bytes (big-endian). For
+/// example, byte_to_decimal_ascii_bytes(0) returns (2, [0, 0, 48]).
+/// byte_to_decimal_ascii_bytes(42) returns (1, [0, 52, 50]).
+/// byte_to_decimal_ascii_bytes(255) returns (0, [50, 53, 53]).
+fn byte_to_decimal_ascii_bytes(mut byte: u8) -> (usize, [u8; 3]) {
+    const ZERO_ASCII_CHAR: u8 = 48;
+    // A u8 can only ever be a 3 char number.
+    let mut bytes = [0u8, 0u8, ZERO_ASCII_CHAR];
+    let mut pos = 3usize;
+    if byte == 0 {
+        return (2, bytes);
+    }
+    while byte > 0 {
+        let rem = byte % 10;
+        byte /= 10;
+        bytes[pos - 1] = ZERO_ASCII_CHAR + rem;
+        pos -= 1;
+    }
+    (pos, bytes)
 }
 
 //--------------------------------------     Domain Separated Hash   ---------------------------------------------------
@@ -68,43 +107,30 @@ pub trait DomainSeparation {
 /// domain separation tag that is unique for this hashing application (assuming clients make proper use of a unique
 /// label for every discrete hashing use-case in their applications).
 ///
-/// `DomainSeparatedHash` implements `AsRef<u8>`, so it is easy to use this type as a slice, or you can discard the
-/// domain tag by calling [`DomainSeparatedHash::into_vec`].
+/// `DomainSeparatedHash` implements `AsRef<u8>`, so it is easy to use this type as a slice.
 ///
 /// The domain separation information is retained with the hash, and can be queried using
-/// [`DomainSeparatedHash::domain_separation_tag`].
+/// [`DomainSeparatedHash::domain_separation_tag_string`].
 ///
 /// To preserve the guarantee that the hash is properly domain separated, you cannot create an instance of this struct
 /// directly. It is the result of using [`DomainSeparatedHasher`].
 ///
 /// For details and examples, see [`DomainSeparatedHasher`].
-pub struct DomainSeparatedHash {
-    hash: Vec<u8>,
-    tag: String,
+pub struct DomainSeparatedHash<D: Digest> {
+    output: Output<D>,
 }
 
-impl DomainSeparatedHash {
+impl<D: Digest> DomainSeparatedHash<D> {
     // This constructor is intentionally private. It should be impossible to create an instance of this struct without
     // the guarantees that the data represents a hash containing the domain separation label provided in `M`
-    fn new(hash: Vec<u8>, tag: String) -> Self {
-        Self { hash, tag }
-    }
-
-    /// Return the full string, including the label used as the domain separation tag for this hash
-    pub fn domain_separation_tag(&self) -> &str {
-        self.tag.as_str()
-    }
-
-    /// Convert the hash into a byte vector. This operation consumes `self`, so the domain information will be
-    /// discarded.
-    pub fn into_vec(self) -> Vec<u8> {
-        self.hash
+    fn new(output: Output<D>) -> Self {
+        Self { output }
     }
 }
 
-impl AsRef<[u8]> for DomainSeparatedHash {
+impl<D: Digest> AsRef<[u8]> for DomainSeparatedHash<D> {
     fn as_ref(&self) -> &[u8] {
-        self.hash.as_slice()
+        self.output.as_slice()
     }
 }
 
@@ -129,28 +155,29 @@ impl AsRef<[u8]> for DomainSeparatedHash {
 /// Using a hash as an object ID, based on the fields of the object.
 ///
 /// ```
-/// use sha2::Sha256;
-/// use tari_crypto::hashing::{DomainSeparatedHash, DomainSeparatedHasher, GenericHashDomain};
-/// use tari_utilities::hex::{to_hex, Hex};
+/// # use sha2::Sha256;
+/// # use tari_crypto::hashing::{DomainSeparatedHash, DomainSeparatedHasher, DomainSeparation, GenericHashDomain};
+/// # use tari_utilities::hex::{to_hex, Hex};
+///
 /// struct Card {
 ///     name: &'static str,
 ///     strength: u8,
 /// }
 ///
-/// fn card_id(card: &Card) -> DomainSeparatedHash {
+/// fn card_id(card: &Card) -> DomainSeparatedHash<Sha256> {
 ///     DomainSeparatedHasher::<Sha256, GenericHashDomain>::new("card_id")
 ///         .chain(card.name.as_bytes())
 ///         .chain(&[card.strength])
 ///         .finalize()
 /// }
 ///
+/// assert_eq!(GenericHashDomain::domain_separation_tag("card_id"), "com.tari.generic.v1.card_id");
 /// let card = Card {
 ///     name: "Rincewind",
 ///     strength: 8,
 /// };
 ///
 /// let id = card_id(&card);
-/// assert_eq!(id.domain_separation_tag(), "com.tari.generic.v1.card_id");
 /// assert_eq!(
 ///     to_hex(id.as_ref()),
 ///     "44fb39bfdd20c93ddf542e4b2d1f4b06448aa1fa2b9c4d138d8e7bbb19aa7c65"
@@ -160,50 +187,49 @@ impl AsRef<[u8]> for DomainSeparatedHash {
 /// Calculating a signature challenge
 ///
 /// ```
+/// # use tari_utilities::hex::{to_hex, Hex};
 /// use tari_crypto::{
 ///     hash::blake2::Blake256,
-///     hashing::{DomainSeparatedHash, DomainSeparatedHasher, GenericHashDomain},
+///     hashing::{DomainSeparatedHash, DomainSeparatedHasher, DomainSeparation, GenericHashDomain},
 /// };
-/// use tari_utilities::hex::{to_hex, Hex};
+///
 /// struct Card {
 ///     name: &'static str,
 ///     strength: u8,
 /// }
 ///
-/// fn calculate_challenge(msg: &str) -> DomainSeparatedHash {
+/// fn calculate_challenge(msg: &str) -> DomainSeparatedHash<Blake256> {
 ///     DomainSeparatedHasher::<Blake256, GenericHashDomain>::new("schnorr_challenge")
 ///         .chain(msg.as_bytes())
 ///         .finalize()
 /// }
 ///
-/// let challenge = calculate_challenge("All is well.");
 /// assert_eq!(
-///     challenge.domain_separation_tag(),
+///     GenericHashDomain::domain_separation_tag("schnorr_challenge"),
 ///     "com.tari.generic.v1.schnorr_challenge"
 /// );
+/// let challenge = calculate_challenge("All is well.");
 /// assert_eq!(
 ///     to_hex(challenge.as_ref()),
 ///     "6cd8efe7d7f1673ed8cfc0ac67d6979eb50afdbf276adf5221caabfbfd01da8c"
 /// );
 /// ```
+#[derive(Debug, Clone, Default)]
 pub struct DomainSeparatedHasher<D, M> {
     inner: D,
-    label: String,
-    dst: PhantomData<M>,
+    _dst: PhantomData<M>,
 }
 
 impl<D: Digest, M: DomainSeparation> DomainSeparatedHasher<D, M> {
     /// Create a new instance of [`DomainSeparatedHasher`] for the given label.
     pub fn new<S>(label: S) -> Self
-    where S: AsRef<str> {
-        let inner = D::new();
-        let mut result = Self {
+    where S: AsRef<[u8]> {
+        let mut inner = D::new();
+        M::add_domain_separation_tag(&mut inner, label);
+        Self {
             inner,
-            label: label.as_ref().to_string(),
-            dst: PhantomData::<M>::default(),
-        };
-        result.update(M::domain_separation_tag(&label).as_bytes());
-        result
+            _dst: PhantomData,
+        }
     }
 
     /// Adds the data to the digest function by first appending the length of the data in the byte array, and then
@@ -222,10 +248,9 @@ impl<D: Digest, M: DomainSeparation> DomainSeparatedHasher<D, M> {
     }
 
     /// Finalize the hasher and return the hash result.
-    pub fn finalize(self) -> DomainSeparatedHash {
-        let hash = self.inner.finalize().to_vec();
-        let tag = M::domain_separation_tag(self.label);
-        DomainSeparatedHash::new(hash, tag)
+    pub fn finalize(self) -> DomainSeparatedHash<D> {
+        let output = self.inner.finalize();
+        DomainSeparatedHash::new(output)
     }
 }
 
@@ -288,30 +313,31 @@ impl DomainSeparation for MacDomain {
 ///
 /// ```
 /// use sha3::Sha3_256;
-/// use tari_crypto::hashing::Mac;
+/// use tari_crypto::hashing::{DomainSeparation, Mac, MacDomain};
 /// use tari_utilities::hex::to_hex;
 ///
-/// fn generate_api_hmac(key: &[u8], msg: &[u8]) -> Mac {
-///     Mac::generate::<Sha3_256, _, _>(key, msg, "api.auth")
+/// fn generate_api_hmac(key: &[u8], msg: &[u8]) -> Mac<Sha3_256> {
+///     Mac::<Sha3_256>::generate(key, msg, "api.auth")
 /// }
 ///
+/// assert_eq!(MacDomain::domain_separation_tag("api.auth"), "com.tari.mac.v1.api.auth");
 /// let mac = generate_api_hmac(b"a secret shared key", b"a message");
-/// assert_eq!(mac.domain_separation_tag(), "com.tari.mac.v1.api.auth");
 /// assert_eq!(
 ///     to_hex(mac.as_ref()),
 ///     "796eb496b6672b1b7c4021e603d6b833121d35cd282a1555e3f9dd2eda5658b8"
 /// );
 /// ```
-pub struct Mac {
-    hmac: DomainSeparatedHash,
+pub struct Mac<D: Digest> {
+    hmac: DomainSeparatedHash<D>,
 }
 
-impl Mac {
+impl<D> Mac<D>
+where D: Digest + Update + LengthExtensionAttackResistant
+{
     /// Generate a MAC with the given (length extension attack resistant) digest function, shared key, message and
     /// application label.
-    pub fn generate<D, K, S>(key: K, msg: S, label: &str) -> Self
+    pub fn generate<K, S>(key: K, msg: S, label: &str) -> Self
     where
-        D: Digest + LengthExtensionAttackResistant,
         K: AsRef<[u8]>,
         S: AsRef<[u8]>,
     {
@@ -321,15 +347,10 @@ impl Mac {
             .finalize();
         Self { hmac }
     }
-
-    /// Consume the MAC type and convert it into a raw byte vector. The domain separation information is discarded.
-    pub fn into_vec(self) -> Vec<u8> {
-        self.hmac.into_vec()
-    }
 }
 
-impl Deref for Mac {
-    type Target = DomainSeparatedHash;
+impl<D: Digest> Deref for Mac<D> {
+    type Target = DomainSeparatedHash<D>;
 
     fn deref(&self) -> &Self::Target {
         &self.hmac
@@ -391,8 +412,8 @@ pub trait DerivedKeyDomain: DomainSeparation {
     fn generate<D, S>(primary_key: &[u8], data: &[u8], label: S) -> Result<Self::DerivedKeyType, HashingError>
     where
         Self: Sized,
-        D: Digest,
-        S: AsRef<str>,
+        D: Digest + Update,
+        S: AsRef<[u8]>,
     {
         if primary_key.as_ref().len() < D::output_size() {
             return Err(HashingError::InputTooShort);
@@ -414,7 +435,14 @@ mod test {
 
     use crate::{
         hash::blake2::Blake256,
-        hashing::{DomainSeparatedHasher, DomainSeparation, GenericHashDomain, Mac, MacDomain},
+        hashing::{
+            byte_to_decimal_ascii_bytes,
+            DomainSeparatedHasher,
+            DomainSeparation,
+            GenericHashDomain,
+            Mac,
+            MacDomain,
+        },
     };
 
     #[test]
@@ -433,8 +461,6 @@ mod test {
         let mut hash2 = DomainSeparatedHasher::<Blake256, GenericHashDomain>::new("test_hasher");
         hash2.update("some foo");
         let hash2 = hash2.finalize();
-        assert_eq!(hash.domain_separation_tag(), "com.tari.generic.v1.test_hasher");
-        assert_eq!(hash2.domain_separation_tag(), "com.tari.generic.v1.test_hasher");
         assert_eq!(hash.as_ref(), hash2.as_ref());
         assert_eq!(
             to_hex(hash.as_ref()),
@@ -449,8 +475,6 @@ mod test {
             .chain("rincewind")
             .chain("hex")
             .finalize();
-        assert_eq!(hash.domain_separation_tag(), "com.tari.generic.v1.mytest");
-        assert_eq!(hash.domain_separation_tag().len(), 26);
         let expected = Blake256::new()
             .chain(26u64.to_le_bytes())
             .chain("com.tari.generic.v1.mytest".as_bytes())
@@ -460,6 +484,42 @@ mod test {
             .chain("hex".as_bytes())
             .finalize();
         assert_eq!(hash.as_ref(), expected.as_slice());
+    }
+
+    #[test]
+    fn domain_separation_tag_hashing() {
+        struct MyDemoHasher;
+
+        impl DomainSeparation for MyDemoHasher {
+            fn version() -> u8 {
+                42
+            }
+
+            fn domain() -> &'static str {
+                "com.discworld"
+            }
+        }
+        let domain = "com.discworld.v42.turtles";
+        assert_eq!(MyDemoHasher::domain_separation_tag("turtles"), domain);
+        let hash = DomainSeparatedHasher::<Blake2b, MyDemoHasher>::new("turtles").finalize();
+        let expected = Blake2b::default()
+            .chain((domain.len() as u64).to_le_bytes())
+            .chain(domain)
+            .finalize();
+        assert_eq!(hash.as_ref(), expected.as_ref());
+    }
+
+    #[test]
+    fn update_domain_separation_tag() {
+        let s_tag = GenericHashDomain::domain_separation_tag("mytest");
+        let expected_hash = Blake256::new()
+            .chain((s_tag.len() as usize).to_le_bytes())
+            .chain(s_tag)
+            .finalize();
+
+        let mut digest = Blake256::new();
+        GenericHashDomain::add_domain_separation_tag(&mut digest, "mytest");
+        assert_eq!(digest.finalize(), expected_hash);
     }
 
     #[test]
@@ -478,7 +538,6 @@ mod test {
         let hash = DomainSeparatedHasher::<Blake2b, MyDemoHasher>::new("turtles")
             .chain("elephants")
             .finalize();
-        assert_eq!(hash.domain_separation_tag(), "com.discworld.v42.turtles");
         assert_eq!(to_hex(hash.as_ref()), "64a89c7160a1076a725fac97d3f67803abd0991d82518a595072fa62df4c870bddee9160f591231c381087831bf6925616013de317ce0b02846585caf41942ac");
     }
 
@@ -489,11 +548,18 @@ mod test {
         // let mac = Mac::generate::<Sha256, _, _>(&key, "test message", "test");
         //          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `LengthExtensionAttackResistant` is not implemented for
         //          `Sha256`
-        let mac = Mac::generate::<Blake256, _, _>(&key, "test message", "test");
-        assert_eq!(mac.domain_separation_tag(), "com.tari.mac.v1.test");
+        let mac = Mac::<Blake256>::generate(&key, "test message", "test");
+        assert_eq!(MacDomain::domain_separation_tag("test"), "com.tari.mac.v1.test");
         assert_eq!(
             to_hex(mac.as_ref()),
             "9bcfbe2bad73b14ac42f673ddca34e82ce03cbbac69d34526004f5d108dff061"
         )
+    }
+
+    #[test]
+    fn check_bytes_to_decimal_ascii_bytes() {
+        assert_eq!(byte_to_decimal_ascii_bytes(0), (2, [0u8, 0, 48]));
+        assert_eq!(byte_to_decimal_ascii_bytes(42), (1, [0u8, 52, 50]));
+        assert_eq!(byte_to_decimal_ascii_bytes(255), (0, [50u8, 53, 53]));
     }
 }
