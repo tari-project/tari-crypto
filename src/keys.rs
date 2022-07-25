@@ -44,7 +44,7 @@ pub trait PublicKey:
 {   
     /// The output size len of Public Key 
     const KEY_LEN: usize;
-    
+
     /// The related [SecretKey](trait.SecretKey.html) type
     type K: SecretKey;
 
@@ -53,7 +53,9 @@ pub trait PublicKey:
     fn from_secret_key(k: &Self::K) -> Self;
 
     /// The length of the public key when converted to bytes
-    fn key_length() -> usize;
+    fn key_length() -> usize {
+        Self::KEY_LEN
+    }
 
     /// Multiplies each of the items in `scalars` by their respective item in `points` and then adds
     /// the results to produce a single public key
