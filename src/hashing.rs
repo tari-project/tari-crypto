@@ -254,6 +254,49 @@ impl<D: Digest, M: DomainSeparation> DomainSeparatedHasher<D, M> {
     }
 }
 
+/// Implements Digest so that it can be used for other crates
+impl<TInnerDigest: Digest, TDomain: DomainSeparation> Digest for DomainSeparatedHasher<TInnerDigest, TDomain> {
+    type OutputSize = TInnerDigest::OutputSize;
+
+    fn new() -> Self {
+        DomainSeparatedHasher::<TInnerDigest, TDomain>::new("")
+    }
+
+    fn update(&mut self, data: impl AsRef<[u8]>) {
+        self.update(data);
+    }
+
+    fn chain(self, data: impl AsRef<[u8]>) -> Self
+    where Self: Sized {
+        self.chain(data)
+    }
+
+    fn finalize(self) -> Output<Self> {
+        self.finalize().output
+    }
+
+    fn finalize_reset(&mut self) -> Output<Self> {
+        let value = self.inner.finalize_reset();
+        TDomain::add_domain_separation_tag(&mut self.inner, "");
+        value
+    }
+
+    fn reset(&mut self) {
+        self.inner.reset();
+        TDomain::add_domain_separation_tag(&mut self.inner, "");
+    }
+
+    fn output_size() -> usize {
+        TInnerDigest::output_size()
+    }
+
+    fn digest(data: &[u8]) -> Output<Self> {
+        let mut hasher = Self::new("");
+        hasher.update(data);
+        hasher.finalize().output
+    }
+}
+
 //-----------------------------------------    Generic Hash Domain  ----------------------------------------------------
 /// A domain separation marker for use in general use cases.
 pub struct GenericHashDomain;
@@ -427,6 +470,27 @@ pub trait DerivedKeyDomain: DomainSeparation {
     }
 }
 
+/// Creates a DomainSeparation struct for a given domain.
+#[macro_export]
+macro_rules! hash_domain {
+    ($name:ident, $domain:expr, $version: expr) => {
+        pub struct $name {}
+
+        impl DomainSeparation for $name {
+            fn version() -> u8 {
+                $version
+            }
+
+            fn domain() -> &'static str {
+                $domain
+            }
+        }
+    };
+    ($name:ident, $domain:expr) => {
+        hash_domain!($name, $domain, 1);
+    };
+}
+
 #[cfg(test)]
 mod test {
     use blake2::Blake2b;
@@ -465,6 +529,40 @@ mod test {
         assert_eq!(
             to_hex(hash.as_ref()),
             "a8326620e305430a0b632a0a5e33c6c1124d7513b4bd84736faaa3a0b9ba557f"
+        );
+    }
+
+    /// Test that it can be used as a standard digest
+    #[test]
+    fn use_as_digest() {
+        fn hash_test<D: Digest>(data: &[u8], expected: &str) {
+            let mut hasher = D::new();
+            hasher.update(data);
+            let hash = hasher.finalize();
+            assert_eq!(to_hex(&hash), expected);
+        }
+
+        hash_test::<DomainSeparatedHasher<Blake256, GenericHashDomain>>(
+            &[0, 0, 0],
+            "30b95da070278a2d0f13cc8c65b74d4be288560de2f93967074918ab7d06ec31",
+        );
+
+        hash_domain!(MyDemoHasher, "macro.test");
+        hash_test::<DomainSeparatedHasher<Blake256, MyDemoHasher>>(
+            &[0, 0, 0],
+            "d87d1403d34a6a78fbd6c1f19affd44af3888eaad90abf0059be6a00bbda0247",
+        );
+
+        hash_domain!(MyDemoHasher2, "macro.test", 2);
+        hash_test::<DomainSeparatedHasher<Blake256, MyDemoHasher2>>(
+            &[0, 0, 0],
+            "0c575c3eabaa896fad47f9c70c07d851ed001688b2a19a749ff275be2c114e1b",
+        );
+
+        hash_domain!(TariHasher, "com.tari.hasher");
+        hash_test::<DomainSeparatedHasher<Blake256, TariHasher>>(
+            &[0, 0, 0],
+            "0706e40badfe77547d143b0664e8ff190538d4077c6136abad915e4415d3c2ef",
         );
     }
 
