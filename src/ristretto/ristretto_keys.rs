@@ -312,16 +312,14 @@ impl DomainSeparation for RistrettoGeneratorPoint {
 }
 
 impl PublicKey for RistrettoPublicKey {
+    const KEY_LEN: usize = PUBLIC_KEY_LENGTH;
+
     type K = RistrettoSecretKey;
 
     /// Generates a new Public key from the given secret key
     fn from_secret_key(k: &Self::K) -> RistrettoPublicKey {
         let pk = &k.0 * &RISTRETTO_BASEPOINT_TABLE;
         RistrettoPublicKey::new_from_pk(pk)
-    }
-
-    fn key_length() -> usize {
-        PUBLIC_KEY_LENGTH
     }
 
     fn batch_mul(scalars: &[Self::K], points: &[Self]) -> Self {
