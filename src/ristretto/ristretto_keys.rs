@@ -312,9 +312,9 @@ impl DomainSeparation for RistrettoGeneratorPoint {
 }
 
 impl PublicKey for RistrettoPublicKey {
-    const KEY_LEN: usize = PUBLIC_KEY_LENGTH;
-
     type K = RistrettoSecretKey;
+
+    const KEY_LEN: usize = PUBLIC_KEY_LENGTH;
 
     /// Generates a new Public key from the given secret key
     fn from_secret_key(k: &Self::K) -> RistrettoPublicKey {

@@ -41,8 +41,8 @@ pub trait SecretKey: ByteArray + Clone + PartialEq + Eq + Add<Output = Self> + D
 /// See [SecretKey](trait.SecretKey.html) for an example.
 pub trait PublicKey:
     ByteArray + Add<Output = Self> + Clone + PartialOrd + Ord + Default + Serialize + DeserializeOwned
-{   
-    /// The output size len of Public Key 
+{
+    /// The output size len of Public Key
     const KEY_LEN: usize;
 
     /// The related [SecretKey](trait.SecretKey.html) type
