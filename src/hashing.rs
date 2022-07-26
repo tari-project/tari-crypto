@@ -467,7 +467,7 @@ macro_rules! hash_domain {
     ($name:ident, $domain:expr, $version: expr) => {
         pub struct $name {}
 
-        impl DomainSeparation for $name {
+        impl $crate::hashing::DomainSeparation for $name {
             fn version() -> u8 {
                 $version
             }
@@ -482,6 +482,27 @@ macro_rules! hash_domain {
     };
 }
 
+/// Creates a domain separated hasher.
+#[macro_export]
+macro_rules! create_hasher {
+    ($digest:ty, $name:ident, $domain:expr, $label:expr, $version: expr) => {{
+        use $crate::hash_domain;
+
+        hash_domain!($name, $domain, $version);
+        let hasher = $crate::hashing::DomainSeparatedHasher::<$digest, $name>::new($label);
+        hasher
+    }};
+    ($digest: ty, $name:ident, $domain:expr, $label:expr) => {
+        create_hasher!($digest, $name, $domain, $label, 1)
+    };
+    ($digest: ty, $name:ident, $domain:expr) => {
+        create_hasher!($digest, $name, $domain, "", 1)
+    };
+    ($digest: ty, $domain:expr) => {
+        create_hasher!($digest, __TempHashDomain, $domain, "", 1)
+    };
+}
+
 #[cfg(test)]
 mod test {
     use blake2::Blake2b;
@@ -492,6 +513,43 @@ mod test {
         hash::blake2::Blake256,
         hashing::{byte_to_decimal_ascii_bytes, DomainSeparatedHasher, DomainSeparation, Mac, MacDomain},
     };
+
+    mod util {
+        use digest::Digest;
+        use tari_utilities::hex::to_hex;
+
+        pub(crate) fn hash_test<D: Digest>(data: &[u8], expected: &str) {
+            let mut hasher = D::new();
+            hasher.update(data);
+            let hash = hasher.finalize();
+            assert_eq!(to_hex(&hash), expected);
+        }
+
+        pub(crate) fn hash_from_digest<D: Digest>(mut hasher: D, data: &[u8], expected: &str) {
+            hasher.update(data);
+            let hash = hasher.finalize();
+            assert_eq!(to_hex(&hash), expected);
+        }
+    }
+
+    #[test]
+    fn create_hasher_macro_tests() {
+        util::hash_from_digest(
+            create_hasher!(Blake256, MyDemoHasher, "com.macro.test", "", 1),
+            &[0, 0, 0],
+            "5faa7d48b551362bbee8a02c43e6ab634ed47c58ecf7b353f9afedfe3d574608",
+        );
+        util::hash_from_digest(
+            create_hasher!(Blake256, MyDemoHasher, "com.macro.test"),
+            &[0, 0, 0],
+            "5faa7d48b551362bbee8a02c43e6ab634ed47c58ecf7b353f9afedfe3d574608",
+        );
+        util::hash_from_digest(
+            create_hasher!(Blake256, "com.macro.test"),
+            &[0, 0, 0],
+            "5faa7d48b551362bbee8a02c43e6ab634ed47c58ecf7b353f9afedfe3d574608",
+        );
+    }
 
     #[test]
     // Regression test
@@ -517,30 +575,40 @@ mod test {
         );
     }
 
+    #[test]
+    fn digest_is_the_same_as_standard_api() {
+        hash_domain!(MyDemoHasher, "com.macro.test");
+        util::hash_test::<DomainSeparatedHasher<Blake256, MyDemoHasher>>(
+            &[0, 0, 0],
+            "5faa7d48b551362bbee8a02c43e6ab634ed47c58ecf7b353f9afedfe3d574608",
+        );
+
+        let mut hasher = DomainSeparatedHasher::<Blake256, MyDemoHasher>::new("");
+        hasher.update(&[0, 0, 0]);
+        let hash = hasher.finalize();
+        assert_eq!(
+            to_hex(hash.as_ref()),
+            "5faa7d48b551362bbee8a02c43e6ab634ed47c58ecf7b353f9afedfe3d574608"
+        );
+    }
+
     /// Test that it can be used as a standard digest
     #[test]
-    fn use_as_digest() {
-        fn hash_test<D: Digest>(data: &[u8], expected: &str) {
-            let mut hasher = D::new();
-            hasher.update(data);
-            let hash = hasher.finalize();
-            assert_eq!(to_hex(&hash), expected);
-        }
-
+    fn can_be_used_as_digest() {
         hash_domain!(MyDemoHasher, "com.macro.test");
-        hash_test::<DomainSeparatedHasher<Blake256, MyDemoHasher>>(
+        util::hash_test::<DomainSeparatedHasher<Blake256, MyDemoHasher>>(
             &[0, 0, 0],
             "5faa7d48b551362bbee8a02c43e6ab634ed47c58ecf7b353f9afedfe3d574608",
         );
 
         hash_domain!(MyDemoHasher2, "com.macro.test", 2);
-        hash_test::<DomainSeparatedHasher<Blake256, MyDemoHasher2>>(
+        util::hash_test::<DomainSeparatedHasher<Blake256, MyDemoHasher2>>(
             &[0, 0, 0],
             "7ea9d671008380ea79d29205ac5436a62ba534c710298b9482f20d488c96060d",
         );
 
         hash_domain!(TariHasher, "com.tari.hasher");
-        hash_test::<DomainSeparatedHasher<Blake256, TariHasher>>(
+        util::hash_test::<DomainSeparatedHasher<Blake256, TariHasher>>(
             &[0, 0, 0],
             "0706e40badfe77547d143b0664e8ff190538d4077c6136abad915e4415d3c2ef",
         );
