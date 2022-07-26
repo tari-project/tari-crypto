@@ -258,7 +258,7 @@ impl RistrettoPublicKey {
     }
 
     /// A verifiable group generator using a domain separated hasher
-    pub fn new_generator(label: &str) -> Result<RistrettoPublicKey, HashingError> {
+    pub fn new_generator(label: &'static str) -> Result<RistrettoPublicKey, HashingError> {
         // This function requires 512 bytes of data, so let's be opinionated here and use blake2b
         let hash = DomainSeparatedHasher::<Blake2b, RistrettoGeneratorPoint>::new(label).finalize();
         if hash.as_ref().len() < 64 {
@@ -803,7 +803,7 @@ mod test {
 
     #[test]
     fn kdf_key_too_short() {
-        let err = RistrettoKdf::generate::<Blake256, _>(b"this_key_is_too_short", b"data", "test").err();
+        let err = RistrettoKdf::generate::<Blake256>(b"this_key_is_too_short", b"data", "test").err();
         assert!(matches!(err, Some(HashingError::InputTooShort)));
     }
 
@@ -811,8 +811,8 @@ mod test {
     fn kdf_test() {
         let key =
             RistrettoSecretKey::from_hex("b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c").unwrap();
-        let derived1 = RistrettoKdf::generate::<Blake256, _>(key.as_bytes(), b"derived1", "test").unwrap();
-        let derived2 = RistrettoKdf::generate::<Blake256, _>(key.as_bytes(), b"derived2", "test").unwrap();
+        let derived1 = RistrettoKdf::generate::<Blake256>(key.as_bytes(), b"derived1", "test").unwrap();
+        let derived2 = RistrettoKdf::generate::<Blake256>(key.as_bytes(), b"derived2", "test").unwrap();
         assert_eq!(
             derived1.to_hex(),
             "e8df6fa40344c1fde721e9a35d46daadb48dc66f7901a9795ebb0374474ea601"
