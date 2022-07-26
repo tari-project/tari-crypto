@@ -247,6 +247,12 @@ impl<D: Digest, M: DomainSeparation> DomainSeparatedHasher<D, M> {
         self
     }
 
+    /// A convenience function to update, then finalize the hasher and return the hash result.
+    pub fn digest(mut self, data: &[u8]) -> DomainSeparatedHash<D> {
+        self.update(data);
+        self.finalize()
+    }
+
     /// Finalize the hasher and return the hash result.
     pub fn finalize(self) -> DomainSeparatedHash<D> {
         let output = self.inner.finalize();
@@ -466,6 +472,12 @@ mod test {
             to_hex(hash.as_ref()),
             "a8326620e305430a0b632a0a5e33c6c1124d7513b4bd84736faaa3a0b9ba557f"
         );
+
+        let hash_1 = DomainSeparatedHasher::<Blake256, GenericHashDomain>::new("mynewtest").digest(b"rincewind");
+        let hash_2 = DomainSeparatedHasher::<Blake256, GenericHashDomain>::new("mynewtest")
+            .chain(b"rincewind")
+            .finalize();
+        assert_eq!(hash_1.as_ref(), hash_2.as_ref());
     }
 
     #[test]
