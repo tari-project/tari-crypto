@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.15.1](https://github.com/tari-project/tari-crypto/compare/v0.15.0...v0.15.1) (2022-07-27)
+
+
+### Features
+
+* add hasher macro ([#121](https://github.com/tari-project/tari-crypto/issues/121)) ([0eacedc](https://github.com/tari-project/tari-crypto/commit/0eacedc2371405b0e7d96bba28fb4993870e5a8b))
+* implement Digest for DomainSeparatedHasher ([#119](https://github.com/tari-project/tari-crypto/issues/119)) ([967d0a3](https://github.com/tari-project/tari-crypto/commit/967d0a331772778f0059dd621c281d196971fcc8))
+* refactor PublicKey length trait to accomodate specific KEY_LEN const ([#118](https://github.com/tari-project/tari-crypto/issues/118)) ([8fe8075](https://github.com/tari-project/tari-crypto/commit/8fe80756acf10e8a3ed6c257253fbeae0d74d0e6))
+
+
+### Bug Fixes
+
+* add checking for Blake256 parameters ([#117](https://github.com/tari-project/tari-crypto/issues/117)) ([d23fbbc](https://github.com/tari-project/tari-crypto/commit/d23fbbc0e8a0c47699191f262cd71946841770d8)), closes [#110](https://github.com/tari-project/tari-crypto/issues/110)
+* don't print a secret key by default ([#112](https://github.com/tari-project/tari-crypto/issues/112)) ([45c5728](https://github.com/tari-project/tari-crypto/commit/45c57281d94856a2694c6464e01f640c892c982c))
+* **hashing:** avoid heap allocations for domain-separated hashing API ([#116](https://github.com/tari-project/tari-crypto/issues/116)) ([77d536e](https://github.com/tari-project/tari-crypto/commit/77d536e3a87f237bb2d301678646bd43920af319)), closes [#113](https://github.com/tari-project/tari-crypto/issues/113) [#113](https://github.com/tari-project/tari-crypto/issues/113)
+
 ## [0.15.0](https://github.com/tari-project/tari-crypto/compare/v0.14.0...v0.15.0) (2022-07-04)
 
 
