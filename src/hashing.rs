@@ -494,10 +494,10 @@ macro_rules! hasher {
         pub type $name = $crate::hashing::DomainSeparatedHasher<$digest, $mod_name::__HashDomain>;
     };
     ($digest: ty, $name:ident, $domain:expr, $version: expr) => {
-        hasher!($digest, $name, $domain, $version, __inner);
+        hasher!($digest, $name, $domain, $version, __inner_hasher_impl);
     };
     ($digest: ty, $name:ident, $domain:expr) => {
-        hasher!($digest, $name, $domain, 1, __inner);
+        hasher!($digest, $name, $domain, 1, __inner_hasher_impl);
     };
 }
 
