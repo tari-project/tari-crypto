@@ -482,25 +482,28 @@ macro_rules! hash_domain {
     };
 }
 
-/// Creates a domain separated hasher.
+/// Creates a domain separated hasher type and domain in one
 #[macro_export]
-macro_rules! create_hasher {
-    ($digest:ty, $name:ident, $domain:expr, $label:expr, $version: expr) => {{
-        use $crate::hash_domain;
+macro_rules! hasher {
+    ($digest:ty, $name:ident, $domain:expr, $version: expr, $mod_name:ident) => {
+        mod $mod_name {
+            use $crate::hash_domain;
 
-        hash_domain!($name, $domain, $version);
-        let hasher = $crate::hashing::DomainSeparatedHasher::<$digest, $name>::new($label);
-        hasher
-    }};
-    ($digest: ty, $name:ident, $domain:expr, $label:expr) => {
-        create_hasher!($digest, $name, $domain, $label, 1)
+            hash_domain!(__HashDomain, $domain, $version);
+        }
+        pub type $name = $crate::hashing::DomainSeparatedHasher<$digest, $mod_name::__HashDomain>;
+    };
+    ($digest: ty, $name:ident, $domain:expr, $version: expr) => {
+        hasher!($digest, $name, $domain, $version, __inner_hasher_impl);
     };
     ($digest: ty, $name:ident, $domain:expr) => {
-        create_hasher!($digest, $name, $domain, "", 1)
+        hasher!($digest, $name, $domain, 1, __inner_hasher_impl);
     };
-    ($digest: ty, $domain:expr) => {
-        create_hasher!($digest, __TempHashDomain, $domain, "", 1)
-    };
+}
+
+/// Convenience function for creating a DomainSeparatedHasher
+pub fn create_hasher<D: Digest, HD: DomainSeparation>(label: &'static str) -> DomainSeparatedHasher<D, HD> {
+    DomainSeparatedHasher::<D, HD>::new(label)
 }
 
 #[cfg(test)]
@@ -533,22 +536,25 @@ mod test {
     }
 
     #[test]
-    fn create_hasher_macro_tests() {
-        util::hash_from_digest(
-            create_hasher!(Blake256, MyDemoHasher, "com.macro.test", "", 1),
-            &[0, 0, 0],
-            "5faa7d48b551362bbee8a02c43e6ab634ed47c58ecf7b353f9afedfe3d574608",
-        );
-        util::hash_from_digest(
-            create_hasher!(Blake256, MyDemoHasher, "com.macro.test"),
-            &[0, 0, 0],
-            "5faa7d48b551362bbee8a02c43e6ab634ed47c58ecf7b353f9afedfe3d574608",
-        );
-        util::hash_from_digest(
-            create_hasher!(Blake256, "com.macro.test"),
-            &[0, 0, 0],
-            "5faa7d48b551362bbee8a02c43e6ab634ed47c58ecf7b353f9afedfe3d574608",
-        );
+    fn hasher_macro_tests() {
+        {
+            hasher!(Blake256, MyDemoHasher, "com.macro.test");
+
+            util::hash_from_digest(
+                MyDemoHasher::new(""),
+                &[0, 0, 0],
+                "5faa7d48b551362bbee8a02c43e6ab634ed47c58ecf7b353f9afedfe3d574608",
+            );
+        }
+        {
+            hasher!(Blake256, MyDemoHasher2, "com.macro.test", 1);
+
+            util::hash_from_digest(
+                MyDemoHasher2::new(""),
+                &[0, 0, 0],
+                "5faa7d48b551362bbee8a02c43e6ab634ed47c58ecf7b353f9afedfe3d574608",
+            );
+        }
     }
 
     #[test]
