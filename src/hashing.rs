@@ -233,12 +233,7 @@ pub struct DomainSeparatedHasher<D, M> {
 impl<D: Digest, M: DomainSeparation> DomainSeparatedHasher<D, M> {
     /// Create a new instance of [`DomainSeparatedHasher`] without an additional label (to correspond to 'D::new()').
     pub fn new() -> Self {
-        let inner = D::new();
-        Self {
-            inner,
-            label: "",
-            _dst: PhantomData,
-        }
+        Self::new_with_label("")
     }
 
     /// Create a new instance of [`DomainSeparatedHasher`] for the given label.
@@ -281,7 +276,7 @@ impl<D: Digest, M: DomainSeparation> DomainSeparatedHasher<D, M> {
 }
 
 /// Convert a finalized hash into a fixed size buffer.
-pub trait HashToBytes<const I: usize>: AsRef<[u8]> {
+pub trait AsFixedBytes<const I: usize>: AsRef<[u8]> {
     /// A convenience function to convert a finalized hash into a fixed size buffer.
     fn as_fixed_bytes(&self) -> Result<[u8; I], SliceError> {
         let hash_vec = self.as_ref();
@@ -295,7 +290,7 @@ pub trait HashToBytes<const I: usize>: AsRef<[u8]> {
     }
 }
 
-impl<const I: usize, D: Digest> HashToBytes<I> for DomainSeparatedHash<D> {}
+impl<const I: usize, D: Digest> AsFixedBytes<I> for DomainSeparatedHash<D> {}
 
 /// Implements Digest so that it can be used for other crates
 impl<TInnerDigest: Digest, TDomain: DomainSeparation> Digest for DomainSeparatedHasher<TInnerDigest, TDomain> {
@@ -556,7 +551,7 @@ mod test {
 
     use crate::{
         hash::blake2::Blake256,
-        hashing::{byte_to_decimal_ascii_bytes, DomainSeparatedHasher, DomainSeparation, HashToBytes, Mac, MacDomain},
+        hashing::{byte_to_decimal_ascii_bytes, AsFixedBytes, DomainSeparatedHasher, DomainSeparation, Mac, MacDomain},
     };
 
     mod util {
@@ -585,7 +580,7 @@ mod test {
             util::hash_from_digest(
                 MyDemoHasher::new(),
                 &[0, 0, 0],
-                "a980ec75b9b1a6b2bc50884e01b319c9184bef53ef7906ee7c1fb9afd96a377b",
+                "5faa7d48b551362bbee8a02c43e6ab634ed47c58ecf7b353f9afedfe3d574608",
             );
         }
         {
@@ -594,7 +589,7 @@ mod test {
             util::hash_from_digest(
                 MyDemoHasher2::new(),
                 &[0, 0, 0],
-                "a980ec75b9b1a6b2bc50884e01b319c9184bef53ef7906ee7c1fb9afd96a377b",
+                "5faa7d48b551362bbee8a02c43e6ab634ed47c58ecf7b353f9afedfe3d574608",
             );
         }
     }
@@ -635,7 +630,7 @@ mod test {
         hash_domain!(MyDemoHasher, "com.macro.test");
         util::hash_test::<DomainSeparatedHasher<Blake256, MyDemoHasher>>(
             &[0, 0, 0],
-            "a980ec75b9b1a6b2bc50884e01b319c9184bef53ef7906ee7c1fb9afd96a377b",
+            "5faa7d48b551362bbee8a02c43e6ab634ed47c58ecf7b353f9afedfe3d574608",
         );
 
         let mut hasher = DomainSeparatedHasher::<Blake256, MyDemoHasher>::new();
@@ -643,7 +638,15 @@ mod test {
         let hash = hasher.finalize();
         assert_eq!(
             to_hex(hash.as_ref()),
-            "a980ec75b9b1a6b2bc50884e01b319c9184bef53ef7906ee7c1fb9afd96a377b"
+            "5faa7d48b551362bbee8a02c43e6ab634ed47c58ecf7b353f9afedfe3d574608"
+        );
+
+        let mut hasher = DomainSeparatedHasher::<Blake256, MyDemoHasher>::new_with_label("");
+        hasher.update(&[0, 0, 0]);
+        let hash = hasher.finalize();
+        assert_eq!(
+            to_hex(hash.as_ref()),
+            "5faa7d48b551362bbee8a02c43e6ab634ed47c58ecf7b353f9afedfe3d574608"
         );
     }
 
@@ -653,19 +656,19 @@ mod test {
         hash_domain!(MyDemoHasher, "com.macro.test");
         util::hash_test::<DomainSeparatedHasher<Blake256, MyDemoHasher>>(
             &[0, 0, 0],
-            "a980ec75b9b1a6b2bc50884e01b319c9184bef53ef7906ee7c1fb9afd96a377b",
+            "5faa7d48b551362bbee8a02c43e6ab634ed47c58ecf7b353f9afedfe3d574608",
         );
 
         hash_domain!(MyDemoHasher2, "com.macro.test", 2);
         util::hash_test::<DomainSeparatedHasher<Blake256, MyDemoHasher2>>(
             &[0, 0, 0],
-            "a980ec75b9b1a6b2bc50884e01b319c9184bef53ef7906ee7c1fb9afd96a377b",
+            "7ea9d671008380ea79d29205ac5436a62ba534c710298b9482f20d488c96060d",
         );
 
         hash_domain!(TariHasher, "com.tari.hasher");
         util::hash_test::<DomainSeparatedHasher<Blake256, TariHasher>>(
             &[0, 0, 0],
-            "a980ec75b9b1a6b2bc50884e01b319c9184bef53ef7906ee7c1fb9afd96a377b",
+            "0706e40badfe77547d143b0664e8ff190538d4077c6136abad915e4415d3c2ef",
         );
     }
 
