@@ -39,7 +39,7 @@ pub enum CommitmentError {
 }
 
 /// Errors encountered when hashing
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq, Eq)]
 pub enum HashingError {
     /// The input to the hashing function is too short
     #[error("The input to the hashing function is too short.")]
@@ -50,4 +50,12 @@ pub enum HashingError {
     /// The digest does not produce enough output
     #[error("The digest does produce enough output. {0} bytes are required.")]
     DigestTooShort(usize),
+}
+
+/// Errors encountered when copying to a buffer
+#[derive(Debug, Clone, Error, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SliceError {
+    /// The requested fixed slice length exceeds the available slice length
+    #[error("Cannot create fixed slice of length {0} from a slice of length {1}.")]
+    CopyFromSlice(usize, usize),
 }
