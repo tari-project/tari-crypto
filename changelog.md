@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.15.3](https://github.com/tari-project/tari-crypto/compare/v0.15.2...v0.15.3) (2022-07-28)
+
+
+### Features
+
+* synchronize the standard digest `new()` with `domain separated hasher::new()` ([#123](https://github.com/tari-project/tari-crypto/issues/123)) ([2f86219](https://github.com/tari-project/tari-crypto/commit/2f862195d8bf4d25ca30076bd66028461beb8627))
+
 ## [0.15.0](https://github.com/tari-project/tari-crypto/compare/v0.14.0...v0.15.0) (2022-07-04)
 
 
