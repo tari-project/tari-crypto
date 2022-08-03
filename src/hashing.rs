@@ -53,30 +53,43 @@ use crate::{
 pub trait DomainSeparation {
     /// Returns the version number for the metadata tag
     fn version() -> u8;
+
     /// Returns the category label for the metadata tag. For example, `tari_hmac`
     fn domain() -> &'static str;
+
     /// The domain separation tag is defined as `{domain}.v{version}.{label}`, where the version and tag are
     /// typically hard-coded into the implementing type, and the label is provided per specific application of the
     /// domain
     fn domain_separation_tag<S: AsRef<str>>(label: S) -> String {
-        format!("{}.v{}.{}", Self::domain(), Self::version(), label.as_ref())
+        if !label.as_ref().is_empty() {
+            return format!("{}.v{}.{}", Self::domain(), Self::version(), label.as_ref());
+        }
+        return format!("{}.v{}", Self::domain(), Self::version());
     }
 
     /// Adds the domain separation tag to the given digest. The domain separation tag is defined as
     /// `{domain}.v{version}.{label}`, where the version and tag are typically hard-coded into the implementing
     /// type, and the label is provided per specific application of the domain.
     fn add_domain_separation_tag<S: AsRef<[u8]>, D: Digest>(digest: &mut D, label: S) {
+        let label = if label.as_ref().is_empty() { &[] } else { label.as_ref() };
         let domain = Self::domain();
         let (version_offset, version) = byte_to_decimal_ascii_bytes(Self::version());
-        // 3 additional bytes are 2 x '.' delimiters and 'v' tag for version
-        let len = domain.len() + (3 - version_offset) + label.as_ref().len() + 3;
+        let len = if label.is_empty() {
+            // 2 additional bytes are 1 x '.' delimiters and 'v' tag for version
+            domain.len() + (3 - version_offset) + 2
+        } else {
+            // 3 additional bytes are 2 x '.' delimiters and 'v' tag for version
+            domain.len() + (3 - version_offset) + label.len() + 3
+        };
         let len = (len as u64).to_le_bytes();
         digest.update(len);
         digest.update(domain);
         digest.update(b".v");
         digest.update(&version[version_offset..]);
-        digest.update(b".");
-        digest.update(label.as_ref());
+        if !label.is_empty() {
+            digest.update(b".");
+            digest.update(label);
+        }
     }
 }
 
@@ -177,6 +190,7 @@ impl<D: Digest> AsRef<[u8]> for DomainSeparatedHash<D> {
 ///         .finalize()
 /// }
 ///
+/// assert_eq!(CardHashDomain::domain_separation_tag(""), "com.cards.v1");
 /// assert_eq!(CardHashDomain::domain_separation_tag("card_id"), "com.cards.v1.card_id");
 /// let card = Card {
 ///     name: "Rincewind",
@@ -580,7 +594,7 @@ mod test {
             util::hash_from_digest(
                 MyDemoHasher::new(),
                 &[0, 0, 0],
-                "5faa7d48b551362bbee8a02c43e6ab634ed47c58ecf7b353f9afedfe3d574608",
+                "d4cbf5b6b97485a991973db8a6ce4d3fc660db5dff5f55f2b0cb363fca34b0a2",
             );
         }
         {
@@ -589,7 +603,7 @@ mod test {
             util::hash_from_digest(
                 MyDemoHasher2::new(),
                 &[0, 0, 0],
-                "5faa7d48b551362bbee8a02c43e6ab634ed47c58ecf7b353f9afedfe3d574608",
+                "d4cbf5b6b97485a991973db8a6ce4d3fc660db5dff5f55f2b0cb363fca34b0a2",
             );
         }
     }
@@ -599,12 +613,14 @@ mod test {
     fn mac_domain_metadata() {
         assert_eq!(MacDomain::version(), 1);
         assert_eq!(MacDomain::domain(), "com.tari.mac");
+        assert_eq!(MacDomain::domain_separation_tag(""), "com.tari.mac.v1");
         assert_eq!(MacDomain::domain_separation_tag("test"), "com.tari.mac.v1.test");
     }
 
     #[test]
     fn dst_hasher() {
         hash_domain!(GenericHashDomain, "com.tari.generic");
+        assert_eq!(GenericHashDomain::domain_separation_tag(""), "com.tari.generic.v1");
         let hash = DomainSeparatedHasher::<Blake256, GenericHashDomain>::new_with_label("test_hasher")
             .chain("some foo")
             .finalize();
@@ -628,9 +644,10 @@ mod test {
     #[test]
     fn digest_is_the_same_as_standard_api() {
         hash_domain!(MyDemoHasher, "com.macro.test");
+        assert_eq!(MyDemoHasher::domain_separation_tag(""), "com.macro.test.v1");
         util::hash_test::<DomainSeparatedHasher<Blake256, MyDemoHasher>>(
             &[0, 0, 0],
-            "5faa7d48b551362bbee8a02c43e6ab634ed47c58ecf7b353f9afedfe3d574608",
+            "d4cbf5b6b97485a991973db8a6ce4d3fc660db5dff5f55f2b0cb363fca34b0a2",
         );
 
         let mut hasher = DomainSeparatedHasher::<Blake256, MyDemoHasher>::new();
@@ -638,7 +655,7 @@ mod test {
         let hash = hasher.finalize();
         assert_eq!(
             to_hex(hash.as_ref()),
-            "5faa7d48b551362bbee8a02c43e6ab634ed47c58ecf7b353f9afedfe3d574608"
+            "d4cbf5b6b97485a991973db8a6ce4d3fc660db5dff5f55f2b0cb363fca34b0a2"
         );
 
         let mut hasher = DomainSeparatedHasher::<Blake256, MyDemoHasher>::new_with_label("");
@@ -646,7 +663,7 @@ mod test {
         let hash = hasher.finalize();
         assert_eq!(
             to_hex(hash.as_ref()),
-            "5faa7d48b551362bbee8a02c43e6ab634ed47c58ecf7b353f9afedfe3d574608"
+            "d4cbf5b6b97485a991973db8a6ce4d3fc660db5dff5f55f2b0cb363fca34b0a2"
         );
     }
 
@@ -654,21 +671,24 @@ mod test {
     #[test]
     fn can_be_used_as_digest() {
         hash_domain!(MyDemoHasher, "com.macro.test");
+        assert_eq!(MyDemoHasher::domain_separation_tag(""), "com.macro.test.v1");
         util::hash_test::<DomainSeparatedHasher<Blake256, MyDemoHasher>>(
             &[0, 0, 0],
-            "5faa7d48b551362bbee8a02c43e6ab634ed47c58ecf7b353f9afedfe3d574608",
+            "d4cbf5b6b97485a991973db8a6ce4d3fc660db5dff5f55f2b0cb363fca34b0a2",
         );
 
         hash_domain!(MyDemoHasher2, "com.macro.test", 2);
+        assert_eq!(MyDemoHasher2::domain_separation_tag(""), "com.macro.test.v2");
         util::hash_test::<DomainSeparatedHasher<Blake256, MyDemoHasher2>>(
             &[0, 0, 0],
-            "7ea9d671008380ea79d29205ac5436a62ba534c710298b9482f20d488c96060d",
+            "ce327b02271d035bad4dcc1e69bc292392ee4ee497f1f8467d54bf4b4c72639a",
         );
 
         hash_domain!(TariHasher, "com.tari.hasher");
+        assert_eq!(TariHasher::domain_separation_tag(""), "com.tari.hasher.v1");
         util::hash_test::<DomainSeparatedHasher<Blake256, TariHasher>>(
             &[0, 0, 0],
-            "0706e40badfe77547d143b0664e8ff190538d4077c6136abad915e4415d3c2ef",
+            "ae359f05bb76c646c6767d25f53893fc38b0c7b56f8a74a1cbb008ea3ffc183f",
         );
     }
 
