@@ -114,7 +114,7 @@ pub struct ExtendedRangeProofFactory {
 
 #[wasm_bindgen]
 impl ExtendedRangeProofFactory {
-    /// Create a new `RangeProofFactory`
+    /// Create a new `ExtendedRangeProofFactory`
     pub fn new() -> Self {
         let factory = ExtendedPedersenCommitmentFactory::default();
         let range_proof_service = BulletproofsPlusService::init(64, 1, factory).unwrap();
