@@ -6,8 +6,6 @@
 pub mod bulletproofs_plus;
 pub mod constants;
 mod dalek_range_proof;
-#[cfg(feature = "musig")]
-pub mod musig;
 pub mod pedersen;
 mod ristretto_com_sig;
 pub mod ristretto_keys;
