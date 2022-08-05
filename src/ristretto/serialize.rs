@@ -107,7 +107,7 @@ impl Serialize for RistrettoSecretKey {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where S: Serializer {
         if serializer.is_human_readable() {
-            let mut s =self.to_hex();
+            let mut s = self.to_hex();
             let result = s.serialize(serializer);
             s.zeroize();
             result
