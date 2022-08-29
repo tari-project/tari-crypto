@@ -12,8 +12,6 @@ pub mod commitment;
 pub mod hash;
 pub mod hashing;
 pub mod keys;
-#[cfg(feature = "musig")]
-pub mod musig;
 pub mod range_proof;
 pub mod rewindable_range_proof;
 pub mod signatures;
