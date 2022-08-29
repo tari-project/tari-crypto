@@ -511,7 +511,8 @@ pub trait DerivedKeyDomain: DomainSeparation {
 #[macro_export]
 macro_rules! hash_domain {
     ($name:ident, $domain:expr, $version: expr) => {
-        pub struct $name {}
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        pub struct $name;
 
         impl $crate::hashing::DomainSeparation for $name {
             fn version() -> u8 {
