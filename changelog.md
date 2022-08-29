@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.15.5](https://github.com/tari-project/tari-crypto/compare/v0.15.4...v0.15.5) (2022-08-29)
+
+
+### Features
+
+* **hashing:** eager implement common traits ([#129](https://github.com/tari-project/tari-crypto/issues/129)) ([3f72eb6](https://github.com/tari-project/tari-crypto/commit/3f72eb67bcd9ec2657bb6e2c204ca8ee77c2e1fe))
+
+
+### Bug Fixes
+
+* zeroize temp fields during serializing ([#126](https://github.com/tari-project/tari-crypto/issues/126)) ([e13c556](https://github.com/tari-project/tari-crypto/commit/e13c556155a7d018dc658d81bbf50d91d11e01c2))
+
 ### [0.15.4](https://github.com/tari-project/tari-crypto/compare/v0.15.3...v0.15.4) (2022-08-03)
 
 * Removed trailing dot in domain tag if an empty label is provided to `DomainSeparatedHasher::new_with_label`
