@@ -24,26 +24,21 @@ pub enum CommitmentSignatureError {
     InvalidChallenge,
 }
 
-/// # Commitment Signatures
+/// # Commitment signatures
 ///
-/// Find out more about Commitment signatures [here](https://eprint.iacr.org/2020/061.pdf) and
-/// [here](https://documents.uow.edu.au/~wsusilo/ZCMS_IJNS08.pdf).
+/// A commitment signature is a zero-knowledge proof of knowledge (bound to a message as a signature) of the
+/// opening of a commitment and, optionally, another commitment to zero (interpreted as a public key).
 ///
-/// In short, a Commitment Signature is made up of the tuple _(R, u, v)_, where _R_ is a random Pedersen commitment (of
-/// two secret nonces) and _u_ and _v_ are the two publicly known private signature keys. It demonstrates ownership of
-/// a specific commitment.
+/// This is used elsewhere in Tari protocols to authorize transactions.
 ///
-/// The Commitment Signature signes a challenge with the value commitment's value and blinding factor. The two nonces
-/// should be completely random and never reused - that responsibility lies with the calling function.
-///   C = a*H + x*G          ... (Pedersen commitment to the value 'a' using blinding factor 'x')
-///   R = k_2*H + k_1*G      ... (a public (Pedersen) commitment nonce created with the two random nonces)
-///   u = k_1 + e.x          ... (the first publicly known private key of the signature signing with 'x')
-///   v = k_2 + e.a          ... (the second publicly known private key of the signature signing with 'a')
-///   signature = (R, u, v)  ... (the final signature tuple)
+/// While it's possible to use a standard Chaum-Pedersen-type proving system design, the approach used here
+/// uses a power-of-challenge design for size efficiency.
 ///
-/// Verification of the Commitment Signature (R, u, v) entails the following:
-///   S = v*H + u*G          ... (Pedersen commitment of the publicly known private signature keys)
-///   S =? R + e.C           ... (final verification)
+/// For a commitment `C = a*H + x*G` and commitment to zero `D = y*G`, the proving system protocol is:
+/// - The prover selects random nonces `k_1` and `k_2`, and builds the ephemeral commitment `R = k_2*H + k_1*G`.
+/// - The verifier receives `C`, `D`, and `R`, and selects a random challenge `e`.
+/// - The prover computes `u = k_1 + e*x + e*e*y` and `v = k_2 + e*a`.
+/// - The verifier receives `u` and `v`, and accepts the proof if and only if `v*H + u*G = R + e*C + e*e*D`.
 #[allow(non_snake_case)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CommitmentSignature<P, K> {
@@ -69,11 +64,13 @@ where
         factory.commit(&self.u, &self.v)
     }
 
-    /// Sign the provided challenge with the value commitment's value and blinding factor. The two nonces should be
-    /// completely random and never reused - that responsibility lies with the calling function.
+    /// Complete a signature given secret data and a challenge. It is the caller's responsibility to ensure:
+    /// - The provided nonces are randomly selected and never reused
+    /// - The challenge corresponds to the provided data
     pub fn sign<C>(
         secret_a: &K,
         secret_x: &K,
+        secret_y: &K,
         nonce_a: &K,
         nonce_x: &K,
         challenge: &[u8],
@@ -91,26 +88,31 @@ where
         };
         let ea = &e * secret_a;
         let ex = &e * secret_x;
+        let ey = &(&e * &e) * secret_y;
 
         let v = nonce_a + &ea;
-        let u = nonce_x + &ex;
+        let u = &(nonce_x + &ex) + &ey;
 
         let public_commitment_nonce = factory.commit(nonce_x, nonce_a);
 
         Ok(Self::new(public_commitment_nonce, u, v))
     }
 
-    /// Verify if the commitment signature signed the commitment using the specified challenge (as bytes). If the
-    /// provided challenge n bytes cannot be converted to a secret key, this function also returns false.
+    /// Verify if the commitment signature signed the commitment and key using the specified challenge (as bytes).
+    /// If the provided challenge n bytes cannot be converted to a secret key, this function also returns false.
     pub fn verify_challenge<'a, C>(
         &self,
         public_commitment: &'a HomomorphicCommitment<P>,
+        public_key: &'a P,
         challenge: &[u8],
         factory: &C,
     ) -> bool
     where
         for<'b> &'a HomomorphicCommitment<P>: Mul<&'b K, Output = HomomorphicCommitment<P>>,
         for<'b> &'b HomomorphicCommitment<P>: Add<&'b HomomorphicCommitment<P>, Output = HomomorphicCommitment<P>>,
+        for<'b> &'b HomomorphicCommitment<P>: Add<&'b P, Output = HomomorphicCommitment<P>>,
+        for<'b> &'b K: Mul<&'b K, Output = K>,
+        for<'b> &'a P: Mul<&'b K, Output = P>,
         C: HomomorphicCommitmentFactory<P = P>,
     {
         let e = match K::from_bytes(challenge) {
@@ -118,22 +120,32 @@ where
             Err(_) => return false,
         };
 
-        self.verify(public_commitment, &e, factory)
+        self.verify(public_commitment, public_key, &e, factory)
     }
 
     /// Verify if the commitment signature signed the commitment using the specified challenge (as secret key).
-    ///  v*H + u*G = R + e.C
-    pub fn verify<'a, C>(&self, public_commitment: &'a HomomorphicCommitment<P>, challenge: &K, factory: &C) -> bool
+    ///  v*H + u*G = R + e*C + e*e*D
+    pub fn verify<'a, C>(
+        &self,
+        public_commitment: &'a HomomorphicCommitment<P>,
+        public_key: &'a P,
+        challenge: &K,
+        factory: &C,
+    ) -> bool
     where
         for<'b> &'a HomomorphicCommitment<P>: Mul<&'b K, Output = HomomorphicCommitment<P>>,
         for<'b> &'b HomomorphicCommitment<P>: Add<&'b HomomorphicCommitment<P>, Output = HomomorphicCommitment<P>>,
+        for<'b> &'b HomomorphicCommitment<P>: Add<&'b P, Output = HomomorphicCommitment<P>>,
+        for<'b> &'b K: Mul<&'b K, Output = K>,
+        for<'b> &'a P: Mul<&'b K, Output = P>,
         C: HomomorphicCommitmentFactory<P = P>,
     {
         // v*H + u*G
         let lhs = self.calc_signature_verifier(factory);
-        // R + e.C
-        let rhs = &self.public_nonce + &(public_commitment * challenge);
-        // Implementors should make this a constant time comparison
+        // R + e*C + e*e*C
+        let e_sq = challenge * challenge;
+        let rhs = &(&self.public_nonce + &(public_commitment * challenge)) + &(public_key * &e_sq);
+
         lhs == rhs
     }
 

@@ -196,9 +196,9 @@ pub fn check_signature(pub_nonce: &str, signature: &str, pub_key: &str, msg: &st
     JsValue::from_serde(&result).unwrap()
 }
 
-/// Generate a Commitment signature of the message using the given private key
+/// Generate a Commitment signature of the message using the given private keys
 #[wasm_bindgen]
-pub fn sign_comsig(private_key_a: &str, private_key_x: &str, msg: &str) -> JsValue {
+pub fn sign_comsig(private_key_a: &str, private_key_x: &str, private_key_y: &str, msg: &str) -> JsValue {
     let mut result = ComSignResult::default();
     let a_key = match RistrettoSecretKey::from_hex(private_key_a) {
         Ok(a_key) => a_key,
@@ -214,7 +214,14 @@ pub fn sign_comsig(private_key_a: &str, private_key_x: &str, msg: &str) -> JsVal
             return JsValue::from_serde(&result).unwrap();
         },
     };
-    sign_comsig_message_with_key(&a_key, &x_key, msg, None, None, &mut result);
+    let y_key = match RistrettoSecretKey::from_hex(private_key_y) {
+        Ok(y_key) => y_key,
+        _ => {
+            result.error = "Invalid private key".to_string();
+            return JsValue::from_serde(&result).unwrap();
+        },
+    };
+    sign_comsig_message_with_key(&a_key, &x_key, &y_key, msg, None, None, &mut result);
     JsValue::from_serde(&result).unwrap()
 }
 
@@ -226,6 +233,7 @@ pub fn sign_comsig(private_key_a: &str, private_key_x: &str, msg: &str) -> JsVal
 pub fn sign_comsig_challenge_with_nonce(
     private_key_a: &str,
     private_key_x: &str,
+    private_key_y: &str,
     private_nonce_1: &str,
     private_nonce_2: &str,
     challenge_as_hex: &str,
@@ -242,6 +250,13 @@ pub fn sign_comsig_challenge_with_nonce(
         Ok(private_key_x) => private_key_x,
         _ => {
             result.error = "Invalid private key_x".to_string();
+            return JsValue::from_serde(&result).unwrap();
+        },
+    };
+    let private_key_y = match RistrettoSecretKey::from_hex(private_key_y) {
+        Ok(private_key_y) => private_key_y,
+        _ => {
+            result.error = "Invalid private key_y".to_string();
             return JsValue::from_serde(&result).unwrap();
         },
     };
@@ -270,6 +285,7 @@ pub fn sign_comsig_challenge_with_nonce(
     sign_comsig_with_key(
         &private_key_a,
         &private_key_x,
+        &private_key_y,
         &e,
         Some(&private_nonce_1),
         Some(&private_nonce_2),
@@ -281,18 +297,28 @@ pub fn sign_comsig_challenge_with_nonce(
 pub(crate) fn sign_comsig_message_with_key(
     private_key_a: &RistrettoSecretKey,
     private_key_x: &RistrettoSecretKey,
+    private_key_y: &RistrettoSecretKey,
     msg: &str,
     nonce_1: Option<&RistrettoSecretKey>,
     nonce_2: Option<&RistrettoSecretKey>,
     result: &mut ComSignResult,
 ) {
     let e = Blake256::digest(msg.as_bytes());
-    sign_comsig_with_key(private_key_a, private_key_x, e.as_slice(), nonce_1, nonce_2, result);
+    sign_comsig_with_key(
+        private_key_a,
+        private_key_x,
+        private_key_y,
+        e.as_slice(),
+        nonce_1,
+        nonce_2,
+        result,
+    );
 }
 
 pub(crate) fn sign_comsig_with_key(
     private_key_a: &RistrettoSecretKey,
     private_key_x: &RistrettoSecretKey,
+    private_key_y: &RistrettoSecretKey,
     e: &[u8],
     nonce_1: Option<&RistrettoSecretKey>,
     nonce_2: Option<&RistrettoSecretKey>,
@@ -308,7 +334,7 @@ pub(crate) fn sign_comsig_with_key(
         None => RistrettoSecretKey::random(&mut OsRng),
     };
 
-    let sig = match RistrettoComSig::sign(private_key_a, private_key_x, &r_2, &r_1, e, &factory) {
+    let sig = match RistrettoComSig::sign(private_key_a, private_key_x, private_key_y, &r_2, &r_1, e, &factory) {
         Ok(s) => s,
         Err(e) => {
             result.error = format!("Could not create signature. {}", e);
@@ -329,6 +355,7 @@ pub fn check_comsig_signature(
     signature_u: &str,
     signature_v: &str,
     commitment: &str,
+    commitment_to_zero: &str,
     msg: &str,
 ) -> JsValue {
     let mut result = SignatureVerifyResult::default();
@@ -346,6 +373,14 @@ pub fn check_comsig_signature(
         Ok(n) => n,
         Err(_) => {
             result.error = format!("{} is not a valid commitment", commitment);
+            return JsValue::from_serde(&result).unwrap();
+        },
+    };
+
+    let public_commitment_to_zero = match RistrettoPublicKey::from_hex(commitment_to_zero) {
+        Ok(n) => n,
+        Err(_) => {
+            result.error = format!("{} is not a valid commitment", commitment_to_zero);
             return JsValue::from_serde(&result).unwrap();
         },
     };
@@ -368,7 +403,7 @@ pub fn check_comsig_signature(
 
     let sig = RistrettoComSig::new(R, u, v);
     let msg = Blake256::digest(msg.as_bytes());
-    result.result = sig.verify_challenge(&public_commitment, msg.as_slice(), &factory);
+    result.result = sig.verify_challenge(&public_commitment, &public_commitment_to_zero, msg.as_slice(), &factory);
     JsValue::from_serde(&result).unwrap()
 }
 
@@ -471,18 +506,30 @@ mod test {
         (sig, pk, sk)
     }
 
-    fn create_commsig(msg: &str) -> (RistrettoComSig, PedersenCommitment) {
+    fn create_commsig(msg: &str) -> (RistrettoComSig, PedersenCommitment, RistrettoPublicKey) {
         let factory = PedersenCommitmentFactory::default();
         let (sk_a, _) = random_keypair();
         let (sk_x, _) = random_keypair();
+        let (sk_y, _) = random_keypair();
         let (nonce_a, _) = random_keypair();
         let (nonce_x, _) = random_keypair();
-        let sig =
-            CommitmentSignature::<RistrettoPublicKey, _>::sign(&sk_a, &sk_x, &nonce_a, &nonce_x, &hash(msg), &factory)
-                .unwrap();
+        let sig = CommitmentSignature::<RistrettoPublicKey, _>::sign(
+            &sk_a,
+            &sk_x,
+            &sk_y,
+            &nonce_a,
+            &nonce_x,
+            &hash(msg),
+            &factory,
+        )
+        .unwrap();
         let commitment = factory.commit(&sk_x, &sk_a);
+        let commitment_to_zero = factory
+            .commit(&sk_y, &RistrettoSecretKey::default())
+            .as_public_key()
+            .to_owned();
 
-        (sig, commitment)
+        (sig, commitment, commitment_to_zero)
     }
 
     fn key_hex() -> (RistrettoSecretKey, String) {
@@ -687,35 +734,40 @@ mod test {
     mod sign_comsig {
         use super::*;
 
-        fn sign_comsig(private_key_a: &str, private_key_x: &str, msg: &str) -> ComSignResult {
-            super::sign_comsig(private_key_a, private_key_x, msg)
+        fn sign_comsig(private_key_a: &str, private_key_x: &str, private_key_y: &str, msg: &str) -> ComSignResult {
+            super::sign_comsig(private_key_a, private_key_x, private_key_y, msg)
                 .into_serde()
                 .unwrap()
         }
 
         #[wasm_bindgen_test]
         fn it_fails_if_given_invalid_data() {
-            fn it_fails(a: &str, x: &str, msg: &str) {
-                let result = sign_comsig(a, x, msg);
+            fn it_fails(a: &str, x: &str, y: &str, msg: &str) {
+                let result = sign_comsig(a, x, y, msg);
                 assert!(!result.error.is_empty());
                 assert!(result.public_nonce.is_none());
                 assert!(result.v.is_none());
                 assert!(result.u.is_none());
             }
 
-            let (sk, _) = random_keypair();
-            it_fails("", "", SAMPLE_CHALLENGE);
-            it_fails(&["0"; 33].join(""), &sk.to_hex(), SAMPLE_CHALLENGE);
-            it_fails(&sk.to_hex(), &["0"; 33].join(""), SAMPLE_CHALLENGE);
+            let (sk_x, _) = random_keypair();
+            let (sk_y, _) = random_keypair();
+            it_fails("", "", "", SAMPLE_CHALLENGE);
+            it_fails(&["0"; 33].join(""), &sk_x.to_hex(), &sk_y.to_hex(), SAMPLE_CHALLENGE);
         }
 
         #[wasm_bindgen_test]
         fn it_produces_a_valid_commitment_signature() {
             let (x, _) = random_keypair();
+            let (y, _) = random_keypair();
             let a = RistrettoSecretKey::from(123);
             let commitment = PedersenCommitmentFactory::default().commit(&x, &a);
+            let commitment_to_zero = PedersenCommitmentFactory::default()
+                .commit(&x, &RistrettoSecretKey::default())
+                .as_public_key()
+                .to_owned();
 
-            let result = sign_comsig(&a.to_hex(), &x.to_hex(), SAMPLE_CHALLENGE);
+            let result = sign_comsig(&a.to_hex(), &x.to_hex(), &y.to_hex(), SAMPLE_CHALLENGE);
             assert!(result.error.is_empty());
             let u = RistrettoSecretKey::from_hex(&result.u.unwrap()).unwrap();
             let v = RistrettoSecretKey::from_hex(&result.v.unwrap()).unwrap();
@@ -723,6 +775,7 @@ mod test {
             let comsig = CommitmentSignature::new(public_nonce_commit, u, v);
             assert!(comsig.verify(
                 &commitment,
+                &commitment_to_zero,
                 &RistrettoSecretKey::from_bytes(&hash(SAMPLE_CHALLENGE)).unwrap(),
                 &PedersenCommitmentFactory::default()
             ));
@@ -731,9 +784,10 @@ mod test {
         #[wasm_bindgen_test]
         fn it_does_not_reuse_nonces() {
             let (x, _) = random_keypair();
+            let (y, _) = random_keypair();
             let (a, _) = random_keypair();
-            let result1 = sign_comsig(&a.to_hex(), &x.to_hex(), SAMPLE_CHALLENGE);
-            let result2 = sign_comsig(&a.to_hex(), &x.to_hex(), SAMPLE_CHALLENGE);
+            let result1 = sign_comsig(&a.to_hex(), &x.to_hex(), &y.to_hex(), SAMPLE_CHALLENGE);
+            let result2 = sign_comsig(&a.to_hex(), &x.to_hex(), &y.to_hex(), SAMPLE_CHALLENGE);
             assert_ne!(result1.u.unwrap(), result2.u.unwrap());
             assert_ne!(result1.v.unwrap(), result2.v.unwrap());
             assert_ne!(result1.public_nonce.unwrap(), result2.public_nonce.unwrap());
@@ -746,12 +800,14 @@ mod test {
         fn sign_comsig_challenge_with_nonce(
             private_key_a: &str,
             private_key_x: &str,
+            private_key_y: &str,
             private_nonce_1: &str,
             private_nonce_2: &str,
         ) -> ComSignResult {
             super::sign_comsig_challenge_with_nonce(
                 private_key_a,
                 private_key_x,
+                private_key_y,
                 private_nonce_1,
                 private_nonce_2,
                 &hex::to_hex(&hash(SAMPLE_CHALLENGE)),
@@ -762,8 +818,8 @@ mod test {
 
         #[wasm_bindgen_test]
         fn it_fails_if_given_invalid_data() {
-            fn it_fails(a: &str, x: &str, n_a: &str, n_x: &str) {
-                let result = sign_comsig_challenge_with_nonce(a, x, n_a, n_x);
+            fn it_fails(a: &str, x: &str, y: &str, n_a: &str, n_x: &str) {
+                let result = sign_comsig_challenge_with_nonce(a, x, y, n_a, n_x);
                 assert!(!result.error.is_empty());
                 assert!(result.public_nonce.is_none());
                 assert!(result.v.is_none());
@@ -771,9 +827,15 @@ mod test {
             }
 
             let (sk, _) = random_keypair();
-            it_fails("", "", "", "");
-            it_fails("", &sk.to_hex(), &sk.to_hex(), &sk.to_hex());
-            it_fails(&["0"; 33].join(""), &sk.to_hex(), &sk.to_hex(), &sk.to_hex());
+            it_fails("", "", "", "", "");
+            it_fails("", &sk.to_hex(), &sk.to_hex(), &sk.to_hex(), &sk.to_hex());
+            it_fails(
+                &["0"; 33].join(""),
+                &sk.to_hex(),
+                &sk.to_hex(),
+                &sk.to_hex(),
+                &sk.to_hex(),
+            );
         }
 
         #[wasm_bindgen_test]
@@ -782,7 +844,8 @@ mod test {
             let (r1, _) = random_keypair();
             let (r2, _) = random_keypair();
             let expected_p_nonce = PedersenCommitmentFactory::default().commit(&r1, &r2);
-            let result = sign_comsig_challenge_with_nonce(&sk.to_hex(), &sk.to_hex(), &r1.to_hex(), &r2.to_hex());
+            let result =
+                sign_comsig_challenge_with_nonce(&sk.to_hex(), &sk.to_hex(), &sk.to_hex(), &r1.to_hex(), &r2.to_hex());
             assert!(result.error.is_empty());
             assert_eq!(
                 PedersenCommitment::from_hex(&result.public_nonce.unwrap()).unwrap(),
@@ -799,50 +862,85 @@ mod test {
             u: &str,
             v: &str,
             commitment: &str,
+            commitment_to_zero: &str,
             msg: &str,
         ) -> SignatureVerifyResult {
-            super::check_comsig_signature(nonce_commit, u, v, commitment, msg)
+            super::check_comsig_signature(nonce_commit, u, v, commitment, commitment_to_zero, msg)
                 .into_serde()
                 .unwrap()
         }
 
         #[wasm_bindgen_test]
         fn it_errors_given_invalid_data() {
-            fn it_errors(nonce_commit: &str, signature_u: &str, signature_v: &str, commitment: &str) {
-                let result =
-                    check_comsig_signature(nonce_commit, signature_u, signature_v, commitment, SAMPLE_CHALLENGE);
-                assert!(
-                    !result.error.is_empty(),
-                    "check_comsig_signature did not fail with args ({}, {}, {}, {})",
+            fn it_errors(
+                nonce_commit: &str,
+                signature_u: &str,
+                signature_v: &str,
+                commitment: &str,
+                commitment_to_zero: &str,
+            ) {
+                let result = check_comsig_signature(
                     nonce_commit,
                     signature_u,
                     signature_v,
-                    commitment
+                    commitment,
+                    commitment_to_zero,
+                    SAMPLE_CHALLENGE,
+                );
+                assert!(
+                    !result.error.is_empty(),
+                    "check_comsig_signature did not fail with args ({}, {}, {}, {}, {})",
+                    nonce_commit,
+                    signature_u,
+                    signature_v,
+                    commitment,
+                    commitment_to_zero
                 );
                 assert!(!result.result);
             }
 
-            it_errors("", "", "", "");
+            it_errors("", "", "", "", "");
 
-            let (sig, commit) = create_commsig(SAMPLE_CHALLENGE);
-            it_errors(&sig.public_nonce().to_hex(), "", "", &commit.to_hex());
-            it_errors(&sig.public_nonce().to_hex(), &sig.u().to_hex(), &sig.v().to_hex(), "");
+            let (sig, commit, commit_to_zero) = create_commsig(SAMPLE_CHALLENGE);
+            it_errors(
+                &sig.public_nonce().to_hex(),
+                "",
+                "",
+                &commit.to_hex(),
+                &commit_to_zero.to_hex(),
+            );
+            it_errors(
+                &sig.public_nonce().to_hex(),
+                &sig.u().to_hex(),
+                &sig.v().to_hex(),
+                "",
+                "",
+            );
         }
 
         #[wasm_bindgen_test]
         fn it_fails_if_verification_is_invalid() {
-            fn it_fails(pub_nonce_commit: &str, signature_u: &str, signature_v: &str, commit: &str, msg: &str) {
-                let result = check_comsig_signature(pub_nonce_commit, signature_u, signature_v, commit, msg);
+            fn it_fails(
+                pub_nonce_commit: &str,
+                signature_u: &str,
+                signature_v: &str,
+                commit: &str,
+                commit_to_zero: &str,
+                msg: &str,
+            ) {
+                let result =
+                    check_comsig_signature(pub_nonce_commit, signature_u, signature_v, commit, commit_to_zero, msg);
                 assert!(result.error.is_empty());
                 assert!(!result.result);
             }
 
-            let (sig, commit) = create_commsig(SAMPLE_CHALLENGE);
+            let (sig, commit, commit_to_zero) = create_commsig(SAMPLE_CHALLENGE);
             it_fails(
                 &RistrettoPublicKey::default().to_hex(),
                 &sig.u().to_hex(),
                 &sig.v().to_hex(),
                 &commit.to_hex(),
+                &commit_to_zero.to_hex(),
                 SAMPLE_CHALLENGE,
             );
             it_fails(
@@ -850,6 +948,7 @@ mod test {
                 &sig.u().to_hex(),
                 &sig.v().to_hex(),
                 &commit.to_hex(),
+                &commit_to_zero.to_hex(),
                 "wrong challenge",
             );
             it_fails(
@@ -857,18 +956,20 @@ mod test {
                 &sig.u().to_hex(),
                 &sig.v().to_hex(),
                 &PedersenCommitment::default().to_hex(),
+                &RistrettoPublicKey::default().to_hex(),
                 SAMPLE_CHALLENGE,
             );
         }
 
         #[wasm_bindgen_test]
         fn it_succeeds_given_valid_data() {
-            let (sig, commit) = create_commsig(SAMPLE_CHALLENGE);
+            let (sig, commit, commit_to_zero) = create_commsig(SAMPLE_CHALLENGE);
             let result = check_comsig_signature(
                 &sig.public_nonce().to_hex(),
                 &sig.u().to_hex(),
                 &sig.v().to_hex(),
                 &commit.to_hex(),
+                &commit_to_zero.to_hex(),
                 SAMPLE_CHALLENGE,
             );
             assert!(result.error.is_empty());

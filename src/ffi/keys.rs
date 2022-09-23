@@ -160,7 +160,8 @@ pub unsafe extern "C" fn commitment(
     OK
 }
 
-/// Generate a commitment signature (R, u, v) using the provided value, spending key and challenge (a, x, e).
+/// Generate a commitment signature (R, u, v) using the provided value, spending key, secret key, and challenge (a, x,
+/// y, e).
 ///
 /// # Safety
 /// If any args are null the function returns -1.
@@ -171,6 +172,7 @@ pub unsafe extern "C" fn commitment(
 pub unsafe extern "C" fn sign_comsig(
     secret_a: *const KeyArray,
     secret_x: *const KeyArray,
+    secret_y: *const KeyArray,
     msg: *const c_char,
     public_nonce: *mut KeyArray,
     signature_u: *mut KeyArray,
@@ -178,6 +180,7 @@ pub unsafe extern "C" fn sign_comsig(
 ) -> c_int {
     if secret_a.is_null() ||
         secret_x.is_null() ||
+        secret_y.is_null() ||
         msg.is_null() ||
         public_nonce.is_null() ||
         signature_u.is_null() ||
@@ -193,6 +196,10 @@ pub unsafe extern "C" fn sign_comsig(
         Ok(k) => k,
         _ => return INVALID_SECRET_KEY_SER,
     };
+    let secret_y = match RistrettoSecretKey::from_bytes(&(*secret_y)) {
+        Ok(k) => k,
+        _ => return INVALID_SECRET_KEY_SER,
+    };
     let nonce_a = RistrettoSecretKey::random(&mut OsRng);
     let nonce_x = RistrettoSecretKey::random(&mut OsRng);
     let msg = match CStr::from_ptr(msg).to_str() {
@@ -201,7 +208,9 @@ pub unsafe extern "C" fn sign_comsig(
     };
     let challenge = Blake256::digest(msg.as_bytes()).to_vec();
     let factory = PedersenCommitmentFactory::default();
-    let sig = match RistrettoComSig::sign(&secret_a, &secret_x, &nonce_a, &nonce_x, &challenge, &factory) {
+    let sig = match RistrettoComSig::sign(
+        &secret_a, &secret_x, &secret_y, &nonce_a, &nonce_x, &challenge, &factory,
+    ) {
         Ok(sig) => sig,
         _ => return SIGNING_ERROR,
     };
@@ -211,25 +220,39 @@ pub unsafe extern "C" fn sign_comsig(
     OK
 }
 
-/// Verify that a commitment signature (R, u, v) is valid for the provided commitment and challenge (C, e).
+/// Verify that a commitment signature (R, u, v) is valid for the provided commitment, public key, and challenge (C, D,
+/// e).
 ///
 /// # Safety
 /// If any args are null the function returns false and sets `err_code` to -1
 #[no_mangle]
 pub unsafe extern "C" fn verify_comsig(
     commitment: *const KeyArray,
+    commitment_to_zero: *const KeyArray,
     msg: *const c_char,
     public_nonce: *const KeyArray,
     signature_u: *const KeyArray,
     signature_v: *const KeyArray,
     err_code: *mut c_int,
 ) -> bool {
-    if commitment.is_null() || msg.is_null() || public_nonce.is_null() || signature_u.is_null() || signature_v.is_null()
+    if commitment.is_null() ||
+        commitment_to_zero.is_null() ||
+        msg.is_null() ||
+        public_nonce.is_null() ||
+        signature_u.is_null() ||
+        signature_v.is_null()
     {
         *err_code = NULL_POINTER;
         return false;
     }
     let commitment = match HomomorphicCommitment::from_bytes(&(*commitment)) {
+        Ok(k) => k,
+        _ => {
+            *err_code = INVALID_SECRET_KEY_SER;
+            return false;
+        },
+    };
+    let commitment_to_zero = match RistrettoPublicKey::from_bytes(&(*commitment_to_zero)) {
         Ok(k) => k,
         _ => {
             *err_code = INVALID_SECRET_KEY_SER;
@@ -259,7 +282,7 @@ pub unsafe extern "C" fn verify_comsig(
         _ => return false,
     };
     let factory = PedersenCommitmentFactory::default();
-    sig.verify(&commitment, &challenge, &factory)
+    sig.verify(&commitment, &commitment_to_zero, &challenge, &factory)
 }
 
 #[cfg(test)]

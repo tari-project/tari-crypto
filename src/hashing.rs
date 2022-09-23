@@ -64,7 +64,7 @@ pub trait DomainSeparation {
         if !label.as_ref().is_empty() {
             return format!("{}.v{}.{}", Self::domain(), Self::version(), label.as_ref());
         }
-        return format!("{}.v{}", Self::domain(), Self::version());
+        format!("{}.v{}", Self::domain(), Self::version())
     }
 
     /// Adds the domain separation tag to the given digest. The domain separation tag is defined as
