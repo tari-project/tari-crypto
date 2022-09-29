@@ -18,6 +18,7 @@ use crate::{
     ristretto::{
         pedersen::commitment_factory::PedersenCommitmentFactory,
         RistrettoComSig,
+        RistrettoComAndPubSig,
         RistrettoPublicKey,
         RistrettoSchnorr,
         RistrettoSecretKey,
@@ -260,6 +261,148 @@ pub unsafe extern "C" fn verify_comsig(
     };
     let factory = PedersenCommitmentFactory::default();
     sig.verify(&commitment, &challenge, &factory)
+}
+
+/// Generate a commitment and public key signature (ephemeral_commitment, ephermeral_pubkey, u_a, u_x, u_y) using the
+/// provided value, spending key, secret key, and challenge (a, x, y, e).
+///
+/// # Safety
+/// If any args are null the function returns -1.
+/// The caller MUST ensure that the string is null terminated e.g. "msg\0".
+/// The *caller* must manage memory for the results, this function assumes that at least `KEY_LENGTH` bytes have been
+/// allocated in `ephemeral_commitment`, `ephemeral_pubkey`, `u_a`, `u_x`, and `u_y`.
+#[no_mangle]
+pub unsafe extern "C" fn sign_comandpubsig(
+    a: *const KeyArray,
+    x: *const KeyArray,
+    y: *const KeyArray,
+    msg: *const c_char,
+    ephemeral_commitment: *mut KeyArray,
+    ephemeral_pubkey: *mut KeyArray,
+    u_a: *mut KeyArray,
+    u_x: *mut KeyArray,
+    u_y: *mut KeyArray,
+) -> c_int {
+    if a.is_null() ||
+        x.is_null() ||
+        y.is_null() ||
+        msg.is_null() ||
+        ephemeral_commitment.is_null() ||
+        ephemeral_pubkey.is_null() ||
+        u_a.is_null() ||
+        u_x.is_null() ||
+        u_y.is_null()
+    {
+        return NULL_POINTER;
+    }
+    let a = match RistrettoSecretKey::from_bytes(&(*a)) {
+        Ok(k) => k,
+        _ => return INVALID_SECRET_KEY_SER,
+    };
+    let x = match RistrettoSecretKey::from_bytes(&(*x)) {
+        Ok(k) => k,
+        _ => return INVALID_SECRET_KEY_SER,
+    };
+    let y = match RistrettoSecretKey::from_bytes(&(*y)) {
+        Ok(k) => k,
+        _ => return INVALID_SECRET_KEY_SER,
+    };
+    let r_a = RistrettoSecretKey::random(&mut OsRng);
+    let r_x = RistrettoSecretKey::random(&mut OsRng);
+    let r_y = RistrettoSecretKey::random(&mut OsRng);
+    let msg = match CStr::from_ptr(msg).to_str() {
+        Ok(s) => s,
+        _ => return STR_CONV_ERR,
+    };
+    let challenge = Blake256::digest(msg.as_bytes()).to_vec();
+    let factory = PedersenCommitmentFactory::default();
+    let sig = match RistrettoComAndPubSig::sign(&a, &x, &y, &r_a, &r_x, &r_y, &challenge, &factory) {
+        Ok(sig) => sig,
+        _ => return SIGNING_ERROR,
+    };
+    (*ephemeral_commitment).copy_from_slice(sig.ephemeral_commitment().as_bytes());
+    (*ephemeral_pubkey).copy_from_slice(sig.ephemeral_pubkey().as_bytes());
+    (*u_a).copy_from_slice(sig.u_a().as_bytes());
+    (*u_x).copy_from_slice(sig.u_x().as_bytes());
+    (*u_y).copy_from_slice(sig.u_y().as_bytes());
+    OK
+}
+
+/// Verify that a commitment and public key signature (ephemeral_commitment, ephemeral_pubkey, u_a, u_a, u_x) is valid
+/// for the provided commitment, public key, and challenge (C, D, e).
+///
+/// # Safety
+/// If any args are null the function returns false and sets `err_code` to -1
+#[no_mangle]
+pub unsafe extern "C" fn verify_comandpubsig(
+    commitment: *const KeyArray,
+    pubkey: *const KeyArray,
+    msg: *const c_char,
+    ephemeral_commitment: *const KeyArray,
+    ephemeral_pubkey: *const KeyArray,
+    u_a: *const KeyArray,
+    u_x: *const KeyArray,
+    u_y: *const KeyArray,
+    err_code: *mut c_int,
+) -> bool {
+    if commitment.is_null() ||
+        pubkey.is_null() ||
+        msg.is_null() ||
+        ephemeral_commitment.is_null() ||
+        ephemeral_pubkey.is_null() ||
+        u_a.is_null() ||
+        u_x.is_null() ||
+        u_y.is_null()
+    {
+        *err_code = NULL_POINTER;
+        return false;
+    }
+    let commitment = match HomomorphicCommitment::from_bytes(&(*commitment)) {
+        Ok(k) => k,
+        _ => {
+            *err_code = INVALID_SECRET_KEY_SER;
+            return false;
+        },
+    };
+    let pubkey = match RistrettoPublicKey::from_bytes(&(*pubkey)) {
+        Ok(k) => k,
+        _ => {
+            *err_code = INVALID_SECRET_KEY_SER;
+            return false;
+        },
+    };
+    let ephemeral_commitment = match HomomorphicCommitment::from_bytes(&(*ephemeral_commitment)) {
+        Ok(r) => r,
+        _ => return false,
+    };
+    let ephemeral_pubkey = match RistrettoPublicKey::from_bytes(&(*ephemeral_pubkey)) {
+        Ok(r) => r,
+        _ => return false,
+    };
+    let u_a = match RistrettoSecretKey::from_bytes(&(*u_a)) {
+        Ok(s) => s,
+        _ => return false,
+    };
+    let u_x = match RistrettoSecretKey::from_bytes(&(*u_x)) {
+        Ok(s) => s,
+        _ => return false,
+    };
+    let u_y = match RistrettoSecretKey::from_bytes(&(*u_y)) {
+        Ok(s) => s,
+        _ => return false,
+    };
+    let msg = match CStr::from_ptr(msg).to_str() {
+        Ok(s) => s,
+        _ => return false,
+    };
+    let sig = RistrettoComAndPubSig::new(ephemeral_commitment, ephemeral_pubkey, u_a, u_x, u_y);
+    let challenge = Blake256::digest(msg.as_bytes());
+    let challenge = match RistrettoSecretKey::from_bytes(challenge.as_slice()) {
+        Ok(e) => e,
+        _ => return false,
+    };
+    let factory = PedersenCommitmentFactory::default();
+    sig.verify(&commitment, &pubkey, &challenge, &factory)
 }
 
 #[cfg(test)]

@@ -18,13 +18,14 @@ use crate::{
     ristretto::{
         pedersen::{commitment_factory::PedersenCommitmentFactory, PedersenCommitment},
         RistrettoComSig,
+        RistrettoComAndPubSig,
         RistrettoPublicKey,
         RistrettoSchnorr,
         RistrettoSecretKey,
     },
 };
 
-/// Result of calling [check_signature] and [check_comsig_signature]
+/// Result of calling [check_signature] and [check_comsig_signature] and [check_comandpubsig_signature]
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct SignatureVerifyResult {
     /// True if the signature was valid
@@ -53,6 +54,23 @@ pub struct ComSignResult {
     pub u: Option<String>,
     /// The `v` component of the signature
     pub v: Option<String>,
+    /// Will contain the error if one occurred, otherwise empty
+    pub error: String,
+}
+
+/// Result of calling [sign_comandpubsig]
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct ComAndPubSignResult {
+    /// The ephemeral commitment of the signature, if successful
+    pub ephemeral_commitment: Option<String>,
+    /// The ephemeral pubkey of the signature, if successful
+    pub ephemeral_pubkey: Option<String>,
+    /// The `u_a` component of the signature
+    pub u_a: Option<String>,
+    /// The `u_x` component of the signature
+    pub u_x: Option<String>,
+    /// The `u_y` component of the signature
+    pub u_y: Option<String>,
     /// Will contain the error if one occurred, otherwise empty
     pub error: String,
 }
@@ -218,8 +236,8 @@ pub fn sign_comsig(private_key_a: &str, private_key_x: &str, msg: &str) -> JsVal
     JsValue::from_serde(&result).unwrap()
 }
 
-/// Generate a Schnorr signature of a challenge (that has already been hashed) using the given private
-/// key and a specified private nonce. DO NOT reuse nonces. This method is provide for cases where a
+/// Generate a Commitment signature of a challenge (that has already been hashed) using the given private
+/// key and a specified private nonce. DO NOT reuse nonces. This method is provided for cases where a
 /// public nonce has been used
 /// in the message.
 #[wasm_bindgen]
@@ -321,7 +339,7 @@ pub(crate) fn sign_comsig_with_key(
     result.v = Some(v.to_hex());
 }
 
-/// Checks the validity of a Schnorr signature
+/// Checks the validity of a Commitment signature
 #[allow(non_snake_case)]
 #[wasm_bindgen]
 pub fn check_comsig_signature(
@@ -369,6 +387,239 @@ pub fn check_comsig_signature(
     let sig = RistrettoComSig::new(R, u, v);
     let msg = Blake256::digest(msg.as_bytes());
     result.result = sig.verify_challenge(&public_commitment, msg.as_slice(), &factory);
+    JsValue::from_serde(&result).unwrap()
+}
+
+/// Generate a commitment and public key signature of the message using the given private keys
+#[wasm_bindgen]
+pub fn sign_comandpubsig(private_key_a: &str, private_key_x: &str, private_key_y: &str, msg: &str) -> JsValue {
+    let mut result = ComAndPubSignResult::default();
+    let a_key = match RistrettoSecretKey::from_hex(private_key_a) {
+        Ok(a_key) => a_key,
+        _ => {
+            result.error = "Invalid private key".to_string();
+            return JsValue::from_serde(&result).unwrap();
+        },
+    };
+    let x_key = match RistrettoSecretKey::from_hex(private_key_x) {
+        Ok(x_key) => x_key,
+        _ => {
+            result.error = "Invalid private key".to_string();
+            return JsValue::from_serde(&result).unwrap();
+        },
+    };
+    let y_key = match RistrettoSecretKey::from_hex(private_key_y) {
+        Ok(y_key) => y_key,
+        _ => {
+            result.error = "Invalid private key".to_string();
+            return JsValue::from_serde(&result).unwrap();
+        },
+    };
+    sign_comandpubsig_message_with_key(&a_key, &x_key, &y_key, msg, None, None, None, &mut result);
+    JsValue::from_serde(&result).unwrap()
+}
+
+/// Generate a commitment and public key signature of a challenge (that has already been hashed)
+/// using the given private keys and specified private nonces. DO NOT reuse nonces. This method
+/// is provided for cases where public nonces have been used in the message.
+#[wasm_bindgen]
+pub fn sign_comandpubsig_challenge_with_nonce(
+    private_key_a: &str,
+    private_key_x: &str,
+    private_key_y: &str,
+    private_nonce_a: &str,
+    private_nonce_x: &str,
+    private_nonce_y: &str,
+    challenge_as_hex: &str,
+) -> JsValue {
+    let mut result = ComAndPubSignResult::default();
+    let private_key_a = match RistrettoSecretKey::from_hex(private_key_a) {
+        Ok(private_key_a) => private_key_a,
+        _ => {
+            result.error = "Invalid private key_a".to_string();
+            return JsValue::from_serde(&result).unwrap();
+        },
+    };
+    let private_key_x = match RistrettoSecretKey::from_hex(private_key_x) {
+        Ok(private_key_x) => private_key_x,
+        _ => {
+            result.error = "Invalid private key_x".to_string();
+            return JsValue::from_serde(&result).unwrap();
+        },
+    };
+    let private_key_y = match RistrettoSecretKey::from_hex(private_key_y) {
+        Ok(private_key_y) => private_key_y,
+        _ => {
+            result.error = "Invalid private key_y".to_string();
+            return JsValue::from_serde(&result).unwrap();
+        },
+    };
+    let private_nonce_a = match RistrettoSecretKey::from_hex(private_nonce_a) {
+        Ok(private_nonce_a) => private_nonce_a,
+        _ => {
+            result.error = "Invalid private nonce_a".to_string();
+            return JsValue::from_serde(&result).unwrap();
+        },
+    };
+    let private_nonce_x = match RistrettoSecretKey::from_hex(private_nonce_x) {
+        Ok(private_nonce_x) => private_nonce_x,
+        _ => {
+            result.error = "Invalid private nonce_x".to_string();
+            return JsValue::from_serde(&result).unwrap();
+        },
+    };
+    let private_nonce_y = match RistrettoSecretKey::from_hex(private_nonce_y) {
+        Ok(private_nonce_y) => private_nonce_y,
+        _ => {
+            result.error = "Invalid private nonce_y".to_string();
+            return JsValue::from_serde(&result).unwrap();
+        },
+    };
+
+    let e = match from_hex(challenge_as_hex) {
+        Ok(e) => e,
+        _ => {
+            result.error = "Challenge was not valid HEX".to_string();
+            return JsValue::from_serde(&result).unwrap();
+        },
+    };
+    sign_comandpubsig_with_key(
+        &private_key_a,
+        &private_key_x,
+        &private_key_y,
+        &e,
+        Some(&private_nonce_a),
+        Some(&private_nonce_x),
+        Some(&private_nonce_y),
+        &mut result,
+    );
+    JsValue::from_serde(&result).unwrap()
+}
+
+pub(crate) fn sign_comandpubsig_message_with_key(
+    private_key_a: &RistrettoSecretKey,
+    private_key_x: &RistrettoSecretKey,
+    private_key_y: &RistrettoSecretKey,
+    msg: &str,
+    nonce_a: Option<&RistrettoSecretKey>,
+    nonce_x: Option<&RistrettoSecretKey>,
+    nonce_y: Option<&RistrettoSecretKey>,
+    result: &mut ComAndPubSignResult,
+) {
+    let e = Blake256::digest(msg.as_bytes());
+    sign_comandpubsig_with_key(private_key_a, private_key_x, private_key_y, e.as_slice(), nonce_a, nonce_x, nonce_y, result);
+}
+
+pub(crate) fn sign_comandpubsig_with_key(
+    private_key_a: &RistrettoSecretKey,
+    private_key_x: &RistrettoSecretKey,
+    private_key_y: &RistrettoSecretKey,
+    e: &[u8],
+    nonce_a: Option<&RistrettoSecretKey>,
+    nonce_x: Option<&RistrettoSecretKey>,
+    nonce_y: Option<&RistrettoSecretKey>,
+    result: &mut ComAndPubSignResult,
+) {
+    let factory = PedersenCommitmentFactory::default();
+    let nonce_a = match nonce_a {
+        Some(v) => v.clone(),
+        None => RistrettoSecretKey::random(&mut OsRng),
+    };
+    let nonce_x = match nonce_x {
+        Some(v) => v.clone(),
+        None => RistrettoSecretKey::random(&mut OsRng),
+    };
+    let nonce_y = match nonce_y {
+        Some(v) => v.clone(),
+        None => RistrettoSecretKey::random(&mut OsRng),
+    };
+
+    let sig = match RistrettoComAndPubSig::sign(private_key_a, private_key_x, private_key_y, &nonce_a, &nonce_x, &nonce_y, e, &factory) {
+        Ok(s) => s,
+        Err(e) => {
+            result.error = format!("Could not create signature. {}", e);
+            return;
+        },
+    };
+    let (ephemeral_commitment, ephemeral_pubkey, u_a, u_x, u_y) = sig.complete_signature_tuple();
+    result.ephemeral_commitment = Some(ephemeral_commitment.to_hex());
+    result.ephemeral_pubkey = Some(ephemeral_pubkey.to_hex());
+    result.u_a = Some(u_a.to_hex());
+    result.u_x = Some(u_x.to_hex());
+    result.u_y = Some(u_y.to_hex());
+}
+
+/// Checks the validity of a Commitment signature
+#[allow(non_snake_case)]
+#[wasm_bindgen]
+pub fn check_comandpubsig_signature(
+    ephemeral_commitment: &str,
+    ephemeral_pubkey: &str,
+    u_a: &str,
+    u_x: &str,
+    u_y: &str,
+    commitment: &str,
+    pubkey: &str,
+    msg: &str,
+) -> JsValue {
+    let mut result = SignatureVerifyResult::default();
+
+    let ephemeral_commitment = match PedersenCommitment::from_hex(ephemeral_commitment) {
+        Ok(n) => n,
+        Err(_) => {
+            result.error = format!("{} is not a valid ephemeral commitment", ephemeral_commitment);
+            return JsValue::from_serde(&result).unwrap();
+        },
+    };
+    let ephemeral_pubkey = match RistrettoPublicKey::from_hex(ephemeral_pubkey) {
+        Ok(n) => n,
+        Err(_) => {
+            result.error = format!("{} is not a valid ephemeral pubkey", ephemeral_pubkey);
+            return JsValue::from_serde(&result).unwrap();
+        },
+    };
+    let factory = PedersenCommitmentFactory::default();
+
+    let commitment = match PedersenCommitment::from_hex(commitment) {
+        Ok(n) => n,
+        Err(_) => {
+            result.error = format!("{} is not a valid commitment", commitment);
+            return JsValue::from_serde(&result).unwrap();
+        },
+    };
+    let pubkey = match RistrettoPublicKey::from_hex(pubkey) {
+        Ok(n) => n,
+        Err(_) => {
+            result.error = format!("{} is not a valid pubkey", pubkey);
+            return JsValue::from_serde(&result).unwrap();
+        },
+    };
+
+    let u_a = match RistrettoSecretKey::from_hex(u_a) {
+        Ok(n) => n,
+        Err(_) => {
+            result.error = format!("{} is not a valid hex representation of a signature", u_a);
+            return JsValue::from_serde(&result).unwrap();
+        },
+    };
+    let u_x = match RistrettoSecretKey::from_hex(u_x) {
+        Ok(n) => n,
+        Err(_) => {
+            result.error = format!("{} is not a valid hex representation of a signature", u_x);
+            return JsValue::from_serde(&result).unwrap();
+        },
+    };
+    let u_y = match RistrettoSecretKey::from_hex(u_y) {
+        Ok(n) => n,
+        Err(_) => {
+            result.error = format!("{} is not a valid hex representation of a signature", u_y);
+            return JsValue::from_serde(&result).unwrap();
+        },
+    };
+
+    let sig = RistrettoComAndPubSig::new(ephemeral_commitment, ephemeral_pubkey, u_a, u_x, u_y);
+    let msg = Blake256::digest(msg.as_bytes());
+    result.result = sig.verify_challenge(&commitment, &pubkey, msg.as_slice(), &factory);
     JsValue::from_serde(&result).unwrap()
 }
 
@@ -444,7 +695,7 @@ mod test {
     use super::*;
     use crate::{
         commitment::HomomorphicCommitmentFactory,
-        signatures::{CommitmentSignature, SchnorrSignature},
+        signatures::{CommitmentSignature, CommitmentAndPublicKeySignature, SchnorrSignature},
         tari_utilities::{hex, ByteArray},
     };
 
@@ -483,6 +734,23 @@ mod test {
         let commitment = factory.commit(&sk_x, &sk_a);
 
         (sig, commitment)
+    }
+
+    fn create_comandpubsig(msg: &str) -> (RistrettoComAndPubSig, PedersenCommitment, RistrettoPublicKey) {
+        let factory = PedersenCommitmentFactory::default();
+        let (sk_a, _) = random_keypair();
+        let (sk_x, _) = random_keypair();
+        let (sk_y, _) = random_keypair();
+        let (nonce_a, _) = random_keypair();
+        let (nonce_x, _) = random_keypair();
+        let (nonce_y, _) = random_keypair();
+        let sig =
+            CommitmentAndPublicKeySignature::<RistrettoPublicKey, _>::sign(&sk_a, &sk_x, &sk_y, &nonce_a, &nonce_x, &nonce_y, &hash(msg), &factory)
+                .unwrap();
+        let commitment = factory.commit(&sk_x, &sk_a);
+        let pubkey = RistrettoPublicKey::from_secret_key(&sk_y);
+
+        (sig, commitment, pubkey)
     }
 
     fn key_hex() -> (RistrettoSecretKey, String) {
@@ -869,6 +1137,259 @@ mod test {
                 &sig.u().to_hex(),
                 &sig.v().to_hex(),
                 &commit.to_hex(),
+                SAMPLE_CHALLENGE,
+            );
+            assert!(result.error.is_empty());
+            assert!(result.result);
+        }
+    }
+
+    mod sign_comandpubsig {
+        use super::*;
+
+        fn sign_comandpubsig(private_key_a: &str, private_key_x: &str, private_key_y: &str, msg: &str) -> ComAndPubSignResult {
+            super::sign_comandpubsig(private_key_a, private_key_x, private_key_y, msg)
+                .into_serde()
+                .unwrap()
+        }
+
+        #[wasm_bindgen_test]
+        fn it_fails_if_given_invalid_data() {
+            fn it_fails(a: &str, x: &str, y: &str, msg: &str) {
+                let result = sign_comandpubsig(a, x, y, msg);
+                assert!(!result.error.is_empty());
+                assert!(result.ephemeral_commitment.is_none());
+                assert!(result.ephemeral_pubkey.is_none());
+                assert!(result.u_a.is_none());
+                assert!(result.u_x.is_none());
+                assert!(result.u_y.is_none());
+            }
+
+            let (sk, _) = random_keypair();
+            it_fails("", "", "", SAMPLE_CHALLENGE);
+            it_fails(&["0"; 33].join(""), &["0"; 33].join(""), &sk.to_hex(), SAMPLE_CHALLENGE);
+            it_fails(&["0"; 33].join(""), &sk.to_hex(), &["0"; 33].join(""), SAMPLE_CHALLENGE);
+            it_fails(&sk.to_hex(), &["0"; 33].join(""), &["0"; 33].join(""), SAMPLE_CHALLENGE);
+        }
+
+        #[wasm_bindgen_test]
+        fn it_produces_a_valid_commitment_signature() {
+            let (x, _) = random_keypair();
+            let (y, _) = random_keypair();
+            let a = RistrettoSecretKey::from(123);
+            let commitment = PedersenCommitmentFactory::default().commit(&x, &a);
+            let pubkey = RistrettoPublicKey::from_secret_key(&y);
+
+            let result = sign_comandpubsig(&a.to_hex(), &x.to_hex(), &y.to_hex(), SAMPLE_CHALLENGE);
+            assert!(result.error.is_empty());
+            let u_a = RistrettoSecretKey::from_hex(&result.u_a.unwrap()).unwrap();
+            let u_x = RistrettoSecretKey::from_hex(&result.u_x.unwrap()).unwrap();
+            let u_y = RistrettoSecretKey::from_hex(&result.u_y.unwrap()).unwrap();
+            let ephemeral_commitment = PedersenCommitment::from_hex(&result.ephemeral_commitment.unwrap()).unwrap();
+            let ephemeral_pubkey = RistrettoPublicKey::from_hex(&result.ephemeral_pubkey.unwrap()).unwrap();
+            let comsig = CommitmentAndPublicKeySignature::new(ephemeral_commitment, ephemeral_pubkey, u_a, u_x, u_y);
+            assert!(comsig.verify(
+                &commitment,
+                &pubkey,
+                &RistrettoSecretKey::from_bytes(&hash(SAMPLE_CHALLENGE)).unwrap(),
+                &PedersenCommitmentFactory::default()
+            ));
+        }
+
+        #[wasm_bindgen_test]
+        fn it_does_not_reuse_nonces() {
+            let (a, _) = random_keypair();
+            let (x, _) = random_keypair();
+            let (y, _) = random_keypair();
+            let result1 = sign_comandpubsig(&a.to_hex(), &x.to_hex(), &y.to_hex(), SAMPLE_CHALLENGE);
+            let result2 = sign_comandpubsig(&a.to_hex(), &x.to_hex(), &y.to_hex(), SAMPLE_CHALLENGE);
+            assert_ne!(result1.u_a.unwrap(), result2.u_a.unwrap());
+            assert_ne!(result1.u_x.unwrap(), result2.u_x.unwrap());
+            assert_ne!(result1.u_y.unwrap(), result2.u_y.unwrap());
+            assert_ne!(result1.ephemeral_commitment.unwrap(), result2.ephemeral_commitment.unwrap());
+            assert_ne!(result1.ephemeral_pubkey.unwrap(), result2.ephemeral_pubkey.unwrap());
+        }
+    }
+
+    mod sign_comandpubsig_challenge_with_nonce {
+        use super::*;
+
+        fn sign_comandpubsig_challenge_with_nonce(
+            private_key_a: &str,
+            private_key_x: &str,
+            private_key_y: &str,
+            private_nonce_a: &str,
+            private_nonce_x: &str,
+            private_nonce_y: &str,
+        ) -> ComAndPubSignResult {
+            super::sign_comandpubsig_challenge_with_nonce(
+                private_key_a,
+                private_key_x,
+                private_key_y,
+                private_nonce_a,
+                private_nonce_x,
+                private_nonce_y,
+                &hex::to_hex(&hash(SAMPLE_CHALLENGE)),
+            )
+            .into_serde()
+            .unwrap()
+        }
+
+        #[wasm_bindgen_test]
+        fn it_fails_if_given_invalid_data() {
+            fn it_fails(a: &str, x: &str, y: &str, n_a: &str, n_x: &str, n_y: &str) {
+                let result = sign_comandpubsig_challenge_with_nonce(a, x, y, n_a, n_x, n_y);
+                assert!(!result.error.is_empty());
+                assert!(result.ephemeral_commitment.is_none());
+                assert!(result.ephemeral_pubkey.is_none());
+                assert!(result.u_a.is_none());
+                assert!(result.u_x.is_none());
+                assert!(result.u_y.is_none());
+            }
+
+            let (sk, _) = random_keypair();
+            it_fails("", "", "", "", "", "");
+            it_fails("", &sk.to_hex(), &sk.to_hex(), &sk.to_hex(), &sk.to_hex(), &sk.to_hex());
+            it_fails(&["0"; 33].join(""), &sk.to_hex(), &sk.to_hex(), &sk.to_hex(), &sk.to_hex(), &sk.to_hex());
+        }
+
+        #[wasm_bindgen_test]
+        fn it_uses_the_given_nonces() {
+            let (sk, _) = random_keypair();
+            let (r_a, _) = random_keypair();
+            let (r_x, _) = random_keypair();
+            let (r_y, _) = random_keypair();
+            let expected_ephemeral_commitment = PedersenCommitmentFactory::default().commit(&r_x, &r_a);
+            let expected_ephemeral_pubkey = RistrettoPublicKey::from_secret_key(&r_y);
+            let result = sign_comandpubsig_challenge_with_nonce(&sk.to_hex(), &sk.to_hex(), &sk.to_hex(), &r_a.to_hex(), &r_x.to_hex(), &r_y.to_hex());
+            assert!(result.error.is_empty());
+            assert_eq!(
+                PedersenCommitment::from_hex(&result.ephemeral_commitment.unwrap()).unwrap(),
+                expected_ephemeral_commitment
+            );
+            assert_eq!(
+                RistrettoPublicKey::from_hex(&result.ephemeral_pubkey.unwrap()).unwrap(),
+                expected_ephemeral_pubkey
+            );
+        }
+    }
+
+    mod check_comandpubsig_signature {
+        use super::*;
+
+        fn check_comandpubsig_signature(
+            ephemeral_commitment: &str,
+            ephemeral_pubkey: &str,
+            u_a: &str,
+            u_x: &str,
+            u_y: &str,
+            commitment: &str,
+            pubkey: &str,
+            msg: &str,
+        ) -> SignatureVerifyResult {
+            super::check_comandpubsig_signature(ephemeral_commitment, ephemeral_pubkey, u_a, u_x, u_y, commitment, pubkey, msg)
+                .into_serde()
+                .unwrap()
+        }
+
+        #[wasm_bindgen_test]
+        fn it_errors_given_invalid_data() {
+            fn it_errors(ephemeral_commitment: &str, ephemeral_pubkey: &str, u_a: &str, u_x: &str, u_y: &str, commitment: &str, pubkey: &str) {
+                let result =
+                    check_comandpubsig_signature(ephemeral_commitment, ephemeral_pubkey, u_a, u_x, u_y, commitment, pubkey, SAMPLE_CHALLENGE);
+                assert!(
+                    !result.error.is_empty(),
+                    "check_comsig_signature did not fail with args ({}, {}, {}, {}, {}, {}, {})",
+                    ephemeral_commitment,
+                    ephemeral_pubkey,
+                    u_a,
+                    u_x,
+                    u_y,
+                    commitment,
+                    pubkey
+                );
+                assert!(!result.result);
+            }
+
+            it_errors("", "", "", "", "", "", "");
+
+            let (sig, commitment, pubkey) = create_comandpubsig(SAMPLE_CHALLENGE);
+            it_errors(&sig.ephemeral_commitment().to_hex(), &sig.ephemeral_pubkey().to_hex(), "", "", "", &commitment.to_hex(), &pubkey.to_hex());
+            it_errors(&sig.ephemeral_commitment().to_hex(), &sig.ephemeral_pubkey().to_hex(), &sig.u_a().to_hex(), &sig.u_x().to_hex(), &sig.u_y().to_hex(), "", "");
+        }
+
+        #[wasm_bindgen_test]
+        fn it_fails_if_verification_is_invalid() {
+            fn it_fails(ephemeral_commitment: &str, ephemeral_pubkey: &str, u_a: &str, u_x: &str, u_y: &str, commitment: &str, pubkey: &str, msg: &str) {
+                let result = check_comandpubsig_signature(ephemeral_commitment, ephemeral_pubkey, u_a, u_x, u_y, commitment, pubkey, msg);
+                assert!(result.error.is_empty());
+                assert!(!result.result);
+            }
+
+            let (sig, commitment, pubkey) = create_comandpubsig(SAMPLE_CHALLENGE);
+            it_fails(
+                &RistrettoPublicKey::default().to_hex(),
+                &sig.ephemeral_pubkey().to_hex(),
+                &sig.u_a().to_hex(),
+                &sig.u_x().to_hex(),
+                &sig.u_y().to_hex(),
+                &commitment.to_hex(),
+                &pubkey.to_hex(),
+                SAMPLE_CHALLENGE,
+            );
+            it_fails(
+                &sig.ephemeral_commitment().to_hex(),
+                &RistrettoPublicKey::default().to_hex(),
+                &sig.u_a().to_hex(),
+                &sig.u_x().to_hex(),
+                &sig.u_y().to_hex(),
+                &commitment.to_hex(),
+                &pubkey.to_hex(),
+                SAMPLE_CHALLENGE,
+            );
+            it_fails(
+                &sig.ephemeral_commitment().to_hex(),
+                &sig.ephemeral_pubkey().to_hex(),
+                &sig.u_a().to_hex(),
+                &sig.u_x().to_hex(),
+                &sig.u_y().to_hex(),
+                &commitment.to_hex(),
+                &pubkey.to_hex(),
+                "wrong challenge",
+            );
+            it_fails(
+                &sig.ephemeral_commitment().to_hex(),
+                &sig.ephemeral_pubkey().to_hex(),
+                &sig.u_a().to_hex(),
+                &sig.u_x().to_hex(),
+                &sig.u_y().to_hex(),
+                &PedersenCommitment::default().to_hex(),
+                &pubkey.to_hex(),
+                SAMPLE_CHALLENGE,
+            );
+            it_fails(
+                &sig.ephemeral_commitment().to_hex(),
+                &sig.ephemeral_pubkey().to_hex(),
+                &sig.u_a().to_hex(),
+                &sig.u_x().to_hex(),
+                &sig.u_y().to_hex(),
+                &commitment.to_hex(),
+                &RistrettoPublicKey::default().to_hex(),
+                SAMPLE_CHALLENGE,
+            );
+        }
+
+        #[wasm_bindgen_test]
+        fn it_succeeds_given_valid_data() {
+            let (sig, commitment, pubkey) = create_comandpubsig(SAMPLE_CHALLENGE);
+            let result = check_comandpubsig_signature(
+                &sig.ephemeral_commitment().to_hex(),
+                &sig.ephemeral_pubkey().to_hex(),
+                &sig.u_a().to_hex(),
+                &sig.u_x().to_hex(),
+                &sig.u_y().to_hex(),
+                &commitment.to_hex(),
+                &pubkey.to_hex(),
                 SAMPLE_CHALLENGE,
             );
             assert!(result.error.is_empty());
