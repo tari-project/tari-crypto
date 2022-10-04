@@ -24,4 +24,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: lints
-          args: clippy --all-targets --features "wasm,ffi"
+          args: clippy --all-targets --all-features
