@@ -4,7 +4,7 @@
 //! Constant [NUMS](https://tools.ietf.org/id/draft-black-numscurves-02.html) points for the Ristretto curve. There are 10 provided, but this library currently only
 //! uses the first
 
-use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
+use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint, RistrettoBasepointTable};
 
 /// These points on the Ristretto curve have been created by hashing domain separation labels with SHA512 and converting
 /// the hash output to a Ristretto generator point by using the byte string representation of the hash as input into the
@@ -62,17 +62,26 @@ lazy_static! {
         }
         arr
     };
+
+    /// Precomputation tables for the points
+    pub static ref RISTRETTO_NUMS_TABLES: Vec<RistrettoBasepointTable> = {
+        let mut arr = Vec::<RistrettoBasepointTable>::new();
+        for i in 0..10 {
+            arr.push(RistrettoBasepointTable::create(&RISTRETTO_NUMS_POINTS[i]));
+        }
+        arr
+    };
 }
 
 #[cfg(test)]
 mod test {
     use curve25519_dalek::{
         constants::{RISTRETTO_BASEPOINT_COMPRESSED, RISTRETTO_BASEPOINT_POINT},
-        ristretto::{CompressedRistretto, RistrettoPoint},
+        ristretto::{CompressedRistretto, RistrettoPoint}, scalar::Scalar, traits::Identity,
     };
     use sha2::{Digest, Sha512};
 
-    use crate::ristretto::constants::{RISTRETTO_NUMS_POINTS, RISTRETTO_NUMS_POINTS_COMPRESSED};
+    use crate::ristretto::constants::{RISTRETTO_NUMS_POINTS, RISTRETTO_NUMS_POINTS_COMPRESSED, RISTRETTO_NUMS_TABLES};
 
     /// Generate a set of NUMS points by hashing domain separation labels and converting the hash output to a Ristretto
     /// generator point. By using `RistrettoPoint::from_uniform_bytes`, the resulting point is a NUMS point if the input
@@ -113,6 +122,25 @@ mod test {
             for j in i + 1..n {
                 assert_ne!(RISTRETTO_NUMS_POINTS[i], RISTRETTO_NUMS_POINTS[j]);
                 assert_ne!(RISTRETTO_NUMS_POINTS_COMPRESSED[i], RISTRETTO_NUMS_POINTS_COMPRESSED[j]);
+            }
+        }
+    }
+
+    /// Check that precomputation works as expected
+    #[test]
+    pub fn check_tables() {
+        let n = RISTRETTO_NUMS_POINTS.len();
+
+        // Assert we have all the values
+        assert_eq!(RISTRETTO_NUMS_TABLES.len(), n);
+
+        // Perform test multiplications
+        for i in 0..n {
+            // Check the special case of zero
+            assert_eq!(&RISTRETTO_NUMS_TABLES[i] * &Scalar::zero(), RistrettoPoint::identity());
+
+            for j in 0..15u8 {
+                assert_eq!(&RISTRETTO_NUMS_TABLES[i] * &Scalar::from(j), RISTRETTO_NUMS_POINTS[i] * Scalar::from(j));
             }
         }
     }
