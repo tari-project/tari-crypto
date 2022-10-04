@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.15.6](https://github.com/tari-project/tari-crypto/compare/v0.15.5...v0.15.6) (2022-10-04)
+
+
+### Features
+
+* port dalek ([#132](https://github.com/tari-project/tari-crypto/issues/132)) ([0f99276](https://github.com/tari-project/tari-crypto/commit/0f9927634d0b6b8cb05cdb599a996a74cdd49bd4))
+
 ### [0.15.5](https://github.com/tari-project/tari-crypto/compare/v0.15.4...v0.15.5) (2022-08-29)
 
 
