@@ -402,7 +402,7 @@ pub unsafe extern "C" fn verify_comandpubsig(
         _ => return false,
     };
     let factory = PedersenCommitmentFactory::default();
-    sig.verify(&commitment, &pubkey, &challenge, &factory)
+    sig.verify(&commitment, &pubkey, &challenge, &factory, &mut OsRng)
 }
 
 #[cfg(test)]

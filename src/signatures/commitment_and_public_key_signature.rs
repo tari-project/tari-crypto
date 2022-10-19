@@ -7,7 +7,7 @@ use std::{
     ops::{Add, Mul},
 };
 
-use rand::thread_rng;
+use rand::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
 use tari_utilities::ByteArray;
 use thiserror::Error;
@@ -119,12 +119,13 @@ where
     }
 
     /// Verify a signature on a commitment and group element statement using a given challenge (as a byte array)
-    pub fn verify_challenge<'a, C>(
+    pub fn verify_challenge<'a, C, R>(
         &self,
         commitment: &'a HomomorphicCommitment<P>,
         pubkey: &'a P,
         challenge: &[u8],
         factory: &C,
+        rng: &mut R,
     ) -> bool
     where
         for<'b> &'a HomomorphicCommitment<P>: Mul<&'b K, Output = HomomorphicCommitment<P>>,
@@ -134,6 +135,7 @@ where
         for<'b> &'b K: Mul<&'b K, Output = K>,
         for<'b> &'b K: Add<&'b K, Output = K>,
         C: HomomorphicCommitmentFactory<P = P>,
+        R: RngCore + CryptoRng,
     {
         // The challenge must be a valid scalar
         let e = match K::from_bytes(challenge) {
@@ -141,11 +143,11 @@ where
             Err(_) => return false,
         };
 
-        self.verify(commitment, pubkey, &e, factory)
+        self.verify(commitment, pubkey, &e, factory, rng)
     }
 
     /// Verify a signature on a commitment and group element statement using a given challenge (as a scalar)
-    pub fn verify<'a, C>(&self, commitment: &'a HomomorphicCommitment<P>, pubkey: &'a P, challenge: &K, factory: &C) -> bool
+    pub fn verify<'a, C, R>(&self, commitment: &'a HomomorphicCommitment<P>, pubkey: &'a P, challenge: &K, factory: &C, rng: &mut R) -> bool
     where
         for<'b> &'a HomomorphicCommitment<P>: Mul<&'b K, Output = HomomorphicCommitment<P>>,
         for<'b> &'b P: Mul<&'b K, Output = P>,
@@ -154,6 +156,7 @@ where
         for<'b> &'b K: Mul<&'b K, Output = K>,
         for<'b> &'b K: Add<&'b K, Output = K>,
         C: HomomorphicCommitmentFactory<P = P>,
+        R: RngCore + CryptoRng,
     {
         // The challenge cannot be zero
         if *challenge == K::default() {
@@ -164,8 +167,7 @@ where
         // For now, we use naive multiscalar multiplication, but offload the commitment computation
         // This allows for the use of precomputation within the commitment itself, which is more efficient
         // TODO: use curve library (Straus/Pippenger) multiscalar multiplication with partial precomputation
-        let mut rng = thread_rng();
-        let w = K::random(&mut rng); // must be random and not Fiat-Shamir!
+        let w = K::random(rng); // must be random and not Fiat-Shamir!
 
         // u_a*H + (u_x + w*u_y)*G == ephemeral_commitment + w*ephemeral_pubkey + e*commitment + (w*e)*pubkey
         let verifier_lhs = factory.commit(&(&self.u_x + &(&w * &self.u_y)), &self.u_a).as_public_key().to_owned();
@@ -176,37 +178,31 @@ where
     }
 
     /// Get the signature tuple `(ephemeral_commitment, ephemeral_pubkey, u_a, u_x, u_y)`
-    #[inline]
     pub fn complete_signature_tuple(&self) -> (&HomomorphicCommitment<P>, &P, &K, &K, &K) {
         (&self.ephemeral_commitment, &self.ephemeral_pubkey, &self.u_a, &self.u_x, &self.u_y)
     }
 
     /// Get the response value `u_a`
-    #[inline]
     pub fn u_a(&self) -> &K {
         &self.u_a
     }
 
     /// Get the response value `u_x`
-    #[inline]
     pub fn u_x(&self) -> &K {
         &self.u_x
     }
 
     /// Get the response value `u_y`
-    #[inline]
     pub fn u_y(&self) -> &K {
         &self.u_y
     }
 
     /// Get the ephemeral commitment `ephemeral_commitment`
-    #[inline]
     pub fn ephemeral_commitment(&self) -> &HomomorphicCommitment<P> {
         &self.ephemeral_commitment
     }
 
     /// Get the ephemeral public key `ephemeral_pubkey`
-    #[inline]
     pub fn ephemeral_pubkey(&self) -> &P {
         &self.ephemeral_pubkey
     }

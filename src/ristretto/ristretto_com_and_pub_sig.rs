@@ -57,7 +57,7 @@ use crate::{
 /// let commitment = factory.commit(&x_val, &a_val);
 /// let pubkey = RistrettoPublicKey::from_secret_key(&y_val);
 /// let sig = RistrettoComAndPubSig::sign(&a_val, &x_val, &y_val, &a_nonce, &x_nonce, &y_nonce, &e, &factory).unwrap();
-/// assert!(sig.verify_challenge(&commitment, &pubkey, &e, &factory));
+/// assert!(sig.verify_challenge(&commitment, &pubkey, &e, &factory, &mut rng));
 /// ```
 pub type RistrettoComAndPubSig = CommitmentAndPublicKeySignature<RistrettoPublicKey, RistrettoSecretKey>;
 
@@ -156,12 +156,12 @@ mod test {
         let evil_y = RistrettoSecretKey::random(&mut rng);
         let evil_pubkey = RistrettoPublicKey::from_secret_key(&evil_y);
 
-        assert!(!sig.verify_challenge(&evil_commitment, &pubkey, &challenge, &factory));
-        assert!(!sig.verify_challenge(&commitment, &evil_pubkey, &challenge, &factory));
+        assert!(!sig.verify_challenge(&evil_commitment, &pubkey, &challenge, &factory, &mut rng));
+        assert!(!sig.verify_challenge(&commitment, &evil_pubkey, &challenge, &factory, &mut rng));
 
         // A different challenge should fail
         let evil_challenge = Blake256::digest(b"Guards! Guards!");
-        assert!(!sig.verify_challenge(&commitment, &pubkey, &evil_challenge, &factory));
+        assert!(!sig.verify_challenge(&commitment, &pubkey, &evil_challenge, &factory, &mut rng));
     }
 
     /// Test that commitment signatures are linear, as in a multisignature construction
@@ -236,7 +236,7 @@ mod test {
         // The signature should verify against the sum of statement values
         let commitment_sum = &commitment_alice + &commitment_bob;
         let pubkey_sum = &pubkey_alice + &pubkey_bob;
-        assert!(sig_sum.verify_challenge(&commitment_sum, &pubkey_sum, &challenge, &factory))
+        assert!(sig_sum.verify_challenge(&commitment_sum, &pubkey_sum, &challenge, &factory, &mut rng))
     }
 
     /// Ristretto scalars have a max value 2^255. This test checks that hashed messages above this value can still be

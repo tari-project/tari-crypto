@@ -619,7 +619,7 @@ pub fn check_comandpubsig_signature(
 
     let sig = RistrettoComAndPubSig::new(ephemeral_commitment, ephemeral_pubkey, u_a, u_x, u_y);
     let msg = Blake256::digest(msg.as_bytes());
-    result.result = sig.verify_challenge(&commitment, &pubkey, msg.as_slice(), &factory);
+    result.result = sig.verify_challenge(&commitment, &pubkey, msg.as_slice(), &factory, &mut OsRng);
     JsValue::from_serde(&result).unwrap()
 }
 
@@ -1192,7 +1192,8 @@ mod test {
                 &commitment,
                 &pubkey,
                 &RistrettoSecretKey::from_bytes(&hash(SAMPLE_CHALLENGE)).unwrap(),
-                &PedersenCommitmentFactory::default()
+                &PedersenCommitmentFactory::default(),
+                &mut OsRng
             ));
         }
 
