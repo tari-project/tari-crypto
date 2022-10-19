@@ -6,11 +6,13 @@
 
 use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint, RistrettoBasepointTable};
 
+const NUMBER_NUMS_POINTS: usize = 10;
+
 /// These points on the Ristretto curve have been created by hashing domain separation labels with SHA512 and converting
 /// the hash output to a Ristretto generator point by using the byte string representation of the hash as input into the
 /// `from_uniform_bytes` constructor in [RistrettoPoint](Struct.RistrettoPoint.html). This process is validated with the
 /// `check_nums_points` test below.
-pub const RISTRETTO_NUMS_POINTS_COMPRESSED: [CompressedRistretto; 10] = [
+pub const RISTRETTO_NUMS_POINTS_COMPRESSED: [CompressedRistretto; NUMBER_NUMS_POINTS] = [
     CompressedRistretto([
         206, 56, 152, 65, 192, 200, 105, 138, 185, 91, 112, 36, 42, 238, 166, 72, 64, 177, 234, 197, 246, 68, 183, 208,
         8, 172, 5, 135, 207, 71, 29, 112,
@@ -55,9 +57,9 @@ pub const RISTRETTO_NUMS_POINTS_COMPRESSED: [CompressedRistretto; 10] = [
 
 lazy_static! {
     /// A static array of pre-generated NUMS points
-    pub static ref RISTRETTO_NUMS_POINTS: [RistrettoPoint; 10] = {
-        let mut arr = [RistrettoPoint::default(); 10];
-        for i in 0..10 {
+    pub static ref RISTRETTO_NUMS_POINTS: [RistrettoPoint; NUMBER_NUMS_POINTS] = {
+        let mut arr = [RistrettoPoint::default(); NUMBER_NUMS_POINTS];
+        for i in 0..NUMBER_NUMS_POINTS {
             arr[i] = RISTRETTO_NUMS_POINTS_COMPRESSED[i].decompress().unwrap();
         }
         arr
@@ -65,8 +67,8 @@ lazy_static! {
 
     /// Precomputation tables for the points
     pub static ref RISTRETTO_NUMS_TABLES: Vec<RistrettoBasepointTable> = {
-        let mut arr = Vec::<RistrettoBasepointTable>::new();
-        for i in 0..10 {
+        let mut arr = Vec::<RistrettoBasepointTable>::with_capacity(NUMBER_NUMS_POINTS);
+        for i in 0..NUMBER_NUMS_POINTS {
             arr.push(RistrettoBasepointTable::create(&RISTRETTO_NUMS_POINTS[i]));
         }
         arr
