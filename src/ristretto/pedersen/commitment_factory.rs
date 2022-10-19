@@ -12,7 +12,7 @@ use curve25519_dalek::{
 use crate::{
     commitment::{HomomorphicCommitment, HomomorphicCommitmentFactory},
     ristretto::{
-        constants::RISTRETTO_NUMS_TABLES,
+        constants::RISTRETTO_NUMS_TABLE_0,
         pedersen::{PedersenCommitment, RISTRETTO_PEDERSEN_G, RISTRETTO_PEDERSEN_H},
         RistrettoPublicKey,
         RistrettoSecretKey,
@@ -50,9 +50,10 @@ impl HomomorphicCommitmentFactory for PedersenCommitmentFactory {
     #[allow(non_snake_case)]
     fn commit(&self, k: &RistrettoSecretKey, v: &RistrettoSecretKey) -> PedersenCommitment {
         // If we're using the default generators, speed it up using precomputation tables
-        let c = match (self.G, self.H) {
-            (G_val, H_val) if G_val == RISTRETTO_PEDERSEN_G && H_val == *RISTRETTO_PEDERSEN_H => &RISTRETTO_BASEPOINT_TABLE * &k.0 + &RISTRETTO_NUMS_TABLES[0] * &v.0,
-            _ => RistrettoPoint::multiscalar_mul(&[v.0, k.0], &[self.H, self.G]),
+        let c = if (self.G, self.H) == (RISTRETTO_PEDERSEN_G, *RISTRETTO_PEDERSEN_H) {
+            &RISTRETTO_BASEPOINT_TABLE * &k.0 + &*RISTRETTO_NUMS_TABLE_0 * &v.0
+        } else {
+            RistrettoPoint::multiscalar_mul(&[v.0, k.0], &[self.H, self.G])
         };
         HomomorphicCommitment(RistrettoPublicKey::new_from_pk(c))
     }

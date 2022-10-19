@@ -65,14 +65,8 @@ lazy_static! {
         arr
     };
 
-    /// Precomputation tables for the points
-    pub static ref RISTRETTO_NUMS_TABLES: Vec<RistrettoBasepointTable> = {
-        let mut arr = Vec::<RistrettoBasepointTable>::with_capacity(NUMBER_NUMS_POINTS);
-        for i in 0..NUMBER_NUMS_POINTS {
-            arr.push(RistrettoBasepointTable::create(&RISTRETTO_NUMS_POINTS[i]));
-        }
-        arr
-    };
+    /// Precomputation table for the first point, which is used as the default commitment generator
+    pub static ref RISTRETTO_NUMS_TABLE_0: RistrettoBasepointTable = RistrettoBasepointTable::create(&RISTRETTO_NUMS_POINTS[0]);
 }
 
 #[cfg(test)]
@@ -83,7 +77,7 @@ mod test {
     };
     use sha2::{Digest, Sha512};
 
-    use crate::ristretto::constants::{RISTRETTO_NUMS_POINTS, RISTRETTO_NUMS_POINTS_COMPRESSED, RISTRETTO_NUMS_TABLES};
+    use crate::ristretto::constants::{RISTRETTO_NUMS_POINTS, RISTRETTO_NUMS_POINTS_COMPRESSED, RISTRETTO_NUMS_TABLE_0};
 
     /// Generate a set of NUMS points by hashing domain separation labels and converting the hash output to a Ristretto
     /// generator point. By using `RistrettoPoint::from_uniform_bytes`, the resulting point is a NUMS point if the input
@@ -131,19 +125,11 @@ mod test {
     /// Check that precomputation works as expected
     #[test]
     pub fn check_tables() {
-        let n = RISTRETTO_NUMS_POINTS.len();
-
-        // Assert we have all the values
-        assert_eq!(RISTRETTO_NUMS_TABLES.len(), n);
-
         // Perform test multiplications
-        for i in 0..n {
-            // Check the special case of zero
-            assert_eq!(&RISTRETTO_NUMS_TABLES[i] * &Scalar::zero(), RistrettoPoint::identity());
+        assert_eq!(&*RISTRETTO_NUMS_TABLE_0 * &Scalar::zero(), RistrettoPoint::identity());
 
-            for j in 0..15u8 {
-                assert_eq!(&RISTRETTO_NUMS_TABLES[i] * &Scalar::from(j), RISTRETTO_NUMS_POINTS[i] * Scalar::from(j));
-            }
+        for j in 0..15u8 {
+            assert_eq!(&*RISTRETTO_NUMS_TABLE_0 * &Scalar::from(j), RISTRETTO_NUMS_POINTS[0] * Scalar::from(j));
         }
-    }
+}
 }
