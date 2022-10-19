@@ -394,26 +394,23 @@ pub fn check_comsig_signature(
 #[wasm_bindgen]
 pub fn sign_comandpubsig(private_key_a: &str, private_key_x: &str, private_key_y: &str, msg: &str) -> JsValue {
     let mut result = ComAndPubSignResult::default();
-    let a_key = match RistrettoSecretKey::from_hex(private_key_a) {
-        Ok(a_key) => a_key,
-        _ => {
-            result.error = "Invalid private key".to_string();
-            return JsValue::from_serde(&result).unwrap();
-        },
+    let a_key = if let Ok(a_key) = RistrettoSecretKey::from_hex(private_key_a) {
+        a_key
+    } else {
+        result.error = "Invalid private key".to_string();
+        return JsValue::from_serde(&result).unwrap();
     };
-    let x_key = match RistrettoSecretKey::from_hex(private_key_x) {
-        Ok(x_key) => x_key,
-        _ => {
-            result.error = "Invalid private key".to_string();
-            return JsValue::from_serde(&result).unwrap();
-        },
+    let x_key = if let Ok(x_key) = RistrettoSecretKey::from_hex(private_key_x) {
+        x_key
+    } else {
+        result.error = "Invalid private key".to_string();
+        return JsValue::from_serde(&result).unwrap();
     };
-    let y_key = match RistrettoSecretKey::from_hex(private_key_y) {
-        Ok(y_key) => y_key,
-        _ => {
-            result.error = "Invalid private key".to_string();
-            return JsValue::from_serde(&result).unwrap();
-        },
+    let y_key = if let Ok(y_key) = RistrettoSecretKey::from_hex(private_key_y) {
+        y_key
+    } else {
+        result.error = "Invalid private key".to_string();
+        return JsValue::from_serde(&result).unwrap();
     };
     sign_comandpubsig_message_with_key(&a_key, &x_key, &y_key, msg, None, None, None, &mut result);
     JsValue::from_serde(&result).unwrap()
@@ -433,55 +430,48 @@ pub fn sign_comandpubsig_challenge_with_nonce(
     challenge_as_hex: &str,
 ) -> JsValue {
     let mut result = ComAndPubSignResult::default();
-    let private_key_a = match RistrettoSecretKey::from_hex(private_key_a) {
-        Ok(private_key_a) => private_key_a,
-        _ => {
-            result.error = "Invalid private key_a".to_string();
-            return JsValue::from_serde(&result).unwrap();
-        },
+    let private_key_a = if let Ok(private_key_a) = RistrettoSecretKey::from_hex(private_key_a) {
+        private_key_a
+    } else {
+        result.error = "Invalid private key_a".to_string();
+        return JsValue::from_serde(&result).unwrap();
     };
-    let private_key_x = match RistrettoSecretKey::from_hex(private_key_x) {
-        Ok(private_key_x) => private_key_x,
-        _ => {
-            result.error = "Invalid private key_x".to_string();
-            return JsValue::from_serde(&result).unwrap();
-        },
+    let private_key_x = if let Ok(private_key_x) = RistrettoSecretKey::from_hex(private_key_x) {
+        private_key_x
+    } else {
+        result.error = "Invalid private key_x".to_string();
+        return JsValue::from_serde(&result).unwrap();
     };
-    let private_key_y = match RistrettoSecretKey::from_hex(private_key_y) {
-        Ok(private_key_y) => private_key_y,
-        _ => {
-            result.error = "Invalid private key_y".to_string();
-            return JsValue::from_serde(&result).unwrap();
-        },
+    let private_key_y = if let Ok(private_key_y) = RistrettoSecretKey::from_hex(private_key_y) {
+        private_key_y
+    } else {
+        result.error = "Invalid private key_y".to_string();
+        return JsValue::from_serde(&result).unwrap();
     };
-    let private_nonce_a = match RistrettoSecretKey::from_hex(private_nonce_a) {
-        Ok(private_nonce_a) => private_nonce_a,
-        _ => {
-            result.error = "Invalid private nonce_a".to_string();
-            return JsValue::from_serde(&result).unwrap();
-        },
+    let private_nonce_a = if let Ok(private_nonce_a) = RistrettoSecretKey::from_hex(private_nonce_a) {
+        private_nonce_a
+    } else {
+        result.error = "Invalid private nonce_a".to_string();
+        return JsValue::from_serde(&result).unwrap();
     };
-    let private_nonce_x = match RistrettoSecretKey::from_hex(private_nonce_x) {
-        Ok(private_nonce_x) => private_nonce_x,
-        _ => {
-            result.error = "Invalid private nonce_x".to_string();
-            return JsValue::from_serde(&result).unwrap();
-        },
+    let private_nonce_x = if let Ok(private_nonce_x) = RistrettoSecretKey::from_hex(private_nonce_x) {
+        private_nonce_x
+    } else {
+        result.error = "Invalid private nonce_x".to_string();
+        return JsValue::from_serde(&result).unwrap();
     };
-    let private_nonce_y = match RistrettoSecretKey::from_hex(private_nonce_y) {
-        Ok(private_nonce_y) => private_nonce_y,
-        _ => {
-            result.error = "Invalid private nonce_y".to_string();
-            return JsValue::from_serde(&result).unwrap();
-        },
+    let private_nonce_y = if let Ok(private_nonce_y) = RistrettoSecretKey::from_hex(private_nonce_y) {
+        private_nonce_y
+    } else {
+        result.error = "Invalid private nonce_y".to_string();
+        return JsValue::from_serde(&result).unwrap();
     };
 
-    let e = match from_hex(challenge_as_hex) {
-        Ok(e) => e,
-        _ => {
-            result.error = "Challenge was not valid HEX".to_string();
-            return JsValue::from_serde(&result).unwrap();
-        },
+    let e = if let Ok(e) = from_hex(challenge_as_hex) {
+        e
+    } else {
+        result.error = "Challenge was not valid HEX".to_string();
+        return JsValue::from_serde(&result).unwrap();
     };
     sign_comandpubsig_with_key(
         &private_key_a,
