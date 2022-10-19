@@ -357,19 +357,17 @@ pub unsafe extern "C" fn verify_comandpubsig(
         *err_code = NULL_POINTER;
         return false;
     }
-    let commitment = match HomomorphicCommitment::from_bytes(&(*commitment)) {
-        Ok(k) => k,
-        _ => {
-            *err_code = INVALID_SECRET_KEY_SER;
-            return false;
-        },
+    let commitment = if let Ok(k) = HomomorphicCommitment::from_bytes(&(*commitment)) {
+        k
+    } else {
+        *err_code = INVALID_SECRET_KEY_SER;
+        return false;
     };
-    let pubkey = match RistrettoPublicKey::from_bytes(&(*pubkey)) {
-        Ok(k) => k,
-        _ => {
-            *err_code = INVALID_SECRET_KEY_SER;
-            return false;
-        },
+    let pubkey = if let Ok(k) = RistrettoPublicKey::from_bytes(&(*pubkey)) {
+        k
+    } else {
+        *err_code = INVALID_SECRET_KEY_SER;
+        return false;
     };
     let ephemeral_commitment = match HomomorphicCommitment::from_bytes(&(*ephemeral_commitment)) {
         Ok(r) => r,

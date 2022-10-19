@@ -166,7 +166,6 @@ where
         // Use a single weighted equation for verification to avoid unnecessary group operations
         // For now, we use naive multiscalar multiplication, but offload the commitment computation
         // This allows for the use of precomputation within the commitment itself, which is more efficient
-        // TODO: use curve library (Straus/Pippenger) multiscalar multiplication with partial precomputation
         let w = K::random(rng); // must be random and not Fiat-Shamir!
 
         // u_a*H + (u_x + w*u_y)*G == ephemeral_commitment + w*ephemeral_pubkey + e*commitment + (w*e)*pubkey
