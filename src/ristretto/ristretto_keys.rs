@@ -50,6 +50,7 @@ use crate::{
 /// let _k3 = RistrettoSecretKey::random(&mut rng);
 /// ```
 #[derive(Eq, Clone, Default, Zeroize)]
+#[zeroize(drop)]
 pub struct RistrettoSecretKey(pub(crate) Scalar);
 
 const SCALAR_LENGTH: usize = 32;
@@ -64,13 +65,6 @@ impl SecretKey for RistrettoSecretKey {
     /// Return a random secret key on the `ristretto255` curve using the supplied CSPRNG.
     fn random<R: Rng + CryptoRng>(rng: &mut R) -> Self {
         RistrettoSecretKey(Scalar::random(rng))
-    }
-}
-
-impl Drop for RistrettoSecretKey {
-    /// Clear the secret key value in memory when it goes out of scope
-    fn drop(&mut self) {
-        self.0.zeroize()
     }
 }
 
