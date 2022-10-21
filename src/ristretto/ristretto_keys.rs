@@ -49,7 +49,7 @@ use crate::{
 /// let _k2 = RistrettoSecretKey::from_hex(&"100000002000000030000000040000000");
 /// let _k3 = RistrettoSecretKey::random(&mut rng);
 /// ```
-#[derive(Eq, Clone, Default)]
+#[derive(Eq, Clone, Default, Zeroize)]
 pub struct RistrettoSecretKey(pub(crate) Scalar);
 
 const SCALAR_LENGTH: usize = 32;
@@ -277,6 +277,18 @@ impl RistrettoPublicKey {
 
     pub(super) fn compressed(&self) -> &CompressedRistretto {
         self.compressed.get_or_init(|| self.point.compress())
+    }
+}
+
+impl Zeroize for RistrettoPublicKey {
+    /// Zeroizes both the point and (if it exists) the compressed point
+    fn zeroize(&mut self) {
+        self.point.zeroize();
+
+        // Need to empty the cell
+        if let Some(mut compressed) = self.compressed.take() {
+            compressed.zeroize();
+        }
     }
 }
 
@@ -829,5 +841,23 @@ mod test {
         assert!(!invisible.contains("016c"));
         let visible = format!("{:?}", key.reveal());
         assert!(visible.contains("016c"));
+    }
+
+    #[test]
+    fn zeroize_test() {
+        let mut rng = rand::thread_rng();
+        let zeros = [0u8; 32];
+        
+        // Zeroize scalar
+        let mut s = RistrettoSecretKey::random(&mut rng);
+        s.zeroize();
+        assert_eq!(s.as_bytes(), &zeros);
+
+        // Zeroize point
+        let mut p = RistrettoPublicKey::from_secret_key(&RistrettoSecretKey::random(&mut rng));
+        p.zeroize();
+        assert_eq!(p.compressed.get(), None); // no compressed point yet
+        assert_eq!(p.as_bytes(), &zeros); // this compresses the point
+        assert_eq!(p.compressed.get().unwrap().as_bytes(), &zeros); // check directly for good measure
     }
 }
