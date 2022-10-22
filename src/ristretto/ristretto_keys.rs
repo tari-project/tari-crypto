@@ -21,7 +21,7 @@ use digest::Digest;
 use once_cell::sync::OnceCell;
 use rand::{CryptoRng, Rng};
 use tari_utilities::{hex::Hex, ByteArray, ByteArrayError, Hashable};
-use zeroize::Zeroize;
+use zeroize::{Zeroize, Zeroizing};
 
 use crate::{
     errors::HashingError,
@@ -340,8 +340,8 @@ impl DiffieHellmanSharedSecret for RistrettoPublicKey {
     type PK = RistrettoPublicKey;
 
     /// Generate a shared secret from one party's private key and another party's public key
-    fn shared_secret(k: &<Self::PK as PublicKey>::K, pk: &Self::PK) -> Self::PK {
-        k * pk
+    fn shared_secret(k: &<Self::PK as PublicKey>::K, pk: &Self::PK) -> Zeroizing<Self::PK> {
+        Zeroizing::new(k * pk)
     }
 }
 

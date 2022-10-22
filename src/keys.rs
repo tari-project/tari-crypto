@@ -11,6 +11,7 @@ use std::ops::Add;
 use rand::{CryptoRng, Rng};
 use serde::{de::DeserializeOwned, ser::Serialize};
 use tari_utilities::ByteArray;
+use zeroize::{Zeroize, Zeroizing};
 
 /// A trait specifying common behaviour for representing `SecretKey`s. Specific elliptic curve
 /// implementations need to implement this trait for them to be used in Tari.
@@ -70,9 +71,10 @@ pub trait PublicKey:
 }
 
 /// This trait provides a common mechanism to calculate a shared secret using the private and public key of two parties
-pub trait DiffieHellmanSharedSecret: ByteArray + Clone + PartialEq + Eq + Add<Output = Self> + Default {
+pub trait DiffieHellmanSharedSecret: ByteArray + Clone + PartialEq + Eq + Add<Output = Self> + Default + Zeroize {
     /// The type of public key
     type PK: PublicKey;
     /// Generate a shared secret from one party's private key and another party's public key
-    fn shared_secret(k: &<Self::PK as PublicKey>::K, pk: &Self::PK) -> Self::PK;
+    fn shared_secret(k: &<Self::PK as PublicKey>::K, pk: &Self::PK) -> Zeroizing<Self::PK>
+        where <Self as DiffieHellmanSharedSecret>::PK:Zeroize;
 }
