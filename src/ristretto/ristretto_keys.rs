@@ -21,12 +21,12 @@ use digest::Digest;
 use once_cell::sync::OnceCell;
 use rand::{CryptoRng, Rng};
 use tari_utilities::{hex::Hex, ByteArray, ByteArrayError, Hashable};
-use zeroize::{Zeroize, Zeroizing};
+use zeroize::Zeroize;
 
 use crate::{
     errors::HashingError,
     hashing::{DerivedKeyDomain, DomainSeparatedHasher, DomainSeparation},
-    keys::{DiffieHellmanSharedSecret, PublicKey, SecretKey},
+    keys::{PublicKey, SecretKey},
 };
 
 /// The [SecretKey](trait.SecretKey.html) implementation for [Ristretto](https://ristretto.group) is a thin wrapper
@@ -333,15 +333,6 @@ impl PublicKey for RistrettoPublicKey {
         let s: Vec<&Scalar> = scalars.iter().map(|k| &k.0).collect();
         let p = RistrettoPoint::multiscalar_mul(s, p);
         RistrettoPublicKey::new_from_pk(p)
-    }
-}
-
-impl DiffieHellmanSharedSecret for RistrettoPublicKey {
-    type PK = RistrettoPublicKey;
-
-    /// Generate a shared secret from one party's private key and another party's public key
-    fn shared_secret(k: &<Self::PK as PublicKey>::K, pk: &Self::PK) -> Zeroizing<Self::PK> {
-        Zeroizing::new(k * pk)
     }
 }
 
