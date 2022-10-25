@@ -13,6 +13,7 @@ use zeroize::Zeroize;
 
 use crate::keys::PublicKey;
 
+/// A type to hold a DH secret key.
 pub struct DiffieHellmanSharedSecret<P>(P)
 where P: Zeroize;
 

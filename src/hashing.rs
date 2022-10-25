@@ -64,7 +64,7 @@ pub trait DomainSeparation {
         if !label.as_ref().is_empty() {
             return format!("{}.v{}.{}", Self::domain(), Self::version(), label.as_ref());
         }
-        return format!("{}.v{}", Self::domain(), Self::version());
+        format!("{}.v{}", Self::domain(), Self::version())
     }
 
     /// Adds the domain separation tag to the given digest. The domain separation tag is defined as
@@ -652,7 +652,7 @@ mod test {
         );
 
         let mut hasher = DomainSeparatedHasher::<Blake256, MyDemoHasher>::new();
-        hasher.update(&[0, 0, 0]);
+        hasher.update([0, 0, 0]);
         let hash = hasher.finalize();
         assert_eq!(
             to_hex(hash.as_ref()),
@@ -660,7 +660,7 @@ mod test {
         );
 
         let mut hasher = DomainSeparatedHasher::<Blake256, MyDemoHasher>::new_with_label("");
-        hasher.update(&[0, 0, 0]);
+        hasher.update([0, 0, 0]);
         let hash = hasher.finalize();
         assert_eq!(
             to_hex(hash.as_ref()),
