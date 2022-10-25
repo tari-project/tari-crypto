@@ -4,6 +4,7 @@
 //! Pedersen commitment types and factories for Ristretto
 
 use curve25519_dalek::{
+    constants::RISTRETTO_BASEPOINT_TABLE,
     ristretto::RistrettoPoint,
     traits::{Identity, MultiscalarMul},
 };
@@ -11,6 +12,7 @@ use curve25519_dalek::{
 use crate::{
     commitment::{HomomorphicCommitment, HomomorphicCommitmentFactory},
     ristretto::{
+        constants::RISTRETTO_NUMS_TABLE_0,
         pedersen::{PedersenCommitment, RISTRETTO_PEDERSEN_G, RISTRETTO_PEDERSEN_H},
         RistrettoPublicKey,
         RistrettoSecretKey,
@@ -45,8 +47,14 @@ impl Default for PedersenCommitmentFactory {
 impl HomomorphicCommitmentFactory for PedersenCommitmentFactory {
     type P = RistrettoPublicKey;
 
+    #[allow(non_snake_case)]
     fn commit(&self, k: &RistrettoSecretKey, v: &RistrettoSecretKey) -> PedersenCommitment {
-        let c = RistrettoPoint::multiscalar_mul(&[v.0, k.0], &[self.H, self.G]);
+        // If we're using the default generators, speed it up using precomputation tables
+        let c = if (self.G, self.H) == (RISTRETTO_PEDERSEN_G, *RISTRETTO_PEDERSEN_H) {
+            &RISTRETTO_BASEPOINT_TABLE * &k.0 + &*RISTRETTO_NUMS_TABLE_0 * &v.0
+        } else {
+            RistrettoPoint::multiscalar_mul(&[v.0, k.0], &[self.H, self.G])
+        };
         HomomorphicCommitment(RistrettoPublicKey::new_from_pk(c))
     }
 

@@ -1,16 +1,18 @@
 // Copyright 2019. The Tari Project
 // SPDX-License-Identifier: BSD-3-Clause
 
-//! Constant [NUMS](https://tools.ietf.org/id/draft-black-numscurves-02.html) points for the Ristretto curve. There are 10 provided, but this library currently only
+//! Constant [NUMS](https://www.ietf.org/archive/id/draft-black-numscurves-02.txt) points for the Ristretto curve. There are 10 provided, but this library currently only
 //! uses the first
 
-use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint};
+use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint, RistrettoBasepointTable};
+
+const NUMBER_NUMS_POINTS: usize = 10;
 
 /// These points on the Ristretto curve have been created by hashing domain separation labels with SHA512 and converting
 /// the hash output to a Ristretto generator point by using the byte string representation of the hash as input into the
 /// `from_uniform_bytes` constructor in [RistrettoPoint](Struct.RistrettoPoint.html). This process is validated with the
 /// `check_nums_points` test below.
-pub const RISTRETTO_NUMS_POINTS_COMPRESSED: [CompressedRistretto; 10] = [
+pub const RISTRETTO_NUMS_POINTS_COMPRESSED: [CompressedRistretto; NUMBER_NUMS_POINTS] = [
     CompressedRistretto([
         206, 56, 152, 65, 192, 200, 105, 138, 185, 91, 112, 36, 42, 238, 166, 72, 64, 177, 234, 197, 246, 68, 183, 208,
         8, 172, 5, 135, 207, 71, 29, 112,
@@ -55,24 +57,27 @@ pub const RISTRETTO_NUMS_POINTS_COMPRESSED: [CompressedRistretto; 10] = [
 
 lazy_static! {
     /// A static array of pre-generated NUMS points
-    pub static ref RISTRETTO_NUMS_POINTS: [RistrettoPoint; 10] = {
-        let mut arr = [RistrettoPoint::default(); 10];
-        for i in 0..10 {
+    pub static ref RISTRETTO_NUMS_POINTS: [RistrettoPoint; NUMBER_NUMS_POINTS] = {
+        let mut arr = [RistrettoPoint::default(); NUMBER_NUMS_POINTS];
+        for i in 0..NUMBER_NUMS_POINTS {
             arr[i] = RISTRETTO_NUMS_POINTS_COMPRESSED[i].decompress().unwrap();
         }
         arr
     };
+
+    /// Precomputation table for the first point, which is used as the default commitment generator
+    pub static ref RISTRETTO_NUMS_TABLE_0: RistrettoBasepointTable = RistrettoBasepointTable::create(&RISTRETTO_NUMS_POINTS[0]);
 }
 
 #[cfg(test)]
 mod test {
     use curve25519_dalek::{
         constants::{RISTRETTO_BASEPOINT_COMPRESSED, RISTRETTO_BASEPOINT_POINT},
-        ristretto::{CompressedRistretto, RistrettoPoint},
+        ristretto::{CompressedRistretto, RistrettoPoint}, scalar::Scalar, traits::Identity,
     };
     use sha2::{Digest, Sha512};
 
-    use crate::ristretto::constants::{RISTRETTO_NUMS_POINTS, RISTRETTO_NUMS_POINTS_COMPRESSED};
+    use crate::ristretto::constants::{RISTRETTO_NUMS_POINTS, RISTRETTO_NUMS_POINTS_COMPRESSED, RISTRETTO_NUMS_TABLE_0};
 
     /// Generate a set of NUMS points by hashing domain separation labels and converting the hash output to a Ristretto
     /// generator point. By using `RistrettoPoint::from_uniform_bytes`, the resulting point is a NUMS point if the input
@@ -116,4 +121,15 @@ mod test {
             }
         }
     }
+
+    /// Check that precomputation works as expected
+    #[test]
+    pub fn check_tables() {
+        // Perform test multiplications
+        assert_eq!(&*RISTRETTO_NUMS_TABLE_0 * &Scalar::zero(), RistrettoPoint::identity());
+
+        for j in 0..15u8 {
+            assert_eq!(&*RISTRETTO_NUMS_TABLE_0 * &Scalar::from(j), RISTRETTO_NUMS_POINTS[0] * Scalar::from(j));
+        }
+}
 }
