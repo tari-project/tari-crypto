@@ -401,7 +401,10 @@ impl DomainSeparation for MacDomain {
 ///     Mac::<Sha3_256>::generate(key, msg, "api.auth")
 /// }
 ///
-/// assert_eq!(MacDomain::domain_separation_tag("api.auth"), "com.tari.mac.v1.api.auth");
+/// assert_eq!(
+///     MacDomain::domain_separation_tag("api.auth"),
+///     "com.tari.mac.v1.api.auth"
+/// );
 /// let mac = generate_api_hmac(b"a secret shared key", b"a message");
 /// assert_eq!(
 ///     to_hex(mac.as_ref()),
@@ -467,11 +470,17 @@ impl<D: Digest> Deref for Mac<D> {
 /// # use tari_crypto::ristretto::ristretto_keys::RistrettoKdf;
 /// # use tari_crypto::ristretto::RistrettoSecretKey;
 ///
-/// fn wallet_keys(primary_key: &RistrettoSecretKey, index: usize) -> Result<RistrettoSecretKey, HashingError> {
+/// fn wallet_keys(
+///     primary_key: &RistrettoSecretKey,
+///     index: usize,
+/// ) -> Result<RistrettoSecretKey, HashingError> {
 ///     RistrettoKdf::generate::<Blake256>(primary_key.as_bytes(), &index.to_le_bytes(), "wallet")
 /// }
 ///
-/// let key = RistrettoSecretKey::from_hex("b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c").unwrap();
+/// let key = RistrettoSecretKey::from_hex(
+///     "b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c",
+/// )
+/// .unwrap();
 /// let key_1 = wallet_keys(&key, 1).unwrap();
 /// assert_eq!(
 ///     key_1.to_hex(),

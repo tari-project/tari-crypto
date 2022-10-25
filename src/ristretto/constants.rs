@@ -4,7 +4,7 @@
 //! Constant [NUMS](https://www.ietf.org/archive/id/draft-black-numscurves-02.txt) points for the Ristretto curve. There are 10 provided, but this library currently only
 //! uses the first
 
-use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoPoint, RistrettoBasepointTable};
+use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoBasepointTable, RistrettoPoint};
 
 const NUMBER_NUMS_POINTS: usize = 10;
 
@@ -73,11 +73,17 @@ lazy_static! {
 mod test {
     use curve25519_dalek::{
         constants::{RISTRETTO_BASEPOINT_COMPRESSED, RISTRETTO_BASEPOINT_POINT},
-        ristretto::{CompressedRistretto, RistrettoPoint}, scalar::Scalar, traits::Identity,
+        ristretto::{CompressedRistretto, RistrettoPoint},
+        scalar::Scalar,
+        traits::Identity,
     };
     use sha2::{Digest, Sha512};
 
-    use crate::ristretto::constants::{RISTRETTO_NUMS_POINTS, RISTRETTO_NUMS_POINTS_COMPRESSED, RISTRETTO_NUMS_TABLE_0};
+    use crate::ristretto::constants::{
+        RISTRETTO_NUMS_POINTS,
+        RISTRETTO_NUMS_POINTS_COMPRESSED,
+        RISTRETTO_NUMS_TABLE_0,
+    };
 
     /// Generate a set of NUMS points by hashing domain separation labels and converting the hash output to a Ristretto
     /// generator point. By using `RistrettoPoint::from_uniform_bytes`, the resulting point is a NUMS point if the input
@@ -129,7 +135,10 @@ mod test {
         assert_eq!(&*RISTRETTO_NUMS_TABLE_0 * &Scalar::zero(), RistrettoPoint::identity());
 
         for j in 0..15u8 {
-            assert_eq!(&*RISTRETTO_NUMS_TABLE_0 * &Scalar::from(j), RISTRETTO_NUMS_POINTS[0] * Scalar::from(j));
+            assert_eq!(
+                &*RISTRETTO_NUMS_TABLE_0 * &Scalar::from(j),
+                RISTRETTO_NUMS_POINTS[0] * Scalar::from(j)
+            );
         }
-}
+    }
 }

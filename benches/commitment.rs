@@ -8,10 +8,7 @@ use rand::thread_rng;
 use tari_crypto::{
     commitment::HomomorphicCommitmentFactory,
     keys::SecretKey,
-    ristretto::{
-        pedersen::commitment_factory::PedersenCommitmentFactory,
-        RistrettoSecretKey,
-    },
+    ristretto::{pedersen::commitment_factory::PedersenCommitmentFactory, RistrettoSecretKey},
 };
 
 pub fn commit_default(c: &mut Criterion) {
