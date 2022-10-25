@@ -1,3 +1,4 @@
+name: Check licences
 on:
   push:
     branches:
