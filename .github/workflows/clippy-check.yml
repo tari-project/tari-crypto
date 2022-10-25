@@ -1,5 +1,7 @@
-on: [push, pull_request]
-name: Clippy, fmt, cargo check
+on: 
+  push:
+  pull_request:
+
 jobs:
   clippy_check:
     runs-on: ubuntu-latest
