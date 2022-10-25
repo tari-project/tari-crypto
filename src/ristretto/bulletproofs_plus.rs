@@ -187,7 +187,7 @@ impl BulletproofsPlusService {
     ) -> Result<Vec<RangeProof<RistrettoPoint>>, RangeProofError> {
         let mut range_proofs = Vec::with_capacity(proofs.len());
         for (i, proof) in proofs.iter().enumerate() {
-            match RistrettoRangeProof::from_bytes(*proof).map_err(|e| RangeProofError::InvalidRangeProof(e.to_string()))
+            match RistrettoRangeProof::from_bytes(proof).map_err(|e| RangeProofError::InvalidRangeProof(e.to_string()))
             {
                 Ok(rp) => {
                     range_proofs.push(rp);
@@ -736,7 +736,7 @@ mod test {
                                 // Also verify that the extended commitment factory can open the commitment
                                 assert!(factory
                                     .open_value_extended(
-                                        &*this_mask.secrets(),
+                                        &this_mask.secrets(),
                                         *commitment_value_map_private.get(&statement.commitment).unwrap(),
                                         &statement.commitment,
                                     )
@@ -842,7 +842,7 @@ mod test {
             // Also verify that the extended commitment factory can open the commitment
             assert!(factory
                 .open_value_extended(
-                    &*this_mask.secrets(),
+                    &this_mask.secrets(),
                     extended_witness.value,
                     &statement_private.statements[0].commitment,
                 )

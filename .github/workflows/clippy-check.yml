@@ -1,3 +1,4 @@
+name: Clippy and FMT
 on: [push, pull_request]
 
 jobs:
@@ -10,13 +11,13 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           components: clippy, rustfmt
-          toolchain: nightly-2022-01-17
+          toolchain: nightly
           override: true
       - name: Check formatting
         uses: actions-rs/cargo@v1
         with:
           command: fmt
-          toolchain: nightly-2022-01-17
+          toolchain: nightly
           args: --all -- --check
       - name: Install cargo-lints
         uses: actions-rs/cargo@v1
@@ -27,9 +28,10 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: lints
+          toolchain: nightly
           args: clippy --all-targets --all-features
-      - name: Cargo check  
+      - name: Cargo check
         uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --release --all-targets    
+          args: --release --all-targets

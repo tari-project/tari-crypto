@@ -22,8 +22,10 @@ use crate::{
 /// # use tari_utilities::ByteArray;
 /// # use tari_utilities::hex::Hex;
 ///
-/// let r_pub =
-///     HomomorphicCommitment::from_hex("8063d85e151abee630e643e2b3dc47bfaeb8aa859c9d10d60847985f286aad19").unwrap();
+/// let r_pub = HomomorphicCommitment::from_hex(
+///     "8063d85e151abee630e643e2b3dc47bfaeb8aa859c9d10d60847985f286aad19",
+/// )
+/// .unwrap();
 /// let u = RistrettoSecretKey::from_bytes(b"10000000000000000000000010000000").unwrap();
 /// let v = RistrettoSecretKey::from_bytes(b"a00000000000000000000000a0000000").unwrap();
 /// let sig = RistrettoComSig::new(r_pub, u, v);
@@ -72,12 +74,22 @@ use crate::{
 /// # use digest::Digest;
 /// use tari_crypto::ristretto::pedersen::commitment_factory::PedersenCommitmentFactory;
 ///
-/// let commitment =
-///     HomomorphicCommitment::from_hex("167c6df11bf8106e89328c297e57423dc2a9be53df1ee63f6e50b4610104ab4a").unwrap();
-/// let r_nonce =
-///     HomomorphicCommitment::from_hex("4033e00996e61df2ea1abd1494b751b946663e21a20e2729c6592712beb15356").unwrap();
-/// let u = RistrettoSecretKey::from_hex("f44bbc3374b172f77ffa8b904ddf0ad9f879b3e6183f9e440c57e7f01e851300").unwrap();
-/// let v = RistrettoSecretKey::from_hex("fd54afb2d8008c8a3af10272b24161247b2b7ae11687813fe9fb03e34dd7f009").unwrap();
+/// let commitment = HomomorphicCommitment::from_hex(
+///     "167c6df11bf8106e89328c297e57423dc2a9be53df1ee63f6e50b4610104ab4a",
+/// )
+/// .unwrap();
+/// let r_nonce = HomomorphicCommitment::from_hex(
+///     "4033e00996e61df2ea1abd1494b751b946663e21a20e2729c6592712beb15356",
+/// )
+/// .unwrap();
+/// let u = RistrettoSecretKey::from_hex(
+///     "f44bbc3374b172f77ffa8b904ddf0ad9f879b3e6183f9e440c57e7f01e851300",
+/// )
+/// .unwrap();
+/// let v = RistrettoSecretKey::from_hex(
+///     "fd54afb2d8008c8a3af10272b24161247b2b7ae11687813fe9fb03e34dd7f009",
+/// )
+/// .unwrap();
 /// let sig = RistrettoComSig::new(r_nonce, u, v);
 /// let e = Blake256::digest(b"Maskerade");
 /// let factory = PedersenCommitmentFactory::default();
