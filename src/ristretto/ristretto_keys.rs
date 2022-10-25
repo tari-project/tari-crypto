@@ -26,7 +26,7 @@ use zeroize::Zeroize;
 use crate::{
     errors::HashingError,
     hashing::{DerivedKeyDomain, DomainSeparatedHasher, DomainSeparation},
-    keys::{DiffieHellmanSharedSecret, PublicKey, SecretKey},
+    keys::{PublicKey, SecretKey},
 };
 
 /// The [SecretKey](trait.SecretKey.html) implementation for [Ristretto](https://ristretto.group) is a thin wrapper
@@ -49,7 +49,8 @@ use crate::{
 /// let _k2 = RistrettoSecretKey::from_hex(&"100000002000000030000000040000000");
 /// let _k3 = RistrettoSecretKey::random(&mut rng);
 /// ```
-#[derive(Eq, Clone, Default)]
+#[derive(Eq, Clone, Default, Zeroize)]
+#[zeroize(drop)]
 pub struct RistrettoSecretKey(pub(crate) Scalar);
 
 const SCALAR_LENGTH: usize = 32;
@@ -64,13 +65,6 @@ impl SecretKey for RistrettoSecretKey {
     /// Return a random secret key on the `ristretto255` curve using the supplied CSPRNG.
     fn random<R: Rng + CryptoRng>(rng: &mut R) -> Self {
         RistrettoSecretKey(Scalar::random(rng))
-    }
-}
-
-impl Drop for RistrettoSecretKey {
-    /// Clear the secret key value in memory when it goes out of scope
-    fn drop(&mut self) {
-        self.0.zeroize()
     }
 }
 
@@ -280,6 +274,18 @@ impl RistrettoPublicKey {
     }
 }
 
+impl Zeroize for RistrettoPublicKey {
+    /// Zeroizes both the point and (if it exists) the compressed point
+    fn zeroize(&mut self) {
+        self.point.zeroize();
+
+        // Need to empty the cell
+        if let Some(mut compressed) = self.compressed.take() {
+            compressed.zeroize();
+        }
+    }
+}
+
 //---------------------------------------   Ristretto Hashing Applications  ------------------------------------------//
 
 /// The Domain Separation Tag type for the KDF algorithm, version 1
@@ -327,15 +333,6 @@ impl PublicKey for RistrettoPublicKey {
         let s: Vec<&Scalar> = scalars.iter().map(|k| &k.0).collect();
         let p = RistrettoPoint::multiscalar_mul(s, p);
         RistrettoPublicKey::new_from_pk(p)
-    }
-}
-
-impl DiffieHellmanSharedSecret for RistrettoPublicKey {
-    type PK = RistrettoPublicKey;
-
-    /// Generate a shared secret from one party's private key and another party's public key
-    fn shared_secret(k: &<Self::PK as PublicKey>::K, pk: &Self::PK) -> Self::PK {
-        k * pk
     }
 }
 
@@ -829,5 +826,23 @@ mod test {
         assert!(!invisible.contains("016c"));
         let visible = format!("{:?}", key.reveal());
         assert!(visible.contains("016c"));
+    }
+
+    #[test]
+    fn zeroize_test() {
+        let mut rng = rand::thread_rng();
+        let zeros = [0u8; 32];
+        
+        // Zeroize scalar
+        let mut s = RistrettoSecretKey::random(&mut rng);
+        s.zeroize();
+        assert_eq!(s.as_bytes(), &zeros);
+
+        // Zeroize point
+        let mut p = RistrettoPublicKey::from_secret_key(&RistrettoSecretKey::random(&mut rng));
+        p.zeroize();
+        assert_eq!(p.compressed.get(), None); // no compressed point yet
+        assert_eq!(p.as_bytes(), &zeros); // this compresses the point
+        assert_eq!(p.compressed.get().unwrap().as_bytes(), &zeros); // check directly for good measure
     }
 }

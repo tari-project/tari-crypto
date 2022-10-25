@@ -68,11 +68,3 @@ pub trait PublicKey:
         (k, pk)
     }
 }
-
-/// This trait provides a common mechanism to calculate a shared secret using the private and public key of two parties
-pub trait DiffieHellmanSharedSecret: ByteArray + Clone + PartialEq + Eq + Add<Output = Self> + Default {
-    /// The type of public key
-    type PK: PublicKey;
-    /// Generate a shared secret from one party's private key and another party's public key
-    fn shared_secret(k: &<Self::PK as PublicKey>::K, pk: &Self::PK) -> Self::PK;
-}
