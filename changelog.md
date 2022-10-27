@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.15.7](https://github.com/tari-project/tari-crypto/compare/v0.15.6...v0.15.7) (2022-10-27)
+
+
+### Features
+
+* add `Zeroize` support to key types, and create new shared secret type ([#137](https://github.com/tari-project/tari-crypto/issues/137)) ([532ccc0](https://github.com/tari-project/tari-crypto/commit/532ccc0f583d601d7ba2bb7f98f9b7355f7f5c4f))
+* add deepsource config ([c658619](https://github.com/tari-project/tari-crypto/commit/c658619558c6373f9423f80165c522c5e47d3e0c))
+* add new commitment signature to use complete representation proof ([#131](https://github.com/tari-project/tari-crypto/issues/131)) ([e02fa0f](https://github.com/tari-project/tari-crypto/commit/e02fa0fbaf08b75332a32e6d326415d6e08478b5))
+* use precomputation for default commitments ([#136](https://github.com/tari-project/tari-crypto/issues/136)) ([acdcee6](https://github.com/tari-project/tari-crypto/commit/acdcee6dc493b79277354f73815dd52f24c21def)), closes [#135](https://github.com/tari-project/tari-crypto/issues/135)
+
+
+### Bug Fixes
+
+* include wasm features only if required ([#134](https://github.com/tari-project/tari-crypto/issues/134)) ([8b77df3](https://github.com/tari-project/tari-crypto/commit/8b77df31060e243c57406ced43dcd711cddd5a0b))
+
 ### [0.15.6](https://github.com/tari-project/tari-crypto/compare/v0.15.5...v0.15.6) (2022-10-04)
 
 
