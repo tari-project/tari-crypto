@@ -138,25 +138,21 @@ where
     }
 
     /// This function returns the complete signature tuple (R, u, v)
-    #[inline]
     pub fn complete_signature_tuple(&self) -> (&HomomorphicCommitment<P>, &K, &K) {
         (&self.public_nonce, &self.u, &self.v)
     }
 
     /// This function returns the first publicly known private key of the signature tuple (u)
-    #[inline]
     pub fn u(&self) -> &K {
         &self.u
     }
 
     /// This function returns the second publicly known private key of the signature tuple (v)
-    #[inline]
     pub fn v(&self) -> &K {
         &self.v
     }
 
     /// This function returns the public commitment public_nonce of the signature tuple (R)
-    #[inline]
     pub fn public_nonce(&self) -> &HomomorphicCommitment<P> {
         &self.public_nonce
     }

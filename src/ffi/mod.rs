@@ -9,7 +9,7 @@ mod error;
 mod keys;
 
 pub use error::lookup_error_message;
-pub use keys::{commitment, random_keypair, sign, sign_comsig, verify, verify_comsig};
+pub use keys::{commitment, random_keypair, sign, sign_comsig, sign_comandpubsig, verify, verify_comsig, verify_comandpubsig};
 
 const VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "\u{00}");
 
