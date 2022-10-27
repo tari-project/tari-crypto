@@ -22,10 +22,14 @@ use crate::{
 /// # use tari_utilities::ByteArray;
 /// # use tari_utilities::hex::Hex;
 ///
-/// let ephemeral_commitment =
-///     HomomorphicCommitment::from_hex("8063d85e151abee630e643e2b3dc47bfaeb8aa859c9d10d60847985f286aad19").unwrap();
-/// let ephemeral_pubkey =
-///     RistrettoPublicKey::from_hex("8063d85e151abee630e643e2b3dc47bfaeb8aa859c9d10d60847985f286aad19").unwrap();
+/// let ephemeral_commitment = HomomorphicCommitment::from_hex(
+///     "8063d85e151abee630e643e2b3dc47bfaeb8aa859c9d10d60847985f286aad19",
+/// )
+/// .unwrap();
+/// let ephemeral_pubkey = RistrettoPublicKey::from_hex(
+///     "8063d85e151abee630e643e2b3dc47bfaeb8aa859c9d10d60847985f286aad19",
+/// )
+/// .unwrap();
 /// let u_a = RistrettoSecretKey::from_bytes(b"10000000000000000000000010000000").unwrap();
 /// let u_x = RistrettoSecretKey::from_bytes(b"a00000000000000000000000a0000000").unwrap();
 /// let u_y = RistrettoSecretKey::from_bytes(b"a00000000000000000000000a0000000").unwrap();
@@ -56,7 +60,10 @@ use crate::{
 /// let factory = PedersenCommitmentFactory::default();
 /// let commitment = factory.commit(&x_val, &a_val);
 /// let pubkey = RistrettoPublicKey::from_secret_key(&y_val);
-/// let sig = RistrettoComAndPubSig::sign(&a_val, &x_val, &y_val, &a_nonce, &x_nonce, &y_nonce, &e, &factory).unwrap();
+/// let sig = RistrettoComAndPubSig::sign(
+///     &a_val, &x_val, &y_val, &a_nonce, &x_nonce, &y_nonce, &e, &factory,
+/// )
+/// .unwrap();
 /// assert!(sig.verify_challenge(&commitment, &pubkey, &e, &factory, &mut rng));
 /// ```
 pub type RistrettoComAndPubSig = CommitmentAndPublicKeySignature<RistrettoPublicKey, RistrettoSecretKey>;
@@ -85,7 +92,13 @@ mod test {
         // Check all values returned from the tuple
         assert_eq!(
             sig.complete_signature_tuple(),
-            (&PedersenCommitment::default(), &RistrettoPublicKey::default(), &RistrettoSecretKey::default(), &RistrettoSecretKey::default(), &RistrettoSecretKey::default())
+            (
+                &PedersenCommitment::default(),
+                &RistrettoPublicKey::default(),
+                &RistrettoSecretKey::default(),
+                &RistrettoSecretKey::default(),
+                &RistrettoSecretKey::default()
+            )
         );
 
         // Check all values returned from the getters
@@ -133,7 +146,8 @@ mod test {
         let u_x = &r_x + e_key.clone() * &x_value;
         let u_y = &r_y + e_key * &y_value;
 
-        let sig = RistrettoComAndPubSig::sign(&a_value, &x_value, &y_value, &r_a, &r_x, &r_y, &challenge, &factory).unwrap();
+        let sig =
+            RistrettoComAndPubSig::sign(&a_value, &x_value, &y_value, &r_a, &r_x, &r_y, &challenge, &factory).unwrap();
 
         // Check values from getters
         assert_eq!(*sig.ephemeral_commitment(), ephemeral_commitment);
@@ -184,7 +198,7 @@ mod test {
 
         let ephemeral_commitment_alice = factory.commit(&r_x_alice, &r_a_alice);
         let ephemeral_pubkey_alice = RistrettoPublicKey::from_secret_key(&r_y_alice);
-        
+
         // Bob's data
         let a_value_bob = RistrettoSecretKey::random(&mut rng);
         let x_value_bob = RistrettoSecretKey::random(&mut rng);
@@ -199,7 +213,7 @@ mod test {
 
         let ephemeral_commitment_bob = factory.commit(&r_x_bob, &r_a_bob);
         let ephemeral_pubkey_bob = RistrettoPublicKey::from_secret_key(&r_y_bob);
-        
+
         // The challenge is common to Alice and Bob; here we use an arbitrary hash
         let challenge = Blake256::digest(b"Test challenge");
 
@@ -213,7 +227,8 @@ mod test {
             &r_y_alice,
             &challenge,
             &factory,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Bob's signature
         let sig_bob = RistrettoComAndPubSig::sign(
@@ -225,13 +240,20 @@ mod test {
             &r_y_bob,
             &challenge,
             &factory,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Add the two signatures
         let sig_sum = &sig_alice + &sig_bob;
 
-        assert_eq!(*sig_sum.ephemeral_commitment(), &ephemeral_commitment_alice + &ephemeral_commitment_bob);
-        assert_eq!(*sig_sum.ephemeral_pubkey(), &ephemeral_pubkey_alice + &ephemeral_pubkey_bob);
+        assert_eq!(
+            *sig_sum.ephemeral_commitment(),
+            &ephemeral_commitment_alice + &ephemeral_commitment_bob
+        );
+        assert_eq!(
+            *sig_sum.ephemeral_pubkey(),
+            &ephemeral_pubkey_alice + &ephemeral_pubkey_bob
+        );
 
         // The signature should verify against the sum of statement values
         let commitment_sum = &commitment_alice + &commitment_bob;
@@ -256,7 +278,9 @@ mod test {
         let r_x = RistrettoSecretKey::random(&mut rng);
         let r_y = RistrettoSecretKey::random(&mut rng);
 
-        assert!(RistrettoComAndPubSig::sign(&a_value, &x_value, &y_value, &r_a, &r_x, &r_y, &message, &factory).is_ok());
+        assert!(
+            RistrettoComAndPubSig::sign(&a_value, &x_value, &y_value, &r_a, &r_x, &r_y, &message, &factory).is_ok()
+        );
     }
 
     #[test]
@@ -266,7 +290,7 @@ mod test {
 
         assert_eq!(
             bytes.capacity(),
-            2*RistrettoPublicKey::key_length() + 3*RistrettoSecretKey::key_length()
+            2 * RistrettoPublicKey::key_length() + 3 * RistrettoSecretKey::key_length()
         );
         assert_eq!(bytes.capacity(), bytes.len());
         assert!(bytes.iter().all(|b| *b == 0x00));

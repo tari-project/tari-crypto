@@ -17,8 +17,8 @@ use crate::{
     keys::{PublicKey, SecretKey},
     ristretto::{
         pedersen::commitment_factory::PedersenCommitmentFactory,
-        RistrettoComSig,
         RistrettoComAndPubSig,
+        RistrettoComSig,
         RistrettoPublicKey,
         RistrettoSchnorr,
         RistrettoSecretKey,

@@ -17,8 +17,8 @@ use crate::{
     keys::{PublicKey, SecretKey},
     ristretto::{
         pedersen::{commitment_factory::PedersenCommitmentFactory, PedersenCommitment},
-        RistrettoComSig,
         RistrettoComAndPubSig,
+        RistrettoComSig,
         RistrettoPublicKey,
         RistrettoSchnorr,
         RistrettoSecretKey,
@@ -497,7 +497,16 @@ pub(crate) fn sign_comandpubsig_message_with_key(
     result: &mut ComAndPubSignResult,
 ) {
     let e = Blake256::digest(msg.as_bytes());
-    sign_comandpubsig_with_key(private_key_a, private_key_x, private_key_y, e.as_slice(), nonce_a, nonce_x, nonce_y, result);
+    sign_comandpubsig_with_key(
+        private_key_a,
+        private_key_x,
+        private_key_y,
+        e.as_slice(),
+        nonce_a,
+        nonce_x,
+        nonce_y,
+        result,
+    );
 }
 
 pub(crate) fn sign_comandpubsig_with_key(
@@ -524,7 +533,16 @@ pub(crate) fn sign_comandpubsig_with_key(
         None => RistrettoSecretKey::random(&mut OsRng),
     };
 
-    let sig = match RistrettoComAndPubSig::sign(private_key_a, private_key_x, private_key_y, &nonce_a, &nonce_x, &nonce_y, e, &factory) {
+    let sig = match RistrettoComAndPubSig::sign(
+        private_key_a,
+        private_key_x,
+        private_key_y,
+        &nonce_a,
+        &nonce_x,
+        &nonce_y,
+        e,
+        &factory,
+    ) {
         Ok(s) => s,
         Err(e) => {
             result.error = format!("Could not create signature. {}", e);
@@ -685,7 +703,7 @@ mod test {
     use super::*;
     use crate::{
         commitment::HomomorphicCommitmentFactory,
-        signatures::{CommitmentSignature, CommitmentAndPublicKeySignature, SchnorrSignature},
+        signatures::{CommitmentAndPublicKeySignature, CommitmentSignature, SchnorrSignature},
         tari_utilities::{hex, ByteArray},
     };
 
@@ -734,9 +752,17 @@ mod test {
         let (nonce_a, _) = random_keypair();
         let (nonce_x, _) = random_keypair();
         let (nonce_y, _) = random_keypair();
-        let sig =
-            CommitmentAndPublicKeySignature::<RistrettoPublicKey, _>::sign(&sk_a, &sk_x, &sk_y, &nonce_a, &nonce_x, &nonce_y, &hash(msg), &factory)
-                .unwrap();
+        let sig = CommitmentAndPublicKeySignature::<RistrettoPublicKey, _>::sign(
+            &sk_a,
+            &sk_x,
+            &sk_y,
+            &nonce_a,
+            &nonce_x,
+            &nonce_y,
+            &hash(msg),
+            &factory,
+        )
+        .unwrap();
         let commitment = factory.commit(&sk_x, &sk_a);
         let pubkey = RistrettoPublicKey::from_secret_key(&sk_y);
 
@@ -1137,7 +1163,12 @@ mod test {
     mod sign_comandpubsig {
         use super::*;
 
-        fn sign_comandpubsig(private_key_a: &str, private_key_x: &str, private_key_y: &str, msg: &str) -> ComAndPubSignResult {
+        fn sign_comandpubsig(
+            private_key_a: &str,
+            private_key_x: &str,
+            private_key_y: &str,
+            msg: &str,
+        ) -> ComAndPubSignResult {
             super::sign_comandpubsig(private_key_a, private_key_x, private_key_y, msg)
                 .into_serde()
                 .unwrap()
@@ -1197,7 +1228,10 @@ mod test {
             assert_ne!(result1.u_a.unwrap(), result2.u_a.unwrap());
             assert_ne!(result1.u_x.unwrap(), result2.u_x.unwrap());
             assert_ne!(result1.u_y.unwrap(), result2.u_y.unwrap());
-            assert_ne!(result1.ephemeral_commitment.unwrap(), result2.ephemeral_commitment.unwrap());
+            assert_ne!(
+                result1.ephemeral_commitment.unwrap(),
+                result2.ephemeral_commitment.unwrap()
+            );
             assert_ne!(result1.ephemeral_pubkey.unwrap(), result2.ephemeral_pubkey.unwrap());
         }
     }
@@ -1241,7 +1275,14 @@ mod test {
             let (sk, _) = random_keypair();
             it_fails("", "", "", "", "", "");
             it_fails("", &sk.to_hex(), &sk.to_hex(), &sk.to_hex(), &sk.to_hex(), &sk.to_hex());
-            it_fails(&["0"; 33].join(""), &sk.to_hex(), &sk.to_hex(), &sk.to_hex(), &sk.to_hex(), &sk.to_hex());
+            it_fails(
+                &["0"; 33].join(""),
+                &sk.to_hex(),
+                &sk.to_hex(),
+                &sk.to_hex(),
+                &sk.to_hex(),
+                &sk.to_hex(),
+            );
         }
 
         #[wasm_bindgen_test]
@@ -1252,7 +1293,14 @@ mod test {
             let (r_y, _) = random_keypair();
             let expected_ephemeral_commitment = PedersenCommitmentFactory::default().commit(&r_x, &r_a);
             let expected_ephemeral_pubkey = RistrettoPublicKey::from_secret_key(&r_y);
-            let result = sign_comandpubsig_challenge_with_nonce(&sk.to_hex(), &sk.to_hex(), &sk.to_hex(), &r_a.to_hex(), &r_x.to_hex(), &r_y.to_hex());
+            let result = sign_comandpubsig_challenge_with_nonce(
+                &sk.to_hex(),
+                &sk.to_hex(),
+                &sk.to_hex(),
+                &r_a.to_hex(),
+                &r_x.to_hex(),
+                &r_y.to_hex(),
+            );
             assert!(result.error.is_empty());
             assert_eq!(
                 PedersenCommitment::from_hex(&result.ephemeral_commitment.unwrap()).unwrap(),
@@ -1278,16 +1326,41 @@ mod test {
             pubkey: &str,
             msg: &str,
         ) -> SignatureVerifyResult {
-            super::check_comandpubsig_signature(ephemeral_commitment, ephemeral_pubkey, u_a, u_x, u_y, commitment, pubkey, msg)
-                .into_serde()
-                .unwrap()
+            super::check_comandpubsig_signature(
+                ephemeral_commitment,
+                ephemeral_pubkey,
+                u_a,
+                u_x,
+                u_y,
+                commitment,
+                pubkey,
+                msg,
+            )
+            .into_serde()
+            .unwrap()
         }
 
         #[wasm_bindgen_test]
         fn it_errors_given_invalid_data() {
-            fn it_errors(ephemeral_commitment: &str, ephemeral_pubkey: &str, u_a: &str, u_x: &str, u_y: &str, commitment: &str, pubkey: &str) {
-                let result =
-                    check_comandpubsig_signature(ephemeral_commitment, ephemeral_pubkey, u_a, u_x, u_y, commitment, pubkey, SAMPLE_CHALLENGE);
+            fn it_errors(
+                ephemeral_commitment: &str,
+                ephemeral_pubkey: &str,
+                u_a: &str,
+                u_x: &str,
+                u_y: &str,
+                commitment: &str,
+                pubkey: &str,
+            ) {
+                let result = check_comandpubsig_signature(
+                    ephemeral_commitment,
+                    ephemeral_pubkey,
+                    u_a,
+                    u_x,
+                    u_y,
+                    commitment,
+                    pubkey,
+                    SAMPLE_CHALLENGE,
+                );
                 assert!(
                     !result.error.is_empty(),
                     "check_comsig_signature did not fail with args ({}, {}, {}, {}, {}, {}, {})",
@@ -1305,14 +1378,48 @@ mod test {
             it_errors("", "", "", "", "", "", "");
 
             let (sig, commitment, pubkey) = create_comandpubsig(SAMPLE_CHALLENGE);
-            it_errors(&sig.ephemeral_commitment().to_hex(), &sig.ephemeral_pubkey().to_hex(), "", "", "", &commitment.to_hex(), &pubkey.to_hex());
-            it_errors(&sig.ephemeral_commitment().to_hex(), &sig.ephemeral_pubkey().to_hex(), &sig.u_a().to_hex(), &sig.u_x().to_hex(), &sig.u_y().to_hex(), "", "");
+            it_errors(
+                &sig.ephemeral_commitment().to_hex(),
+                &sig.ephemeral_pubkey().to_hex(),
+                "",
+                "",
+                "",
+                &commitment.to_hex(),
+                &pubkey.to_hex(),
+            );
+            it_errors(
+                &sig.ephemeral_commitment().to_hex(),
+                &sig.ephemeral_pubkey().to_hex(),
+                &sig.u_a().to_hex(),
+                &sig.u_x().to_hex(),
+                &sig.u_y().to_hex(),
+                "",
+                "",
+            );
         }
 
         #[wasm_bindgen_test]
         fn it_fails_if_verification_is_invalid() {
-            fn it_fails(ephemeral_commitment: &str, ephemeral_pubkey: &str, u_a: &str, u_x: &str, u_y: &str, commitment: &str, pubkey: &str, msg: &str) {
-                let result = check_comandpubsig_signature(ephemeral_commitment, ephemeral_pubkey, u_a, u_x, u_y, commitment, pubkey, msg);
+            fn it_fails(
+                ephemeral_commitment: &str,
+                ephemeral_pubkey: &str,
+                u_a: &str,
+                u_x: &str,
+                u_y: &str,
+                commitment: &str,
+                pubkey: &str,
+                msg: &str,
+            ) {
+                let result = check_comandpubsig_signature(
+                    ephemeral_commitment,
+                    ephemeral_pubkey,
+                    u_a,
+                    u_x,
+                    u_y,
+                    commitment,
+                    pubkey,
+                    msg,
+                );
                 assert!(result.error.is_empty());
                 assert!(!result.result);
             }
