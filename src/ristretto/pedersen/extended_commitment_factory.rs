@@ -581,7 +581,7 @@ mod test {
 
         // Test 'Debug' implementation
         assert_eq!(
-            format!("{:?}", c1),
+            format!("{c1:?}"),
             "HomomorphicCommitment(601cdc5c97e94bb16ae56f75430f8ab3ef4703c7d89ca9592e8acadc81629f0e)"
         );
         // Test 'Clone' implementation
@@ -642,7 +642,7 @@ mod test {
             match extension_degree {
                 ExtensionDegree::DefaultPedersen => {
                     assert_eq!(
-                        format!("{:?}", c1),
+                        format!("{c1:?}"),
                         "HomomorphicCommitment(601cdc5c97e94bb16ae56f75430f8ab3ef4703c7d89ca9592e8acadc81629f0e)"
                     );
                     let result = format!("{:x}", hasher.finish());
@@ -650,7 +650,7 @@ mod test {
                 },
                 ExtensionDegree::AddOneBasePoint => {
                     assert_eq!(
-                        format!("{:?}", c1),
+                        format!("{c1:?}"),
                         "HomomorphicCommitment(f0019440ae20b39ba55a88f27ebd7ca56857251beca1047a3b195dc93642d829)"
                     );
                     let result = format!("{:x}", hasher.finish());
@@ -658,7 +658,7 @@ mod test {
                 },
                 ExtensionDegree::AddTwoBasePoints => {
                     assert_eq!(
-                        format!("{:?}", c1),
+                        format!("{c1:?}"),
                         "HomomorphicCommitment(b09789e597115f592491009f18ef4ec13ba7018a77e9df1729f1e2611b237a06)"
                     );
                     let result = format!("{:x}", hasher.finish());
@@ -666,7 +666,7 @@ mod test {
                 },
                 ExtensionDegree::AddThreeBasePoints => {
                     assert_eq!(
-                        format!("{:?}", c1),
+                        format!("{c1:?}"),
                         "HomomorphicCommitment(f8356cbea349191683f84818ab5203e48b04fef42f812ddf7d9b92df966c8473)"
                     );
                     let result = format!("{:x}", hasher.finish());
@@ -674,7 +674,7 @@ mod test {
                 },
                 ExtensionDegree::AddFourBasePoints => {
                     assert_eq!(
-                        format!("{:?}", c1),
+                        format!("{c1:?}"),
                         "HomomorphicCommitment(1e113af7e33ac15b328e298239f3796e5061a0863d1a69e297ee8d81ee6e1f22)"
                     );
                     let result = format!("{:x}", hasher.finish());
@@ -682,7 +682,7 @@ mod test {
                 },
                 ExtensionDegree::AddFiveBasePoints => {
                     assert_eq!(
-                        format!("{:?}", c1),
+                        format!("{c1:?}"),
                         "HomomorphicCommitment(126844ee6889dd065ccc0c47e16ea23697f72e6ecce70f5e3fef320d843c332e)"
                     );
                     let result = format!("{:x}", hasher.finish());

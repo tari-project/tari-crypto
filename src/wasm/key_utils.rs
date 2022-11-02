@@ -170,7 +170,7 @@ pub(super) fn sign_with_key(k: &RistrettoSecretKey, e: &[u8], r: Option<&Ristret
     let sig = match RistrettoSchnorr::sign(k.clone(), r, e) {
         Ok(s) => s,
         Err(e) => {
-            result.error = format!("Could not create signature. {}", e);
+            result.error = format!("Could not create signature. {e}");
             return;
         },
     };
@@ -187,7 +187,7 @@ pub fn check_signature(pub_nonce: &str, signature: &str, pub_key: &str, msg: &st
     let R = match RistrettoPublicKey::from_hex(pub_nonce) {
         Ok(n) => n,
         Err(_) => {
-            result.error = format!("{} is not a valid public nonce", pub_nonce);
+            result.error = format!("{pub_nonce} is not a valid public nonce");
             return JsValue::from_serde(&result).unwrap();
         },
     };
@@ -195,7 +195,7 @@ pub fn check_signature(pub_nonce: &str, signature: &str, pub_key: &str, msg: &st
     let P = match RistrettoPublicKey::from_hex(pub_key) {
         Ok(p) => p,
         Err(_) => {
-            result.error = format!("{} is not a valid public key", pub_key);
+            result.error = format!("{pub_key} is not a valid public key");
             return JsValue::from_serde(&result).unwrap();
         },
     };
@@ -203,7 +203,7 @@ pub fn check_signature(pub_nonce: &str, signature: &str, pub_key: &str, msg: &st
     let s = match RistrettoSecretKey::from_hex(signature) {
         Ok(s) => s,
         Err(_) => {
-            result.error = format!("{} is not a valid hex representation of a signature", signature);
+            result.error = format!("{signature} is not a valid hex representation of a signature");
             return JsValue::from_serde(&result).unwrap();
         },
     };
@@ -329,7 +329,7 @@ pub(crate) fn sign_comsig_with_key(
     let sig = match RistrettoComSig::sign(private_key_a, private_key_x, &r_2, &r_1, e, &factory) {
         Ok(s) => s,
         Err(e) => {
-            result.error = format!("Could not create signature. {}", e);
+            result.error = format!("Could not create signature. {e}");
             return;
         },
     };
@@ -354,7 +354,7 @@ pub fn check_comsig_signature(
     let R = match PedersenCommitment::from_hex(pub_nonce_commitment) {
         Ok(n) => n,
         Err(_) => {
-            result.error = format!("{} is not a valid public nonce", pub_nonce_commitment);
+            result.error = format!("{pub_nonce_commitment} is not a valid public nonce");
             return JsValue::from_serde(&result).unwrap();
         },
     };
@@ -363,7 +363,7 @@ pub fn check_comsig_signature(
     let public_commitment = match PedersenCommitment::from_hex(commitment) {
         Ok(n) => n,
         Err(_) => {
-            result.error = format!("{} is not a valid commitment", commitment);
+            result.error = format!("{commitment} is not a valid commitment");
             return JsValue::from_serde(&result).unwrap();
         },
     };
@@ -371,7 +371,7 @@ pub fn check_comsig_signature(
     let u = match RistrettoSecretKey::from_hex(signature_u) {
         Ok(n) => n,
         Err(_) => {
-            result.error = format!("{} is not a valid hex representation of a signature", signature_u);
+            result.error = format!("{signature_u} is not a valid hex representation of a signature");
             return JsValue::from_serde(&result).unwrap();
         },
     };
@@ -379,7 +379,7 @@ pub fn check_comsig_signature(
     let v = match RistrettoSecretKey::from_hex(signature_v) {
         Ok(n) => n,
         Err(_) => {
-            result.error = format!("{} is not a valid hex representation of a signature", signature_v);
+            result.error = format!("{signature_v} is not a valid hex representation of a signature");
             return JsValue::from_serde(&result).unwrap();
         },
     };
@@ -545,7 +545,7 @@ pub(crate) fn sign_comandpubsig_with_key(
     ) {
         Ok(s) => s,
         Err(e) => {
-            result.error = format!("Could not create signature. {}", e);
+            result.error = format!("Could not create signature. {e}");
             return;
         },
     };
@@ -575,14 +575,14 @@ pub fn check_comandpubsig_signature(
     let ephemeral_commitment = match PedersenCommitment::from_hex(ephemeral_commitment) {
         Ok(n) => n,
         Err(_) => {
-            result.error = format!("{} is not a valid ephemeral commitment", ephemeral_commitment);
+            result.error = format!("{ephemeral_commitment} is not a valid ephemeral commitment");
             return JsValue::from_serde(&result).unwrap();
         },
     };
     let ephemeral_pubkey = match RistrettoPublicKey::from_hex(ephemeral_pubkey) {
         Ok(n) => n,
         Err(_) => {
-            result.error = format!("{} is not a valid ephemeral pubkey", ephemeral_pubkey);
+            result.error = format!("{ephemeral_pubkey} is not a valid ephemeral pubkey");
             return JsValue::from_serde(&result).unwrap();
         },
     };
@@ -591,14 +591,14 @@ pub fn check_comandpubsig_signature(
     let commitment = match PedersenCommitment::from_hex(commitment) {
         Ok(n) => n,
         Err(_) => {
-            result.error = format!("{} is not a valid commitment", commitment);
+            result.error = format!("{commitment} is not a valid commitment");
             return JsValue::from_serde(&result).unwrap();
         },
     };
     let pubkey = match RistrettoPublicKey::from_hex(pubkey) {
         Ok(n) => n,
         Err(_) => {
-            result.error = format!("{} is not a valid pubkey", pubkey);
+            result.error = format!("{pubkey} is not a valid pubkey");
             return JsValue::from_serde(&result).unwrap();
         },
     };
@@ -606,21 +606,21 @@ pub fn check_comandpubsig_signature(
     let u_a = match RistrettoSecretKey::from_hex(u_a) {
         Ok(n) => n,
         Err(_) => {
-            result.error = format!("{} is not a valid hex representation of a signature", u_a);
+            result.error = format!("{u_a} is not a valid hex representation of a signature");
             return JsValue::from_serde(&result).unwrap();
         },
     };
     let u_x = match RistrettoSecretKey::from_hex(u_x) {
         Ok(n) => n,
         Err(_) => {
-            result.error = format!("{} is not a valid hex representation of a signature", u_x);
+            result.error = format!("{u_x} is not a valid hex representation of a signature");
             return JsValue::from_serde(&result).unwrap();
         },
     };
     let u_y = match RistrettoSecretKey::from_hex(u_y) {
         Ok(n) => n,
         Err(_) => {
-            result.error = format!("{} is not a valid hex representation of a signature", u_y);
+            result.error = format!("{u_y} is not a valid hex representation of a signature");
             return JsValue::from_serde(&result).unwrap();
         },
     };

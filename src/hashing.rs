@@ -763,10 +763,7 @@ mod test {
     fn update_domain_separation_tag() {
         hash_domain!(TestDomain, "com.test");
         let s_tag = TestDomain::domain_separation_tag("mytest");
-        let expected_hash = Blake256::new()
-            .chain((s_tag.len() as usize).to_le_bytes())
-            .chain(s_tag)
-            .finalize();
+        let expected_hash = Blake256::new().chain(s_tag.len().to_le_bytes()).chain(s_tag).finalize();
 
         let mut digest = Blake256::new();
         TestDomain::add_domain_separation_tag(&mut digest, "mytest");
@@ -799,7 +796,7 @@ mod test {
         // let mac = Mac::generate::<Sha256, _, _>(&key, "test message", "test");
         //          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `LengthExtensionAttackResistant` is not implemented for
         //          `Sha256`
-        let mac = Mac::<Blake256>::generate(&key, "test message", "test");
+        let mac = Mac::<Blake256>::generate(key, "test message", "test");
         assert_eq!(MacDomain::domain_separation_tag("test"), "com.tari.mac.v1.test");
         assert_eq!(
             to_hex(mac.as_ref()),

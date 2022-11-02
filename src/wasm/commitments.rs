@@ -49,14 +49,14 @@ pub fn commit_private_keys(key_1: &str, key_2: &str) -> JsValue {
     let k_1 = match RistrettoSecretKey::from_hex(key_1) {
         Ok(k) => k,
         _ => {
-            result.error = format!("Private key for '{}' does not exist", key_1);
+            result.error = format!("Private key for '{key_1}' does not exist");
             return JsValue::from_serde(&result).unwrap();
         },
     };
     let k_2 = match RistrettoSecretKey::from_hex(key_2) {
         Ok(k) => k,
         _ => {
-            result.error = format!("Private key for '{}' does not exist", key_2);
+            result.error = format!("Private key for '{key_2}' does not exist");
             return JsValue::from_serde(&result).unwrap();
         },
     };

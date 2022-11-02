@@ -91,7 +91,7 @@ impl RangeProofFactory {
         let proof = match from_hex(proof) {
             Ok(v) => v,
             Err(e) => {
-                result.error = format!("Range proof is invalid. {}", e);
+                result.error = format!("Range proof is invalid. {e}");
                 return JsValue::from_serde(&result).unwrap();
             },
         };
@@ -151,7 +151,7 @@ impl ExtendedRangeProofFactory {
         let proof = match from_hex(proof) {
             Ok(v) => v,
             Err(e) => {
-                result.error = format!("Range proof is invalid. {}", e);
+                result.error = format!("Range proof is invalid. {e}");
                 return JsValue::from_serde(&result).unwrap();
             },
         };
@@ -192,7 +192,7 @@ impl ExtendedRangeProofFactory {
         let proof = match from_hex(proof) {
             Ok(v) => v,
             Err(e) => {
-                result.error = format!("Range proof is invalid. {}", e);
+                result.error = format!("Range proof is invalid. {e}");
                 return JsValue::from_serde(&result).unwrap();
             },
         };

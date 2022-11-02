@@ -125,7 +125,7 @@ mod test {
         // test Clone impl
         let e2 = e.clone();
         // test Debug impl
-        assert_eq!(format!("{:?}", e), "Blake256(VarBlake2b { ... })");
+        assert_eq!(format!("{e:?}"), "Blake256(VarBlake2b { ... })");
         assert_eq!(e.finalize(), e2.finalize());
     }
 
