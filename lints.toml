@@ -53,3 +53,7 @@ deny = [
     'clippy::cast_precision-loss',
     'clippy::cast_sign_loss'
 ]
+
+warn = [
+    'clippy::uninlined_format_args'
+]
