@@ -55,5 +55,6 @@ deny = [
 ]
 
 warn = [
-    'clippy::uninlined_format_args'
+    'clippy::uninlined_format_args',
+    'clippy::too_many_arguments',
 ]
