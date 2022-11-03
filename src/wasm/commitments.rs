@@ -33,12 +33,12 @@ pub fn commit(key: &str, value: u64) -> JsValue {
     let k = RistrettoSecretKey::from_hex(key);
     if k.is_err() {
         result.error = "Invalid private key".to_string();
-        return JsValue::from_serde(&result).unwrap();
+        return serde_wasm_bindgen::to_value(&result).unwrap();
     }
     let factory = PedersenCommitmentFactory::default();
     let commitment = factory.commit_value(&k.unwrap(), value);
     result.commitment = Some(commitment.to_hex());
-    JsValue::from_serde(&result).unwrap()
+    serde_wasm_bindgen::to_value(&result).unwrap()
 }
 
 /// Commits two private keys into a Pedersen commitment.
@@ -50,19 +50,19 @@ pub fn commit_private_keys(key_1: &str, key_2: &str) -> JsValue {
         Ok(k) => k,
         _ => {
             result.error = format!("Private key for '{key_1}' does not exist");
-            return JsValue::from_serde(&result).unwrap();
+            return serde_wasm_bindgen::to_value(&result).unwrap();
         },
     };
     let k_2 = match RistrettoSecretKey::from_hex(key_2) {
         Ok(k) => k,
         _ => {
             result.error = format!("Private key for '{key_2}' does not exist");
-            return JsValue::from_serde(&result).unwrap();
+            return serde_wasm_bindgen::to_value(&result).unwrap();
         },
     };
     let commitment = factory.commit(&k_1, &k_2);
     result.commitment = Some(commitment.to_hex());
-    JsValue::from_serde(&result).unwrap()
+    serde_wasm_bindgen::to_value(&result).unwrap()
 }
 
 /// Checks whether the given key and value opens the commitment
@@ -94,7 +94,7 @@ mod test {
 
         #[wasm_bindgen_test]
         fn it_fails_for_invalid_key() {
-            let val = commit("aa", 123).into_serde::<CommitmentResult>().unwrap();
+            let val: CommitmentResult = serde_wasm_bindgen::from_value(commit("aa", 123)).unwrap();
             assert!(!val.error.is_empty());
             assert!(val.commitment.is_none());
         }
@@ -103,7 +103,7 @@ mod test {
         fn it_produces_a_commitment_with_given_key() {
             let key = RistrettoSecretKey::random(&mut OsRng);
             let expected_commit = PedersenCommitmentFactory::default().commit_value(&key, 123);
-            let commitment = commit(&key.to_hex(), 123).into_serde::<CommitmentResult>().unwrap();
+            let commitment: CommitmentResult = serde_wasm_bindgen::from_value(commit(&key.to_hex(), 123)).unwrap();
             assert!(commitment.error.is_empty());
             assert_eq!(commitment.commitment, Some(expected_commit.to_hex()))
         }
@@ -114,7 +114,7 @@ mod test {
 
         #[wasm_bindgen_test]
         fn it_fails_for_empty_input() {
-            let val = commit_private_keys("", "").into_serde::<CommitmentResult>().unwrap();
+            let val: CommitmentResult = serde_wasm_bindgen::from_value(commit_private_keys("", "")).unwrap();
             assert!(!val.error.is_empty());
             assert!(val.commitment.is_none());
         }
@@ -123,9 +123,8 @@ mod test {
         fn it_produces_a_commitment_with_given_keys() {
             let key1 = RistrettoSecretKey::random(&mut OsRng);
             let key2 = RistrettoSecretKey::random(&mut OsRng);
-            let commitment = commit_private_keys(&key1.to_hex(), &key2.to_hex())
-                .into_serde::<CommitmentResult>()
-                .unwrap();
+            let commitment: CommitmentResult =
+                serde_wasm_bindgen::from_value(commit_private_keys(&key1.to_hex(), &key2.to_hex())).unwrap();
             let expected_commit = PedersenCommitmentFactory::default().commit(&key1, &key2);
             assert!(commitment.error.is_empty());
             assert_eq!(commitment.commitment, Some(expected_commit.to_hex()))
