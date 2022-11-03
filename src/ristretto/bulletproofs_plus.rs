@@ -566,8 +566,8 @@ mod test {
     fn test_service_init() {
         for extension_degree in EXTENSION_DEGREE {
             let factory = ExtendedPedersenCommitmentFactory::new_with_extension_degree(extension_degree).unwrap();
-            for bit_length in [1, 2, 3, 4, 5, 64, 128] {
-                for aggregation_size in [1, 2, 3, 4, 5, 64] {
+            for bit_length in [1, 2, 4, 128] {
+                for aggregation_size in [1, 2, 64] {
                     let bullet_proofs_plus_service =
                         BulletproofsPlusService::init(bit_length, aggregation_size, factory.clone());
                     if bit_length.is_power_of_two() && aggregation_size.is_power_of_two() && bit_length <= 64 {
@@ -588,11 +588,11 @@ mod test {
         for extension_degree in EXTENSION_DEGREE {
             let factory = ExtendedPedersenCommitmentFactory::new_with_extension_degree(extension_degree).unwrap();
             // bit length and aggregation size are chosen so that 'BulletProofsPlusService::init' will always succeed
-            for bit_length in [2, 4, 64] {
-                for aggregation_size in [1, 2, 16] {
+            for bit_length in [4, 64] {
+                for aggregation_size in [1, 16] {
                     let bulletproofs_plus_service =
                         BulletproofsPlusService::init(bit_length, aggregation_size, factory.clone()).unwrap();
-                    for value in [0, 1, 10, u64::MAX] {
+                    for value in [0, 1, u64::MAX] {
                         let key = RistrettoSecretKey(Scalar::random_not_zero(&mut rng));
                         let proof = bulletproofs_plus_service.construct_proof(&key, value);
                         if extension_degree == CommitmentExtensionDegree::DefaultPedersen &&
