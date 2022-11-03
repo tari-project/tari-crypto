@@ -10,11 +10,20 @@ use std::{
     ops::{Add, Mul},
 };
 
+use digest::Digest;
 use serde::{Deserialize, Serialize};
 use tari_utilities::ByteArray;
 use thiserror::Error;
 
-use crate::keys::{PublicKey, SecretKey};
+use crate::{
+    hash::blake2::Blake256,
+    hash_domain,
+    hashing::{DomainSeparatedHash, DomainSeparatedHasher},
+    keys::{PublicKey, SecretKey},
+};
+
+// Define the hashing domain for Schnorr signatures
+hash_domain!(SchnorrSigChallenge, "SchnorrSignature", 1);
 
 /// An error occurred during construction of a SchnorrSignature
 #[derive(Clone, Debug, Error, PartialEq, Eq, Deserialize, Serialize)]
@@ -57,7 +66,31 @@ where
 
     /// Sign a challenge with the given `secret` and private `nonce`. Returns an SchnorrSignatureError if `<K as
     /// ByteArray>::from_bytes(challenge)` returns an error.
+    ///
+    /// WARNING: The public key and nonce are NOT bound to the challenge. This method assumes that the challenge has
+    /// been constructed such that all commitments are already included in the challenge.
+    ///
+    /// Use [`sign_raw`] instead if this is what you want. (This method is a deprecated alias for `sign_raw`).
+    ///
+    /// If you want a simple API that binds the nonce and public key to the message, use [`sign_message`] instead.
+    #[deprecated(
+        since = "0.16.0",
+        note = "This method probably doesn't do what you think it does. Please use `sign_message` or `sign_raw` \
+                instead, depending on your use case. This function will be removed in v1.0.0"
+    )]
     pub fn sign(secret: K, nonce: K, challenge: &[u8]) -> Result<Self, SchnorrSignatureError>
+    where K: Add<Output = K> + Mul<P, Output = P> + Mul<Output = K> {
+        Self::sign_raw(secret, nonce, challenge)
+    }
+
+    /// Sign a challenge with the given `secret` and private `nonce`. Returns an SchnorrSignatureError if `<K as
+    /// ByteArray>::from_bytes(challenge)` returns an error.
+    ///
+    /// WARNING: The public key and nonce are NOT bound to the challenge. This method assumes that the challenge has
+    /// been constructed such that all commitments are already included in the challenge.
+    ///
+    /// If you want a simple API that binds the nonce and public key to the message, use [`sign_message`] instead.
+    pub fn sign_raw(secret: K, nonce: K, challenge: &[u8]) -> Result<Self, SchnorrSignatureError>
     where K: Add<Output = K> + Mul<P, Output = P> + Mul<Output = K> {
         // s = r + e.k
         let e = match K::from_bytes(challenge) {
@@ -68,6 +101,63 @@ where
         let ek = e * secret;
         let s = ek + nonce;
         Ok(Self::new(public_nonce, s))
+    }
+
+    /// Signs a message with the given secret key.
+    ///
+    /// This method correctly binds a nonce and the public key to the signature challenge, using domain-separated
+    /// hashing. The hasher is also opinionated in the sense that Blake2b 256-bit digest is always used.
+    ///
+    /// it is possible to customise the challenge by using [`construct_domain_separated_challenge`] and [`sign_raw`]
+    /// yourself, or even use [`sign_raw`] using a completely custom challenge.
+    pub fn sign_message<B>(secret: K, message: B) -> Result<Self, SchnorrSignatureError>
+    where
+        K: Add<Output = K> + Mul<P, Output = P> + Mul<Output = K>,
+        B: AsRef<[u8]>,
+    {
+        let nonce = K::random(&mut rand::thread_rng());
+        let public_nonce = P::from_secret_key(&nonce);
+        let public_key = P::from_secret_key(&secret);
+        let challenge = Self::construct_domain_separated_challenge::<_, Blake256>(&public_nonce, &public_key, message);
+        Self::sign_raw(secret, nonce, challenge.as_ref())
+    }
+
+    /// Constructs an opinionated challenge hash for the given public nonce, public key and message.
+    ///
+    /// In general, the signature challenge is given by `H(R, P, m)`. Often, plain concatenation is used to construct
+    /// the challenge. In this implementation, the challenge is constructed by means of domain separated hashing
+    /// using the provided digest.
+    ///
+    /// This challenge is used in the [`sign_message`] and [`verify_message`] methods.If you wish to use a custom
+    /// challenge, you can use [`sign_raw`] instead.
+    pub fn construct_domain_separated_challenge<B, D>(
+        public_nonce: &P,
+        public_key: &P,
+        message: B,
+    ) -> DomainSeparatedHash<D>
+    where
+        B: AsRef<[u8]>,
+        D: Digest,
+    {
+        DomainSeparatedHasher::<D, SchnorrSigChallenge>::new_with_label("challenge")
+            .chain(public_nonce.as_bytes())
+            .chain(public_key.as_bytes())
+            .chain(message.as_ref())
+            .finalize()
+    }
+
+    /// Verifies a signature created by the `sign_message` method. The function returns `true` if and only if the
+    /// message was signed by the secret key corresponding to the given public key, and that the challenge was
+    /// constructed using the domain-separation method defined in [`construct_domain_separated_challenge`].
+    pub fn verify_message<'a, B>(&self, public_key: &'a P, message: B) -> bool
+    where
+        for<'b> &'b K: Mul<&'a P, Output = P>,
+        for<'b> &'b P: Add<P, Output = P>,
+        B: AsRef<[u8]>,
+    {
+        let challenge =
+            Self::construct_domain_separated_challenge::<_, Blake256>(&self.public_nonce, public_key, message);
+        self.verify_challenge(public_key, challenge.as_ref())
     }
 
     /// Returns true if this signature is valid for a public key and challenge, otherwise false. This will always return

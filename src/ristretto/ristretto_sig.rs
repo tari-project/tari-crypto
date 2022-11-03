@@ -53,9 +53,8 @@ use crate::{
 ///
 /// #[allow(non_snake_case)]
 /// let (k, P) = get_keypair();
-/// let (r, R) = get_keypair();
-/// let e = Blake256::digest(b"Small Gods");
-/// let sig = RistrettoSchnorr::sign(k, r, &e);
+/// let msg = "Small Gods";
+/// let sig = RistrettoSchnorr::sign_message(k, &msg);
 /// ```
 ///
 /// # Verifying signatures
@@ -72,34 +71,32 @@ use crate::{
 /// # use tari_utilities::ByteArray;
 /// # use digest::Digest;
 ///
-/// # #[allow(non_snake_case)]
-/// let P = RistrettoPublicKey::from_hex(
-///     "74896a30c89186b8194e25f8c1382f8d3081c5a182fb8f8a6d34f27fbefbfc70",
-/// )
-/// .unwrap();
-/// let R = RistrettoPublicKey::from_hex(
-///     "fa14cb581ce5717248444721242e6b195a482d503a853dea4acb513074d8d803",
-/// )
-/// .unwrap();
-/// let s = RistrettoSecretKey::from_hex(
+/// let msg = "Maskerade";
+/// let k = RistrettoSecretKey::from_hex(
 ///     "bd0b253a619310340a4fa2de54cdd212eac7d088ee1dc47e305c3f6cbd020908",
 /// )
 /// .unwrap();
-/// let sig = RistrettoSchnorr::new(R, s);
-/// let e = Blake256::digest(b"Maskerade");
-/// assert!(sig.verify_challenge(&P, &e));
+/// # #[allow(non_snake_case)]
+/// let P = RistrettoPublicKey::from_secret_key(&k);
+/// let sig: SchnorrSignature<RistrettoPublicKey, RistrettoSecretKey> =
+///     SchnorrSignature::sign_message(k, msg).unwrap();
+/// assert!(sig.verify_message(&P, msg));
 /// ```
 pub type RistrettoSchnorr = SchnorrSignature<RistrettoPublicKey, RistrettoSecretKey>;
 
 #[cfg(test)]
 mod test {
     use digest::Digest;
-    use tari_utilities::{hex::from_hex, ByteArray};
+    use tari_utilities::{
+        hex::{from_hex, to_hex, Hex},
+        ByteArray,
+    };
 
     use crate::{
         hash::blake2::Blake256,
         keys::{PublicKey, SecretKey},
         ristretto::{RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
+        signatures::SchnorrSignature,
     };
 
     #[test]
@@ -112,10 +109,11 @@ mod test {
     /// Create a signature, and then verify it. Also checks that some invalid signatures fail to verify
     #[test]
     #[allow(non_snake_case)]
-    fn sign_and_verify_message() {
+    fn raw_sign_and_verify_challenge() {
         let mut rng = rand::thread_rng();
         let (k, P) = RistrettoPublicKey::random_keypair(&mut rng);
         let (r, R) = RistrettoPublicKey::random_keypair(&mut rng);
+        // Use sign raw, and bind the nonce and public key manually
         let e = Blake256::new()
             .chain(P.as_bytes())
             .chain(R.as_bytes())
@@ -123,7 +121,7 @@ mod test {
             .finalize();
         let e_key = RistrettoSecretKey::from_bytes(&e).unwrap();
         let s = &r + &e_key * &k;
-        let sig = RistrettoSchnorr::sign(k, r, &e).unwrap();
+        let sig = RistrettoSchnorr::sign_raw(k, r, &e).unwrap();
         let R_calc = sig.get_public_nonce();
         assert_eq!(R, *R_calc);
         assert_eq!(sig.get_signature(), &s);
@@ -155,9 +153,9 @@ mod test {
             .chain(b"Moving Pictures")
             .finalize();
         // Calculate Alice's signature
-        let s1 = RistrettoSchnorr::sign(k1, r1, &e).unwrap();
+        let s1 = RistrettoSchnorr::sign_raw(k1, r1, &e).unwrap();
         // Calculate Bob's signature
-        let s2 = RistrettoSchnorr::sign(k2, r2, &e).unwrap();
+        let s2 = RistrettoSchnorr::sign_raw(k2, r2, &e).unwrap();
         // Now add the two signatures together
         let s_agg = &s1 + &s2;
         // Check that the multi-sig verifies
@@ -167,11 +165,45 @@ mod test {
     /// Ristretto scalars have a max value 2^255. This test checks that hashed messages above this value can still be
     /// signed as a result of applying modulo arithmetic on the challenge value
     #[test]
+    #[allow(non_snake_case)]
     fn challenge_from_invalid_scalar() {
         let mut rng = rand::thread_rng();
         let m = from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap();
         let k = RistrettoSecretKey::random(&mut rng);
         let r = RistrettoSecretKey::random(&mut rng);
-        assert!(RistrettoSchnorr::sign(k, r, &m).is_ok());
+        assert!(RistrettoSchnorr::sign_raw(k, r, &m).is_ok());
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn domain_separated_challenge() {
+        let P =
+            RistrettoPublicKey::from_hex("74896a30c89186b8194e25f8c1382f8d3081c5a182fb8f8a6d34f27fbefbfc70").unwrap();
+        let R =
+            RistrettoPublicKey::from_hex("fa14cb581ce5717248444721242e6b195a482d503a853dea4acb513074d8d803").unwrap();
+        let msg = "Moving Pictures";
+        let hash = SchnorrSignature::construct_domain_separated_challenge::<_, Blake256>(&R, &P, msg);
+        let naiive = Blake256::new()
+            .chain(R.as_bytes())
+            .chain(P.as_bytes())
+            .chain(msg)
+            .finalize()
+            .to_vec();
+        assert_ne!(hash.as_ref(), naiive.as_bytes());
+        assert_eq!(
+            to_hex(hash.as_ref()),
+            "e64d66b31e2b1c81272f5574f41ab2c997114436c2d3706dca1cf947bed60198"
+        );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn sign_and_verify_message() {
+        let mut rng = rand::thread_rng();
+        let (k, P) = RistrettoPublicKey::random_keypair(&mut rng);
+        let sig = RistrettoSchnorr::sign_message(k, "Queues are things that happen to other people").unwrap();
+        assert!(sig.verify_message(&P, "Queues are things that happen to other people"));
+        assert!(!sig.verify_message(&P, "Qs are things that happen to other people"));
+        assert!(!sig.verify_message(&(&P + &P), "Queues are things that happen to other people"));
     }
 }
