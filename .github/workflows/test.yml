@@ -10,7 +10,6 @@ jobs:
       matrix:
         rust:
           - stable
-          - nightly-2022-01-17
     steps:
       - name: checkout
         uses: actions/checkout@v2

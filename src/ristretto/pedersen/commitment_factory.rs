@@ -245,7 +245,7 @@ mod test {
 
         // Test 'Debug' implementation
         assert_eq!(
-            format!("{:?}", c1),
+            format!("{c1:?}"),
             "HomomorphicCommitment(601cdc5c97e94bb16ae56f75430f8ab3ef4703c7d89ca9592e8acadc81629f0e)"
         );
         // Test 'Clone' implementation

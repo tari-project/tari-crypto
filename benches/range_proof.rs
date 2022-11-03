@@ -30,7 +30,7 @@ fn setup(n: usize) -> (DalekRangeProofService, RistrettoSecretKey, u64, Pedersen
 pub fn generate_rangeproof(c: &mut Criterion) {
     let mut group = c.benchmark_group("Generate and validate range proofs");
     for input in &[8, 16, 32, 64] {
-        let parameter_str = format!("{} bytes", input);
+        let parameter_str = format!("{input} bytes");
         // let proof = prover.construct_proof(&k, v).unwrap();
         group.bench_with_input(BenchmarkId::new("construct_proof", &parameter_str), input, |b, n| {
             let (prover, k, v, _) = setup(*n);

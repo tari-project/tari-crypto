@@ -81,7 +81,7 @@ impl KeyRing {
         let mut result = SignResult::default();
         let k = self.keys.get(id);
         if k.is_none() {
-            result.error = format!("Private key for '{}' does not exist", id);
+            result.error = format!("Private key for '{id}' does not exist");
             return JsValue::from_serde(&result).unwrap();
         }
         let k = k.unwrap();
@@ -103,13 +103,13 @@ impl KeyRing {
         let mut result = SignResult::default();
         let k = self.keys.get(id);
         if k.is_none() {
-            result.error = format!("Private key for '{}' does not exist", id);
+            result.error = format!("Private key for '{id}' does not exist");
             return JsValue::from_serde(&result).unwrap();
         }
         let k = k.unwrap();
         let nonce = self.keys.get(nonce_id);
         if nonce.is_none() {
-            result.error = format!("Private nonce for `{}` does not exist", nonce_id);
+            result.error = format!("Private nonce for `{nonce_id}` does not exist");
             return JsValue::from_serde(&result).unwrap();
         }
         let nonce = nonce.unwrap();
@@ -123,7 +123,7 @@ impl KeyRing {
         let k = match self.keys.get(id) {
             Some(k) => &k.0,
             None => {
-                result.error = format!("Private key for '{}' does not exist", id);
+                result.error = format!("Private key for '{id}' does not exist");
                 return JsValue::from_serde(&result).unwrap();
             },
         };
