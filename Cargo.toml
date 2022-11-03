@@ -27,6 +27,7 @@ once_cell = "1.8.0"
 rand = { version = "0.7.3", default-features = false }
 serde = "1.0.89"
 serde_json = "1.0"
+serde-wasm-bindgen = { version = "0.4", optional = true }
 sha3 = "0.9.0"
 thiserror = "1.0.20"
 wasm-bindgen = { version = "^0.2", features = ["serde-serialize"], optional = true }
@@ -45,7 +46,7 @@ cbindgen = "0.17.0"
 default = ["u64_backend"]
 u64_backend = ["curve25519-dalek/u64_backend"]
 simd_backend = ["curve25519-dalek/simd_backend", "bulletproofs/simd_backend"]
-wasm = ["wasm-bindgen", "getrandom/js", "rand/wasm-bindgen"]
+wasm = ["wasm-bindgen", "getrandom/js", "rand/wasm-bindgen", "serde-wasm-bindgen"]
 ffi = []
 musig = []
 

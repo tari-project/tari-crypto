@@ -68,14 +68,14 @@ impl RangeProofFactory {
             Ok(k) => k,
             _ => {
                 result.error = "Invalid private key".to_string();
-                return JsValue::from_serde(&result).unwrap();
+                return serde_wasm_bindgen::to_value(&result).unwrap();
             },
         };
         match self.range_proof_service.construct_proof(&key, value) {
             Ok(p) => result.proof = p.to_hex(),
             Err(e) => result.error = e.to_string(),
         };
-        JsValue::from_serde(&result).unwrap()
+        serde_wasm_bindgen::to_value(&result).unwrap()
     }
 
     /// Verifies the given range proof and commitment. Returns a [JsValue] of a serialized [VerificationResult]
@@ -85,18 +85,18 @@ impl RangeProofFactory {
             Ok(commitment) => commitment,
             _ => {
                 result.error = "Invalid private key".to_string();
-                return JsValue::from_serde(&result).unwrap();
+                return serde_wasm_bindgen::to_value(&result).unwrap();
             },
         };
         let proof = match from_hex(proof) {
             Ok(v) => v,
             Err(e) => {
                 result.error = format!("Range proof is invalid. {e}");
-                return JsValue::from_serde(&result).unwrap();
+                return serde_wasm_bindgen::to_value(&result).unwrap();
             },
         };
         result.valid = self.range_proof_service.verify(&proof, &commitment);
-        JsValue::from_serde(&result).unwrap()
+        serde_wasm_bindgen::to_value(&result).unwrap()
     }
 }
 
@@ -128,14 +128,14 @@ impl ExtendedRangeProofFactory {
             Ok(k) => k,
             _ => {
                 result.error = "Invalid private key".to_string();
-                return JsValue::from_serde(&result).unwrap();
+                return serde_wasm_bindgen::to_value(&result).unwrap();
             },
         };
         match self.range_proof_service.construct_proof(&key, value) {
             Ok(p) => result.proof = p.to_hex(),
             Err(e) => result.error = e.to_string(),
         };
-        JsValue::from_serde(&result).unwrap()
+        serde_wasm_bindgen::to_value(&result).unwrap()
     }
 
     /// Verifies the given range proof and commitment.
@@ -145,18 +145,18 @@ impl ExtendedRangeProofFactory {
             Ok(commitment) => commitment,
             _ => {
                 result.error = "Invalid private key".to_string();
-                return JsValue::from_serde(&result).unwrap();
+                return serde_wasm_bindgen::to_value(&result).unwrap();
             },
         };
         let proof = match from_hex(proof) {
             Ok(v) => v,
             Err(e) => {
                 result.error = format!("Range proof is invalid. {e}");
-                return JsValue::from_serde(&result).unwrap();
+                return serde_wasm_bindgen::to_value(&result).unwrap();
             },
         };
         result.valid = self.range_proof_service.verify(&proof, &commitment);
-        JsValue::from_serde(&result).unwrap()
+        serde_wasm_bindgen::to_value(&result).unwrap()
     }
 
     /// Construct a proof with a recovery seed nonce
@@ -166,14 +166,14 @@ impl ExtendedRangeProofFactory {
             Ok(k) => k,
             _ => {
                 result.error = "Invalid mask".to_string();
-                return JsValue::from_serde(&result).unwrap();
+                return serde_wasm_bindgen::to_value(&result).unwrap();
             },
         };
         let seed_nonce = match RistrettoSecretKey::from_hex(seed_nonce) {
             Ok(k) => k,
             _ => {
                 result.error = "Invalid seed nonce".to_string();
-                return JsValue::from_serde(&result).unwrap();
+                return serde_wasm_bindgen::to_value(&result).unwrap();
             },
         };
         match self
@@ -183,7 +183,7 @@ impl ExtendedRangeProofFactory {
             Ok(p) => result.proof = p.to_hex(),
             Err(e) => result.error = e.to_string(),
         };
-        JsValue::from_serde(&result).unwrap()
+        serde_wasm_bindgen::to_value(&result).unwrap()
     }
 
     /// Recover a mask from a proof
@@ -193,28 +193,28 @@ impl ExtendedRangeProofFactory {
             Ok(v) => v,
             Err(e) => {
                 result.error = format!("Range proof is invalid. {e}");
-                return JsValue::from_serde(&result).unwrap();
+                return serde_wasm_bindgen::to_value(&result).unwrap();
             },
         };
         let commitment = match PedersenCommitment::from_hex(commitment) {
             Ok(commitment) => commitment,
             _ => {
                 result.error = "Invalid commitment".to_string();
-                return JsValue::from_serde(&result).unwrap();
+                return serde_wasm_bindgen::to_value(&result).unwrap();
             },
         };
         let seed_nonce = match RistrettoSecretKey::from_hex(seed_nonce) {
             Ok(k) => k,
             _ => {
                 result.error = "Invalid seed nonce".to_string();
-                return JsValue::from_serde(&result).unwrap();
+                return serde_wasm_bindgen::to_value(&result).unwrap();
             },
         };
         match self.range_proof_service.recover_mask(&proof, &commitment, &seed_nonce) {
             Ok(p) => result.mask = p.to_hex(),
             Err(e) => result.error = e.to_string(),
         };
-        JsValue::from_serde(&result).unwrap()
+        serde_wasm_bindgen::to_value(&result).unwrap()
     }
 
     /// Verify that a mask and value is the one used in a proof
@@ -224,21 +224,21 @@ impl ExtendedRangeProofFactory {
             Ok(commitment) => commitment,
             _ => {
                 result.error = "Invalid commitment".to_string();
-                return JsValue::from_serde(&result).unwrap();
+                return serde_wasm_bindgen::to_value(&result).unwrap();
             },
         };
         let mask = match RistrettoSecretKey::from_hex(mask) {
             Ok(k) => k,
             _ => {
                 result.error = "Invalid mask".to_string();
-                return JsValue::from_serde(&result).unwrap();
+                return serde_wasm_bindgen::to_value(&result).unwrap();
             },
         };
         match self.range_proof_service.verify_mask(&commitment, &mask, value) {
             Ok(p) => result.valid = p,
             Err(e) => result.error = e.to_string(),
         };
-        JsValue::from_serde(&result).unwrap()
+        serde_wasm_bindgen::to_value(&result).unwrap()
     }
 }
 
@@ -259,7 +259,7 @@ mod test {
     #[wasm_bindgen_test]
     fn dalek_range_proof_fails_with_invalid_hex_input() {
         let factory = RangeProofFactory::new();
-        let result = factory.create_proof("", 123).into_serde::<RangeProofResult>().unwrap();
+        let result: RangeProofResult = serde_wasm_bindgen::from_value(factory.create_proof("", 123)).unwrap();
         assert!(!result.error.is_empty());
         assert!(result.proof.is_empty());
     }
@@ -268,25 +268,21 @@ mod test {
     fn dalek_range_proof_creates_a_valid_proof() {
         let factory = RangeProofFactory::new();
         let (blinding_factor, _) = RistrettoPublicKey::random_keypair(&mut OsRng);
-        let result = factory
-            .create_proof(&blinding_factor.to_hex(), 123)
-            .into_serde::<RangeProofResult>()
-            .unwrap();
+        let result: RangeProofResult =
+            serde_wasm_bindgen::from_value(factory.create_proof(&blinding_factor.to_hex(), 123)).unwrap();
         let commitment = PedersenCommitmentFactory::default().commit_value(&blinding_factor, 123);
         assert!(factory
             .range_proof_service
             .verify(&from_hex(&result.proof).unwrap(), &commitment));
-        let result = factory
-            .verify(&commitment.to_hex(), &result.proof)
-            .into_serde::<VerificationResult>()
-            .unwrap();
+        let result: VerificationResult =
+            serde_wasm_bindgen::from_value(factory.verify(&commitment.to_hex(), &result.proof)).unwrap();
         assert!(result.valid);
     }
 
     #[wasm_bindgen_test]
     fn bulletproof_plus_fails_with_invalid_hex_input() {
         let factory = ExtendedRangeProofFactory::new();
-        let result = factory.create_proof("", 123).into_serde::<RangeProofResult>().unwrap();
+        let result: RangeProofResult = serde_wasm_bindgen::from_value(factory.create_proof("", 123)).unwrap();
         assert!(!result.error.is_empty());
         assert!(result.proof.is_empty());
     }
@@ -299,35 +295,32 @@ mod test {
         let commitment = ExtendedPedersenCommitmentFactory::default().commit_value(&blinding_factor, value);
 
         // Non-rewindable range proof
-        let proof_result = factory
-            .create_proof(&blinding_factor.to_hex(), value)
-            .into_serde::<RangeProofResult>()
-            .unwrap();
-        let proof_verification_result = factory
-            .verify(&commitment.to_hex(), &proof_result.proof)
-            .into_serde::<VerificationResult>()
-            .unwrap();
+        let proof_result: RangeProofResult =
+            serde_wasm_bindgen::from_value(factory.create_proof(&blinding_factor.to_hex(), value)).unwrap();
+        let proof_verification_result: VerificationResult =
+            serde_wasm_bindgen::from_value(factory.verify(&commitment.to_hex(), &proof_result.proof)).unwrap();
         assert!(proof_verification_result.valid);
 
         // Rewindable range proof
         // - Create
         let (seed_nonce, _) = RistrettoPublicKey::random_keypair(&mut OsRng);
-        let proof_result = factory
-            .construct_proof_with_recovery_seed_nonce(&blinding_factor.to_hex(), value, &seed_nonce.to_hex())
-            .into_serde::<RangeProofResult>()
-            .unwrap();
+        let proof_result: RangeProofResult = serde_wasm_bindgen::from_value(
+            factory.construct_proof_with_recovery_seed_nonce(&blinding_factor.to_hex(), value, &seed_nonce.to_hex()),
+        )
+        .unwrap();
         assert!(factory
             .range_proof_service
             .verify(&from_hex(&proof_result.proof).unwrap(), &commitment));
         // - Recover the blinding factor (mask)
-        let recover_result = factory
-            .recover_mask(&proof_result.proof, &commitment.to_hex(), &seed_nonce.to_hex())
-            .into_serde::<RecoverResult>()
-            .unwrap();
-        let mask_verification_result = factory
-            .verify_mask(&commitment.to_hex(), &recover_result.mask, value)
-            .into_serde::<VerificationResult>()
-            .unwrap();
+        let recover_result: RecoverResult = serde_wasm_bindgen::from_value(factory.recover_mask(
+            &proof_result.proof,
+            &commitment.to_hex(),
+            &seed_nonce.to_hex(),
+        ))
+        .unwrap();
+        let mask_verification_result: VerificationResult =
+            serde_wasm_bindgen::from_value(factory.verify_mask(&commitment.to_hex(), &recover_result.mask, value))
+                .unwrap();
         assert!(mask_verification_result.valid);
 
         // To print to `console.log`:

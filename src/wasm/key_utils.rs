@@ -80,7 +80,7 @@ pub struct ComAndPubSignResult {
 pub fn generate_keypair() -> JsValue {
     let (k, p) = RistrettoPublicKey::random_keypair(&mut OsRng);
     let pair = (k.to_hex(), p.to_hex());
-    JsValue::from_serde(&pair).unwrap()
+    serde_wasm_bindgen::to_value(&pair).unwrap()
 }
 
 /// Returns a public key object from a public key hex string, or false if the hex string does not represent a valid
@@ -88,7 +88,7 @@ pub fn generate_keypair() -> JsValue {
 #[wasm_bindgen]
 pub fn pubkey_from_hex(hex: &str) -> JsValue {
     match RistrettoPublicKey::from_hex(hex) {
-        Ok(pk) => JsValue::from_serde(&pk).unwrap_or_else(|_| JsValue::from_bool(false)),
+        Ok(pk) => serde_wasm_bindgen::to_value(&pk).unwrap_or_else(|_| JsValue::from_bool(false)),
         Err(_) => JsValue::from_bool(false),
     }
 }
@@ -111,11 +111,11 @@ pub fn sign(private_key: &str, msg: &str) -> JsValue {
         Ok(k) => k,
         _ => {
             result.error = "Invalid private key".to_string();
-            return JsValue::from_serde(&result).unwrap();
+            return serde_wasm_bindgen::to_value(&result).unwrap();
         },
     };
     sign_message_with_key(&k, msg, None, &mut result);
-    JsValue::from_serde(&result).unwrap()
+    serde_wasm_bindgen::to_value(&result).unwrap()
 }
 
 /// Generate a Schnorr signature of a challenge (that has already been hashed) using the given private
@@ -128,14 +128,14 @@ pub fn sign_challenge_with_nonce(private_key: &str, private_nonce: &str, challen
         Ok(k) => k,
         _ => {
             result.error = "Invalid private key".to_string();
-            return JsValue::from_serde(&result).unwrap();
+            return serde_wasm_bindgen::to_value(&result).unwrap();
         },
     };
     let r = match RistrettoSecretKey::from_hex(private_nonce) {
         Ok(r) => r,
         _ => {
             result.error = "Invalid private nonce".to_string();
-            return JsValue::from_serde(&result).unwrap();
+            return serde_wasm_bindgen::to_value(&result).unwrap();
         },
     };
 
@@ -143,11 +143,11 @@ pub fn sign_challenge_with_nonce(private_key: &str, private_nonce: &str, challen
         Ok(e) => e,
         _ => {
             result.error = "Challenge was not valid HEX".to_string();
-            return JsValue::from_serde(&result).unwrap();
+            return serde_wasm_bindgen::to_value(&result).unwrap();
         },
     };
     sign_with_key(&k, &e, Some(&r), &mut result);
-    JsValue::from_serde(&result).unwrap()
+    serde_wasm_bindgen::to_value(&result).unwrap()
 }
 
 pub(super) fn sign_message_with_key(
@@ -188,7 +188,7 @@ pub fn check_signature(pub_nonce: &str, signature: &str, pub_key: &str, msg: &st
         Ok(n) => n,
         Err(_) => {
             result.error = format!("{pub_nonce} is not a valid public nonce");
-            return JsValue::from_serde(&result).unwrap();
+            return serde_wasm_bindgen::to_value(&result).unwrap();
         },
     };
 
@@ -196,7 +196,7 @@ pub fn check_signature(pub_nonce: &str, signature: &str, pub_key: &str, msg: &st
         Ok(p) => p,
         Err(_) => {
             result.error = format!("{pub_key} is not a valid public key");
-            return JsValue::from_serde(&result).unwrap();
+            return serde_wasm_bindgen::to_value(&result).unwrap();
         },
     };
 
@@ -204,14 +204,14 @@ pub fn check_signature(pub_nonce: &str, signature: &str, pub_key: &str, msg: &st
         Ok(s) => s,
         Err(_) => {
             result.error = format!("{signature} is not a valid hex representation of a signature");
-            return JsValue::from_serde(&result).unwrap();
+            return serde_wasm_bindgen::to_value(&result).unwrap();
         },
     };
 
     let sig = RistrettoSchnorr::new(R, s);
     let msg = Blake256::digest(msg.as_bytes());
     result.result = sig.verify_challenge(&P, msg.as_slice());
-    JsValue::from_serde(&result).unwrap()
+    serde_wasm_bindgen::to_value(&result).unwrap()
 }
 
 /// Generate a Commitment signature of the message using the given private key
@@ -222,18 +222,18 @@ pub fn sign_comsig(private_key_a: &str, private_key_x: &str, msg: &str) -> JsVal
         Ok(a_key) => a_key,
         _ => {
             result.error = "Invalid private key".to_string();
-            return JsValue::from_serde(&result).unwrap();
+            return serde_wasm_bindgen::to_value(&result).unwrap();
         },
     };
     let x_key = match RistrettoSecretKey::from_hex(private_key_x) {
         Ok(x_key) => x_key,
         _ => {
             result.error = "Invalid private key".to_string();
-            return JsValue::from_serde(&result).unwrap();
+            return serde_wasm_bindgen::to_value(&result).unwrap();
         },
     };
     sign_comsig_message_with_key(&a_key, &x_key, msg, None, None, &mut result);
-    JsValue::from_serde(&result).unwrap()
+    serde_wasm_bindgen::to_value(&result).unwrap()
 }
 
 /// Generate a Commitment signature of a challenge (that has already been hashed) using the given private
@@ -253,28 +253,28 @@ pub fn sign_comsig_challenge_with_nonce(
         Ok(private_key_a) => private_key_a,
         _ => {
             result.error = "Invalid private key_a".to_string();
-            return JsValue::from_serde(&result).unwrap();
+            return serde_wasm_bindgen::to_value(&result).unwrap();
         },
     };
     let private_key_x = match RistrettoSecretKey::from_hex(private_key_x) {
         Ok(private_key_x) => private_key_x,
         _ => {
             result.error = "Invalid private key_x".to_string();
-            return JsValue::from_serde(&result).unwrap();
+            return serde_wasm_bindgen::to_value(&result).unwrap();
         },
     };
     let private_nonce_1 = match RistrettoSecretKey::from_hex(private_nonce_1) {
         Ok(private_nonce_1) => private_nonce_1,
         _ => {
             result.error = "Invalid private nonce_1".to_string();
-            return JsValue::from_serde(&result).unwrap();
+            return serde_wasm_bindgen::to_value(&result).unwrap();
         },
     };
     let private_nonce_2 = match RistrettoSecretKey::from_hex(private_nonce_2) {
         Ok(private_nonce_2) => private_nonce_2,
         _ => {
             result.error = "Invalid private nonce_2".to_string();
-            return JsValue::from_serde(&result).unwrap();
+            return serde_wasm_bindgen::to_value(&result).unwrap();
         },
     };
 
@@ -282,7 +282,7 @@ pub fn sign_comsig_challenge_with_nonce(
         Ok(e) => e,
         _ => {
             result.error = "Challenge was not valid HEX".to_string();
-            return JsValue::from_serde(&result).unwrap();
+            return serde_wasm_bindgen::to_value(&result).unwrap();
         },
     };
     sign_comsig_with_key(
@@ -293,7 +293,7 @@ pub fn sign_comsig_challenge_with_nonce(
         Some(&private_nonce_2),
         &mut result,
     );
-    JsValue::from_serde(&result).unwrap()
+    serde_wasm_bindgen::to_value(&result).unwrap()
 }
 
 pub(crate) fn sign_comsig_message_with_key(
@@ -355,7 +355,7 @@ pub fn check_comsig_signature(
         Ok(n) => n,
         Err(_) => {
             result.error = format!("{pub_nonce_commitment} is not a valid public nonce");
-            return JsValue::from_serde(&result).unwrap();
+            return serde_wasm_bindgen::to_value(&result).unwrap();
         },
     };
     let factory = PedersenCommitmentFactory::default();
@@ -364,7 +364,7 @@ pub fn check_comsig_signature(
         Ok(n) => n,
         Err(_) => {
             result.error = format!("{commitment} is not a valid commitment");
-            return JsValue::from_serde(&result).unwrap();
+            return serde_wasm_bindgen::to_value(&result).unwrap();
         },
     };
 
@@ -372,7 +372,7 @@ pub fn check_comsig_signature(
         Ok(n) => n,
         Err(_) => {
             result.error = format!("{signature_u} is not a valid hex representation of a signature");
-            return JsValue::from_serde(&result).unwrap();
+            return serde_wasm_bindgen::to_value(&result).unwrap();
         },
     };
 
@@ -380,14 +380,14 @@ pub fn check_comsig_signature(
         Ok(n) => n,
         Err(_) => {
             result.error = format!("{signature_v} is not a valid hex representation of a signature");
-            return JsValue::from_serde(&result).unwrap();
+            return serde_wasm_bindgen::to_value(&result).unwrap();
         },
     };
 
     let sig = RistrettoComSig::new(R, u, v);
     let msg = Blake256::digest(msg.as_bytes());
     result.result = sig.verify_challenge(&public_commitment, msg.as_slice(), &factory);
-    JsValue::from_serde(&result).unwrap()
+    serde_wasm_bindgen::to_value(&result).unwrap()
 }
 
 /// Generate a commitment and public key signature of the message using the given private keys
@@ -398,22 +398,22 @@ pub fn sign_comandpubsig(private_key_a: &str, private_key_x: &str, private_key_y
         a_key
     } else {
         result.error = "Invalid private key".to_string();
-        return JsValue::from_serde(&result).unwrap();
+        return serde_wasm_bindgen::to_value(&result).unwrap();
     };
     let x_key = if let Ok(x_key) = RistrettoSecretKey::from_hex(private_key_x) {
         x_key
     } else {
         result.error = "Invalid private key".to_string();
-        return JsValue::from_serde(&result).unwrap();
+        return serde_wasm_bindgen::to_value(&result).unwrap();
     };
     let y_key = if let Ok(y_key) = RistrettoSecretKey::from_hex(private_key_y) {
         y_key
     } else {
         result.error = "Invalid private key".to_string();
-        return JsValue::from_serde(&result).unwrap();
+        return serde_wasm_bindgen::to_value(&result).unwrap();
     };
     sign_comandpubsig_message_with_key(&a_key, &x_key, &y_key, msg, None, None, None, &mut result);
-    JsValue::from_serde(&result).unwrap()
+    serde_wasm_bindgen::to_value(&result).unwrap()
 }
 
 /// Generate a commitment and public key signature of a challenge (that has already been hashed)
@@ -434,44 +434,44 @@ pub fn sign_comandpubsig_challenge_with_nonce(
         private_key_a
     } else {
         result.error = "Invalid private key_a".to_string();
-        return JsValue::from_serde(&result).unwrap();
+        return serde_wasm_bindgen::to_value(&result).unwrap();
     };
     let private_key_x = if let Ok(private_key_x) = RistrettoSecretKey::from_hex(private_key_x) {
         private_key_x
     } else {
         result.error = "Invalid private key_x".to_string();
-        return JsValue::from_serde(&result).unwrap();
+        return serde_wasm_bindgen::to_value(&result).unwrap();
     };
     let private_key_y = if let Ok(private_key_y) = RistrettoSecretKey::from_hex(private_key_y) {
         private_key_y
     } else {
         result.error = "Invalid private key_y".to_string();
-        return JsValue::from_serde(&result).unwrap();
+        return serde_wasm_bindgen::to_value(&result).unwrap();
     };
     let private_nonce_a = if let Ok(private_nonce_a) = RistrettoSecretKey::from_hex(private_nonce_a) {
         private_nonce_a
     } else {
         result.error = "Invalid private nonce_a".to_string();
-        return JsValue::from_serde(&result).unwrap();
+        return serde_wasm_bindgen::to_value(&result).unwrap();
     };
     let private_nonce_x = if let Ok(private_nonce_x) = RistrettoSecretKey::from_hex(private_nonce_x) {
         private_nonce_x
     } else {
         result.error = "Invalid private nonce_x".to_string();
-        return JsValue::from_serde(&result).unwrap();
+        return serde_wasm_bindgen::to_value(&result).unwrap();
     };
     let private_nonce_y = if let Ok(private_nonce_y) = RistrettoSecretKey::from_hex(private_nonce_y) {
         private_nonce_y
     } else {
         result.error = "Invalid private nonce_y".to_string();
-        return JsValue::from_serde(&result).unwrap();
+        return serde_wasm_bindgen::to_value(&result).unwrap();
     };
 
     let e = if let Ok(e) = from_hex(challenge_as_hex) {
         e
     } else {
         result.error = "Challenge was not valid HEX".to_string();
-        return JsValue::from_serde(&result).unwrap();
+        return serde_wasm_bindgen::to_value(&result).unwrap();
     };
     sign_comandpubsig_with_key(
         &private_key_a,
@@ -483,7 +483,7 @@ pub fn sign_comandpubsig_challenge_with_nonce(
         Some(&private_nonce_y),
         &mut result,
     );
-    JsValue::from_serde(&result).unwrap()
+    serde_wasm_bindgen::to_value(&result).unwrap()
 }
 
 pub(crate) fn sign_comandpubsig_message_with_key(
@@ -576,14 +576,14 @@ pub fn check_comandpubsig_signature(
         Ok(n) => n,
         Err(_) => {
             result.error = format!("{ephemeral_commitment} is not a valid ephemeral commitment");
-            return JsValue::from_serde(&result).unwrap();
+            return serde_wasm_bindgen::to_value(&result).unwrap();
         },
     };
     let ephemeral_pubkey = match RistrettoPublicKey::from_hex(ephemeral_pubkey) {
         Ok(n) => n,
         Err(_) => {
             result.error = format!("{ephemeral_pubkey} is not a valid ephemeral pubkey");
-            return JsValue::from_serde(&result).unwrap();
+            return serde_wasm_bindgen::to_value(&result).unwrap();
         },
     };
     let factory = PedersenCommitmentFactory::default();
@@ -592,14 +592,14 @@ pub fn check_comandpubsig_signature(
         Ok(n) => n,
         Err(_) => {
             result.error = format!("{commitment} is not a valid commitment");
-            return JsValue::from_serde(&result).unwrap();
+            return serde_wasm_bindgen::to_value(&result).unwrap();
         },
     };
     let pubkey = match RistrettoPublicKey::from_hex(pubkey) {
         Ok(n) => n,
         Err(_) => {
             result.error = format!("{pubkey} is not a valid pubkey");
-            return JsValue::from_serde(&result).unwrap();
+            return serde_wasm_bindgen::to_value(&result).unwrap();
         },
     };
 
@@ -607,28 +607,28 @@ pub fn check_comandpubsig_signature(
         Ok(n) => n,
         Err(_) => {
             result.error = format!("{u_a} is not a valid hex representation of a signature");
-            return JsValue::from_serde(&result).unwrap();
+            return serde_wasm_bindgen::to_value(&result).unwrap();
         },
     };
     let u_x = match RistrettoSecretKey::from_hex(u_x) {
         Ok(n) => n,
         Err(_) => {
             result.error = format!("{u_x} is not a valid hex representation of a signature");
-            return JsValue::from_serde(&result).unwrap();
+            return serde_wasm_bindgen::to_value(&result).unwrap();
         },
     };
     let u_y = match RistrettoSecretKey::from_hex(u_y) {
         Ok(n) => n,
         Err(_) => {
             result.error = format!("{u_y} is not a valid hex representation of a signature");
-            return JsValue::from_serde(&result).unwrap();
+            return serde_wasm_bindgen::to_value(&result).unwrap();
         },
     };
 
     let sig = RistrettoComAndPubSig::new(ephemeral_commitment, ephemeral_pubkey, u_a, u_x, u_y);
     let msg = Blake256::digest(msg.as_bytes());
     result.result = sig.verify_challenge(&commitment, &pubkey, msg.as_slice(), &factory, &mut OsRng);
-    JsValue::from_serde(&result).unwrap()
+    serde_wasm_bindgen::to_value(&result).unwrap()
 }
 
 /// Create a secret key modulo the Ristretto prime group order using the given little-endian byte array represented as a
@@ -636,7 +636,7 @@ pub fn check_comandpubsig_signature(
 #[wasm_bindgen]
 pub fn secret_key_from_hex_bytes(private_key_hex: &str) -> JsValue {
     match RistrettoSecretKey::from_hex(private_key_hex) {
-        Ok(sk) => JsValue::from_serde(&sk).unwrap_or_else(|_| JsValue::from_bool(false)),
+        Ok(sk) => serde_wasm_bindgen::to_value(&sk).unwrap_or_else(|_| JsValue::from_bool(false)),
         Err(_) => JsValue::from_bool(false),
     }
 }
@@ -656,7 +656,7 @@ pub fn add_secret_keys(private_key_a: &str, private_key_b: &str) -> JsValue {
     };
 
     let result_key = k_a + k_b;
-    JsValue::from_serde(&result_key).unwrap()
+    serde_wasm_bindgen::to_value(&result_key).unwrap()
 }
 
 /// A function that accepts two private keys and subtracts the second from the first. Will return false if
@@ -674,7 +674,7 @@ pub fn subtract_secret_keys(private_key_a: &str, private_key_b: &str) -> JsValue
     };
 
     let result_key = k_a - k_b;
-    JsValue::from_serde(&result_key).unwrap()
+    serde_wasm_bindgen::to_value(&result_key).unwrap()
 }
 
 /// A function that accepts two private keys and multiplies them together and returns the result. Will return false if
@@ -692,7 +692,7 @@ pub fn multiply_secret_keys(private_key_a: &str, private_key_b: &str) -> JsValue
     };
 
     let result_key = k_a * k_b;
-    JsValue::from_serde(&result_key).unwrap()
+    serde_wasm_bindgen::to_value(&result_key).unwrap()
 }
 
 #[cfg(test)]
@@ -777,7 +777,7 @@ mod test {
 
     #[wasm_bindgen_test]
     fn it_generates_a_keypair() {
-        let (k, p) = generate_keypair().into_serde::<(String, String)>().unwrap();
+        let (k, p): (String, String) = serde_wasm_bindgen::from_value(generate_keypair()).unwrap();
         let sk = RistrettoSecretKey::from_hex(&k).unwrap();
         let derived_pk = RistrettoPublicKey::from_secret_key(&sk);
         let pk = RistrettoPublicKey::from_hex(&p).unwrap();
@@ -821,7 +821,7 @@ mod test {
         use super::*;
 
         fn sign(private_key: &str, msg: &str) -> SignResult {
-            super::sign(private_key, msg).into_serde().unwrap()
+            serde_wasm_bindgen::from_value(super::sign(private_key, msg)).unwrap()
         }
 
         #[wasm_bindgen_test]
@@ -855,9 +855,7 @@ mod test {
         use super::*;
 
         fn sign_challenge_with_nonce(private_key: &str, private_nonce: &str, msg: &str) -> SignResult {
-            super::sign_challenge_with_nonce(private_key, private_nonce, msg)
-                .into_serde()
-                .unwrap()
+            serde_wasm_bindgen::from_value(super::sign_challenge_with_nonce(private_key, private_nonce, msg)).unwrap()
         }
 
         #[wasm_bindgen_test]
@@ -899,9 +897,7 @@ mod test {
         use super::*;
 
         fn check_signature(pub_nonce: &str, signature: &str, pub_key: &str, msg: &str) -> SignatureVerifyResult {
-            super::check_signature(pub_nonce, signature, pub_key, msg)
-                .into_serde()
-                .unwrap()
+            serde_wasm_bindgen::from_value(super::check_signature(pub_nonce, signature, pub_key, msg)).unwrap()
         }
 
         #[wasm_bindgen_test]
@@ -972,9 +968,7 @@ mod test {
         use super::*;
 
         fn sign_comsig(private_key_a: &str, private_key_x: &str, msg: &str) -> ComSignResult {
-            super::sign_comsig(private_key_a, private_key_x, msg)
-                .into_serde()
-                .unwrap()
+            serde_wasm_bindgen::from_value(super::sign_comsig(private_key_a, private_key_x, msg)).unwrap()
         }
 
         #[wasm_bindgen_test]
@@ -1033,14 +1027,13 @@ mod test {
             private_nonce_1: &str,
             private_nonce_2: &str,
         ) -> ComSignResult {
-            super::sign_comsig_challenge_with_nonce(
+            serde_wasm_bindgen::from_value(super::sign_comsig_challenge_with_nonce(
                 private_key_a,
                 private_key_x,
                 private_nonce_1,
                 private_nonce_2,
                 &hex::to_hex(&hash(SAMPLE_CHALLENGE)),
-            )
-            .into_serde()
+            ))
             .unwrap()
         }
 
@@ -1085,9 +1078,7 @@ mod test {
             commitment: &str,
             msg: &str,
         ) -> SignatureVerifyResult {
-            super::check_comsig_signature(nonce_commit, u, v, commitment, msg)
-                .into_serde()
-                .unwrap()
+            serde_wasm_bindgen::from_value(super::check_comsig_signature(nonce_commit, u, v, commitment, msg)).unwrap()
         }
 
         #[wasm_bindgen_test]
@@ -1169,9 +1160,13 @@ mod test {
             private_key_y: &str,
             msg: &str,
         ) -> ComAndPubSignResult {
-            super::sign_comandpubsig(private_key_a, private_key_x, private_key_y, msg)
-                .into_serde()
-                .unwrap()
+            serde_wasm_bindgen::from_value(super::sign_comandpubsig(
+                private_key_a,
+                private_key_x,
+                private_key_y,
+                msg,
+            ))
+            .unwrap()
         }
 
         #[wasm_bindgen_test]
@@ -1247,7 +1242,7 @@ mod test {
             private_nonce_x: &str,
             private_nonce_y: &str,
         ) -> ComAndPubSignResult {
-            super::sign_comandpubsig_challenge_with_nonce(
+            serde_wasm_bindgen::from_value(super::sign_comandpubsig_challenge_with_nonce(
                 private_key_a,
                 private_key_x,
                 private_key_y,
@@ -1255,8 +1250,7 @@ mod test {
                 private_nonce_x,
                 private_nonce_y,
                 &hex::to_hex(&hash(SAMPLE_CHALLENGE)),
-            )
-            .into_serde()
+            ))
             .unwrap()
         }
 
@@ -1326,7 +1320,7 @@ mod test {
             pubkey: &str,
             msg: &str,
         ) -> SignatureVerifyResult {
-            super::check_comandpubsig_signature(
+            serde_wasm_bindgen::from_value(super::check_comandpubsig_signature(
                 ephemeral_commitment,
                 ephemeral_pubkey,
                 u_a,
@@ -1335,8 +1329,7 @@ mod test {
                 commitment,
                 pubkey,
                 msg,
-            )
-            .into_serde()
+            ))
             .unwrap()
         }
 
@@ -1512,9 +1505,8 @@ mod test {
         #[wasm_bindgen_test]
         fn success_case() {
             fn it_succeeds(private_key_hex: &str, expected_sk: &RistrettoSecretKey) {
-                let sk = secret_key_from_hex_bytes(private_key_hex)
-                    .into_serde::<RistrettoSecretKey>()
-                    .unwrap();
+                let sk: RistrettoSecretKey =
+                    serde_wasm_bindgen::from_value(secret_key_from_hex_bytes(private_key_hex)).unwrap();
                 assert_eq!(sk, *expected_sk);
             }
 
@@ -1531,7 +1523,7 @@ mod test {
             assert!(!(subject)(k_a, k_b).as_bool().unwrap());
         }
         fn it_succeeds<F: Fn(&str, &str) -> JsValue>(subject: F, k_a: &str, k_b: &str) -> RistrettoSecretKey {
-            (subject)(k_a, k_b).into_serde::<RistrettoSecretKey>().unwrap()
+            serde_wasm_bindgen::from_value((subject)(k_a, k_b)).unwrap()
         }
 
         #[wasm_bindgen_test]

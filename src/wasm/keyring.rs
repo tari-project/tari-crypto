@@ -82,11 +82,11 @@ impl KeyRing {
         let k = self.keys.get(id);
         if k.is_none() {
             result.error = format!("Private key for '{id}' does not exist");
-            return JsValue::from_serde(&result).unwrap();
+            return serde_wasm_bindgen::to_value(&result).unwrap();
         }
         let k = k.unwrap();
         sign_message_with_key(&k.0, msg, None, &mut result);
-        JsValue::from_serde(&result).unwrap()
+        serde_wasm_bindgen::to_value(&result).unwrap()
     }
 
     /// Sign a message using a private key and a specific nonce
@@ -104,17 +104,17 @@ impl KeyRing {
         let k = self.keys.get(id);
         if k.is_none() {
             result.error = format!("Private key for '{id}' does not exist");
-            return JsValue::from_serde(&result).unwrap();
+            return serde_wasm_bindgen::to_value(&result).unwrap();
         }
         let k = k.unwrap();
         let nonce = self.keys.get(nonce_id);
         if nonce.is_none() {
             result.error = format!("Private nonce for `{nonce_id}` does not exist");
-            return JsValue::from_serde(&result).unwrap();
+            return serde_wasm_bindgen::to_value(&result).unwrap();
         }
         let nonce = nonce.unwrap();
         sign_message_with_key(&k.0, msg, Some(&nonce.0), &mut result);
-        JsValue::from_serde(&result).unwrap()
+        serde_wasm_bindgen::to_value(&result).unwrap()
     }
 
     /// Commits a value and private key for the given id using a Pedersen commitment.
@@ -124,12 +124,12 @@ impl KeyRing {
             Some(k) => &k.0,
             None => {
                 result.error = format!("Private key for '{id}' does not exist");
-                return JsValue::from_serde(&result).unwrap();
+                return serde_wasm_bindgen::to_value(&result).unwrap();
             },
         };
         let commitment = self.factory.commit_value(k, value);
         result.commitment = Some(commitment.to_hex());
-        JsValue::from_serde(&result).unwrap()
+        serde_wasm_bindgen::to_value(&result).unwrap()
     }
 
     /// Checks whether the key for the given id and value opens the commitment
@@ -220,7 +220,7 @@ mod test {
         use super::*;
 
         fn sign(kr: &KeyRing, id: &str) -> Result<RistrettoSchnorr, String> {
-            let result = kr.sign(id, SAMPLE_CHALLENGE).into_serde::<SignResult>().unwrap();
+            let result: SignResult = serde_wasm_bindgen::from_value(kr.sign(id, SAMPLE_CHALLENGE)).unwrap();
             if !result.error.is_empty() {
                 return Err(result.error);
             }
@@ -281,7 +281,7 @@ mod test {
         use super::*;
 
         fn commit(kr: &KeyRing, id: &str, value: u64) -> Result<PedersenCommitment, String> {
-            let result = kr.commit(id, value).into_serde::<CommitmentResult>().unwrap();
+            let result: CommitmentResult = serde_wasm_bindgen::from_value(kr.commit(id, value)).unwrap();
             if !result.error.is_empty() {
                 return Err(result.error);
             }
