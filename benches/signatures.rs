@@ -30,7 +30,6 @@ fn native_keypair(c: &mut Criterion) {
 struct SigningData {
     k: RistrettoSecretKey,
     p: RistrettoPublicKey,
-    r: RistrettoSecretKey,
     m: RistrettoSecretKey,
 }
 
@@ -39,9 +38,8 @@ fn gen_keypair() -> SigningData {
     let mut msg = [0u8; 32];
     rng.fill_bytes(&mut msg);
     let (k, p) = RistrettoPublicKey::random_keypair(&mut rng);
-    let r = RistrettoSecretKey::random(&mut rng);
     let m = RistrettoSecretKey::from_bytes(&msg).unwrap();
-    SigningData { k, p, r, m }
+    SigningData { k, p, m }
 }
 
 fn sign_message(c: &mut Criterion) {
@@ -49,7 +47,7 @@ fn sign_message(c: &mut Criterion) {
         b.iter_batched(
             gen_keypair,
             |d| {
-                let _sig = RistrettoSchnorr::sign(d.k, d.r, &d.m.to_vec()).unwrap();
+                let _sig = RistrettoSchnorr::sign_message(d.k, d.m.to_vec()).unwrap();
             },
             BatchSize::SmallInput,
         );
@@ -63,10 +61,10 @@ fn verify_message(c: &mut Criterion) {
         b.iter_batched(
             || {
                 let d = gen_keypair();
-                let s = RistrettoSchnorr::sign(d.k.clone(), d.r.clone(), &d.m.to_vec()).unwrap();
+                let s = RistrettoSchnorr::sign_message(d.k.clone(), d.m.to_vec()).unwrap();
                 (d, s)
             },
-            |(d, s)| assert!(s.verify(&d.p, &d.m)),
+            |(d, s)| assert!(s.verify_message(&d.p, d.m.as_bytes())),
             BatchSize::SmallInput,
         );
     });

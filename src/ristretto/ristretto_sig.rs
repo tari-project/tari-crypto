@@ -192,7 +192,7 @@ mod test {
         assert_ne!(hash.as_ref(), naiive.as_bytes());
         assert_eq!(
             to_hex(hash.as_ref()),
-            "e64d66b31e2b1c81272f5574f41ab2c997114436c2d3706dca1cf947bed60198"
+            "d8f6b29b641113c91175b8d44f265ff1167d58d5aa5ee03e6f1f521505b09d80"
         );
     }
 

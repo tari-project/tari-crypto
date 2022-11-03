@@ -148,11 +148,10 @@ impl KeyRing {
 
 #[cfg(test)]
 mod test {
-    use blake2::{digest::Output, Digest};
     use wasm_bindgen_test::*;
 
     use super::*;
-    use crate::{hash::blake2::Blake256, keys::SecretKey, ristretto::RistrettoSchnorr};
+    use crate::{keys::SecretKey, ristretto::RistrettoSchnorr};
 
     const SAMPLE_CHALLENGE: &str = "გამარჯობა";
 
@@ -161,10 +160,6 @@ mod test {
         kr.new_key("a".into());
         kr.new_key("b".into());
         kr
-    }
-
-    fn hash<T: AsRef<[u8]>>(preimage: T) -> Output<Blake256> {
-        Blake256::digest(preimage.as_ref())
     }
 
     fn create_commitment(k: &RistrettoSecretKey, v: u64) -> PedersenCommitment {
@@ -240,7 +235,7 @@ mod test {
             let kr = new_keyring();
             let sig = sign(&kr, "a").unwrap();
             let pk = kr.expect_public_key("a");
-            assert!(sig.verify_challenge(pk, &hash(SAMPLE_CHALLENGE)));
+            assert!(sig.verify_message(pk, SAMPLE_CHALLENGE));
         }
     }
 

@@ -23,6 +23,7 @@ use crate::{
         RistrettoSchnorr,
         RistrettoSecretKey,
     },
+    signatures::SchnorrSignature,
 };
 
 pub const KEY_LENGTH: usize = 32;
@@ -70,13 +71,15 @@ pub unsafe extern "C" fn sign(
         Ok(k) => k,
         _ => return INVALID_SECRET_KEY_SER,
     };
+    let pubkey = RistrettoPublicKey::from_secret_key(&k);
     let r = RistrettoSecretKey::random(&mut OsRng);
+    let pub_r = RistrettoPublicKey::from_secret_key(&r);
     let msg = match CStr::from_ptr(msg).to_str() {
         Ok(s) => s,
         _ => return STR_CONV_ERR,
     };
-    let challenge = Blake256::digest(msg.as_bytes());
-    let sig = match RistrettoSchnorr::sign(k, r, &challenge) {
+    let e = SchnorrSignature::construct_domain_separated_challenge::<_, Blake256>(&pub_r, &pubkey, msg.as_bytes());
+    let sig = match RistrettoSchnorr::sign_raw(k, r, e.as_ref()) {
         Ok(sig) => sig,
         _ => return SIGNING_ERROR,
     };
@@ -123,13 +126,9 @@ pub unsafe extern "C" fn verify(
         Ok(s) => s,
         _ => return false,
     };
+
     let sig = RistrettoSchnorr::new(r_pub, sig);
-    let challenge = Blake256::digest(msg.as_bytes());
-    let challenge = match RistrettoSecretKey::from_bytes(challenge.as_slice()) {
-        Ok(e) => e,
-        _ => return false,
-    };
-    sig.verify(&pk, &challenge)
+    sig.verify_message(&pk, msg.as_bytes())
 }
 
 /// Generate a Pedersen commitment (C) using the provided value and spending key (a, x).

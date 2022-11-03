@@ -23,7 +23,7 @@ use crate::{
 };
 
 // Define the hashing domain for Schnorr signatures
-hash_domain!(SchnorrSigChallenge, "SchnorrSignature", 1);
+hash_domain!(SchnorrSigChallenge, "com.tari.schnorr_signature", 1);
 
 /// An error occurred during construction of a SchnorrSignature
 #[derive(Clone, Debug, Error, PartialEq, Eq, Deserialize, Serialize)]
@@ -264,5 +264,19 @@ where
 {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{hashing::DomainSeparation, signatures::SchnorrSigChallenge};
+
+    #[test]
+    fn schnorr_hash_domain() {
+        assert_eq!(SchnorrSigChallenge::domain(), "com.tari.schnorr_signature");
+        assert_eq!(
+            SchnorrSigChallenge::domain_separation_tag("test"),
+            "com.tari.schnorr_signature.v1.test"
+        );
     }
 }

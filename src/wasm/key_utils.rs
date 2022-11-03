@@ -23,6 +23,7 @@ use crate::{
         RistrettoSchnorr,
         RistrettoSecretKey,
     },
+    signatures::SchnorrSignature,
 };
 
 /// Result of calling [check_signature] and [check_comsig_signature] and [check_comandpubsig_signature]
@@ -138,6 +139,7 @@ pub fn sign_challenge_with_nonce(private_key: &str, private_nonce: &str, challen
             return serde_wasm_bindgen::to_value(&result).unwrap();
         },
     };
+    let pub_r = RistrettoPublicKey::from_secret_key(&r);
 
     let e = match from_hex(challenge_as_hex) {
         Ok(e) => e,
@@ -146,7 +148,16 @@ pub fn sign_challenge_with_nonce(private_key: &str, private_nonce: &str, challen
             return serde_wasm_bindgen::to_value(&result).unwrap();
         },
     };
-    sign_with_key(&k, &e, Some(&r), &mut result);
+
+    let sig = match RistrettoSchnorr::sign_raw(k, r, &e) {
+        Ok(s) => s,
+        Err(e) => {
+            result.error = format!("Could not create signature. {e}");
+            return JsValue::from_serde(&result).unwrap();
+        },
+    };
+    result.public_nonce = Some(pub_r.to_hex());
+    result.signature = Some(sig.get_signature().to_hex());
     serde_wasm_bindgen::to_value(&result).unwrap()
 }
 
@@ -156,18 +167,23 @@ pub(super) fn sign_message_with_key(
     r: Option<&RistrettoSecretKey>,
     result: &mut SignResult,
 ) {
-    let e = Blake256::digest(msg.as_bytes());
-    sign_with_key(k, e.as_slice(), r, result)
+    sign_with_key(k, msg.as_bytes(), r, result)
 }
 
 #[allow(non_snake_case)]
-pub(super) fn sign_with_key(k: &RistrettoSecretKey, e: &[u8], r: Option<&RistrettoSecretKey>, result: &mut SignResult) {
+pub(super) fn sign_with_key(
+    k: &RistrettoSecretKey,
+    msg: &[u8],
+    r: Option<&RistrettoSecretKey>,
+    result: &mut SignResult,
+) {
     let (r, R) = match r {
         Some(r) => (r.clone(), RistrettoPublicKey::from_secret_key(r)),
         None => RistrettoPublicKey::random_keypair(&mut OsRng),
     };
-
-    let sig = match RistrettoSchnorr::sign(k.clone(), r, e) {
+    let P = RistrettoPublicKey::from_secret_key(k);
+    let e = SchnorrSignature::construct_domain_separated_challenge::<_, Blake256>(&R, &P, msg);
+    let sig = match RistrettoSchnorr::sign_raw(k.clone(), r, e.as_ref()) {
         Ok(s) => s,
         Err(e) => {
             result.error = format!("Could not create signature. {e}");
@@ -209,8 +225,7 @@ pub fn check_signature(pub_nonce: &str, signature: &str, pub_key: &str, msg: &st
     };
 
     let sig = RistrettoSchnorr::new(R, s);
-    let msg = Blake256::digest(msg.as_bytes());
-    result.result = sig.verify_challenge(&P, msg.as_slice());
+    result.result = sig.verify_message(&P, msg.as_bytes());
     serde_wasm_bindgen::to_value(&result).unwrap()
 }
 
@@ -724,9 +739,7 @@ mod test {
 
     fn create_signature(msg: &str) -> (RistrettoSchnorr, RistrettoPublicKey, RistrettoSecretKey) {
         let (sk, pk) = random_keypair();
-        let (nonce, _) = random_keypair();
-        let sig = SchnorrSignature::sign(sk.clone(), nonce, &hash(msg)).unwrap();
-
+        let sig = SchnorrSignature::sign_message(sk.clone(), msg.as_bytes()).unwrap();
         (sig, pk, sk)
     }
 
@@ -837,7 +850,7 @@ mod test {
             assert!(result.error.is_empty());
             let p_nonce = RistrettoPublicKey::from_hex(&result.public_nonce.unwrap()).unwrap();
             let s = RistrettoSecretKey::from_hex(&result.signature.unwrap()).unwrap();
-            assert!(SchnorrSignature::new(p_nonce, s).verify_challenge(&pk, &hash(SAMPLE_CHALLENGE)));
+            assert!(SchnorrSignature::new(p_nonce, s).verify_message(&pk, SAMPLE_CHALLENGE));
         }
 
         #[wasm_bindgen_test]
