@@ -54,7 +54,7 @@ use crate::{
 /// #[allow(non_snake_case)]
 /// let (k, P) = get_keypair();
 /// let msg = "Small Gods";
-/// let sig = RistrettoSchnorr::sign_message(k, &msg);
+/// let sig = RistrettoSchnorr::sign_message(&k, &msg);
 /// ```
 ///
 /// # Verifying signatures
@@ -79,7 +79,7 @@ use crate::{
 /// # #[allow(non_snake_case)]
 /// let P = RistrettoPublicKey::from_secret_key(&k);
 /// let sig: SchnorrSignature<RistrettoPublicKey, RistrettoSecretKey> =
-///     SchnorrSignature::sign_message(k, msg).unwrap();
+///     SchnorrSignature::sign_message(&k, msg).unwrap();
 /// assert!(sig.verify_message(&P, msg));
 /// ```
 pub type RistrettoSchnorr = SchnorrSignature<RistrettoPublicKey, RistrettoSecretKey>;
@@ -121,7 +121,7 @@ mod test {
             .finalize();
         let e_key = RistrettoSecretKey::from_bytes(&e).unwrap();
         let s = &r + &e_key * &k;
-        let sig = RistrettoSchnorr::sign_raw(k, r, &e).unwrap();
+        let sig = RistrettoSchnorr::sign_raw(&k, r, &e).unwrap();
         let R_calc = sig.get_public_nonce();
         assert_eq!(R, *R_calc);
         assert_eq!(sig.get_signature(), &s);
@@ -153,9 +153,9 @@ mod test {
             .chain(b"Moving Pictures")
             .finalize();
         // Calculate Alice's signature
-        let s1 = RistrettoSchnorr::sign_raw(k1, r1, &e).unwrap();
+        let s1 = RistrettoSchnorr::sign_raw(&k1, r1, &e).unwrap();
         // Calculate Bob's signature
-        let s2 = RistrettoSchnorr::sign_raw(k2, r2, &e).unwrap();
+        let s2 = RistrettoSchnorr::sign_raw(&k2, r2, &e).unwrap();
         // Now add the two signatures together
         let s_agg = &s1 + &s2;
         // Check that the multi-sig verifies
@@ -171,7 +171,7 @@ mod test {
         let m = from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap();
         let k = RistrettoSecretKey::random(&mut rng);
         let r = RistrettoSecretKey::random(&mut rng);
-        assert!(RistrettoSchnorr::sign_raw(k, r, &m).is_ok());
+        assert!(RistrettoSchnorr::sign_raw(&k, r, &m).is_ok());
     }
 
     #[test]
@@ -201,7 +201,7 @@ mod test {
     fn sign_and_verify_message() {
         let mut rng = rand::thread_rng();
         let (k, P) = RistrettoPublicKey::random_keypair(&mut rng);
-        let sig = RistrettoSchnorr::sign_message(k, "Queues are things that happen to other people").unwrap();
+        let sig = RistrettoSchnorr::sign_message(&k, "Queues are things that happen to other people").unwrap();
         assert!(sig.verify_message(&P, "Queues are things that happen to other people"));
         assert!(!sig.verify_message(&P, "Qs are things that happen to other people"));
         assert!(!sig.verify_message(&(&P + &P), "Queues are things that happen to other people"));

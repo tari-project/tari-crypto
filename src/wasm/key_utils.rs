@@ -149,7 +149,7 @@ pub fn sign_challenge_with_nonce(private_key: &str, private_nonce: &str, challen
         },
     };
 
-    let sig = match RistrettoSchnorr::sign_raw(k, r, &e) {
+    let sig = match RistrettoSchnorr::sign_raw(&k, r, &e) {
         Ok(s) => s,
         Err(e) => {
             result.error = format!("Could not create signature. {e}");
@@ -183,7 +183,7 @@ pub(super) fn sign_with_key(
     };
     let P = RistrettoPublicKey::from_secret_key(k);
     let e = SchnorrSignature::construct_domain_separated_challenge::<_, Blake256>(&R, &P, msg);
-    let sig = match RistrettoSchnorr::sign_raw(k.clone(), r, e.as_ref()) {
+    let sig = match RistrettoSchnorr::sign_raw(&k, r, e.as_ref()) {
         Ok(s) => s,
         Err(e) => {
             result.error = format!("Could not create signature. {e}");
@@ -739,7 +739,7 @@ mod test {
 
     fn create_signature(msg: &str) -> (RistrettoSchnorr, RistrettoPublicKey, RistrettoSecretKey) {
         let (sk, pk) = random_keypair();
-        let sig = SchnorrSignature::sign_message(sk.clone(), msg.as_bytes()).unwrap();
+        let sig = SchnorrSignature::sign_message(&sk, msg.as_bytes()).unwrap();
         (sig, pk, sk)
     }
 

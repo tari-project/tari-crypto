@@ -79,7 +79,7 @@ pub unsafe extern "C" fn sign(
         _ => return STR_CONV_ERR,
     };
     let e = SchnorrSignature::construct_domain_separated_challenge::<_, Blake256>(&pub_r, &pubkey, msg.as_bytes());
-    let sig = match RistrettoSchnorr::sign_raw(k, r, e.as_ref()) {
+    let sig = match RistrettoSchnorr::sign_raw(&k, r, e.as_ref()) {
         Ok(sig) => sig,
         _ => return SIGNING_ERROR,
     };

@@ -79,8 +79,11 @@ where
                 instead, depending on your use case. This function will be removed in v1.0.0"
     )]
     pub fn sign(secret: K, nonce: K, challenge: &[u8]) -> Result<Self, SchnorrSignatureError>
-    where K: Add<Output = K> + Mul<P, Output = P> + Mul<Output = K> {
-        Self::sign_raw(secret, nonce, challenge)
+    where
+        K: Add<Output = K>,
+        for<'a> K: Mul<&'a K, Output = K>,
+    {
+        Self::sign_raw(&secret, nonce, challenge)
     }
 
     /// Sign a challenge with the given `secret` and private `nonce`. Returns an SchnorrSignatureError if `<K as
@@ -90,8 +93,8 @@ where
     /// been constructed such that all commitments are already included in the challenge.
     ///
     /// If you want a simple API that binds the nonce and public key to the message, use [`sign_message`] instead.
-    pub fn sign_raw(secret: K, nonce: K, challenge: &[u8]) -> Result<Self, SchnorrSignatureError>
-    where K: Add<Output = K> + Mul<P, Output = P> + Mul<Output = K> {
+    pub fn sign_raw<'a>(secret: &'a K, nonce: K, challenge: &[u8]) -> Result<Self, SchnorrSignatureError>
+    where K: Add<Output = K> + Mul<&'a K, Output = K> {
         // s = r + e.k
         let e = match K::from_bytes(challenge) {
             Ok(e) => e,
@@ -110,9 +113,9 @@ where
     ///
     /// it is possible to customise the challenge by using [`construct_domain_separated_challenge`] and [`sign_raw`]
     /// yourself, or even use [`sign_raw`] using a completely custom challenge.
-    pub fn sign_message<B>(secret: K, message: B) -> Result<Self, SchnorrSignatureError>
+    pub fn sign_message<'a, B>(secret: &'a K, message: B) -> Result<Self, SchnorrSignatureError>
     where
-        K: Add<Output = K> + Mul<P, Output = P> + Mul<Output = K>,
+        K: Add<Output = K> + Mul<&'a K, Output = K>,
         B: AsRef<[u8]>,
     {
         let nonce = K::random(&mut rand::thread_rng());
