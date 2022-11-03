@@ -45,7 +45,7 @@ pub fn sign<D: Digest>(
         .finalize()
         .to_vec();
     let e = RistrettoSecretKey::from_bytes(&message).map_err(|_| SchnorrSignatureError::InvalidChallenge)?;
-    let s = RistrettoSchnorr::sign_raw(&private_key, nonce.clone(), e.as_bytes())?;
+    let s = RistrettoSchnorr::sign_raw(private_key, nonce.clone(), e.as_bytes())?;
     Ok(SignatureSet {
         nonce,
         public_nonce,

@@ -78,6 +78,7 @@ where
         note = "This method probably doesn't do what you think it does. Please use `sign_message` or `sign_raw` \
                 instead, depending on your use case. This function will be removed in v1.0.0"
     )]
+    #[allow(clippy::needless_pass_by_value)]
     pub fn sign(secret: K, nonce: K, challenge: &[u8]) -> Result<Self, SchnorrSignatureError>
     where
         K: Add<Output = K>,
@@ -120,7 +121,7 @@ where
     {
         let nonce = K::random(&mut rand::thread_rng());
         let public_nonce = P::from_secret_key(&nonce);
-        let public_key = P::from_secret_key(&secret);
+        let public_key = P::from_secret_key(secret);
         let challenge = Self::construct_domain_separated_challenge::<_, Blake256>(&public_nonce, &public_key, message);
         Self::sign_raw(secret, nonce, challenge.as_ref())
     }

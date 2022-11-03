@@ -183,7 +183,7 @@ pub(super) fn sign_with_key(
     };
     let P = RistrettoPublicKey::from_secret_key(k);
     let e = SchnorrSignature::construct_domain_separated_challenge::<_, Blake256>(&R, &P, msg);
-    let sig = match RistrettoSchnorr::sign_raw(&k, r, e.as_ref()) {
+    let sig = match RistrettoSchnorr::sign_raw(k, r, e.as_ref()) {
         Ok(s) => s,
         Err(e) => {
             result.error = format!("Could not create signature. {e}");
