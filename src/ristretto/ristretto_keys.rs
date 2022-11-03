@@ -676,7 +676,7 @@ mod test {
         ];
         // Test that all of the bad encodings are rejected
         for bad_encoding in &bad_encodings {
-            RistrettoPublicKey::from_hex(bad_encoding).expect_err(&format!("Encoding {} should fail", bad_encoding));
+            RistrettoPublicKey::from_hex(bad_encoding).expect_err(&format!("Encoding {bad_encoding} should fail"));
         }
     }
 
@@ -761,7 +761,7 @@ mod test {
         let (k, pk) = RistrettoPublicKey::random_keypair(&mut rng);
         let ser_k = k.to_json().unwrap();
         let ser_pk = pk.to_json().unwrap();
-        println!("JSON pubkey: {} privkey: {}", ser_pk, ser_k);
+        println!("JSON pubkey: {ser_pk} privkey: {ser_k}");
         let k2: RistrettoSecretKey = RistrettoSecretKey::from_json(&ser_k).unwrap();
         assert_eq!(k, k2, "Deserialised secret key");
         let pk2: RistrettoPublicKey = RistrettoPublicKey::from_json(&ser_pk).unwrap();
@@ -784,8 +784,8 @@ mod test {
     fn display_and_debug() {
         let hex = "e2f2ae0a6abc4e71a884a961c500515f58e30b6aa582dd8db6a65945e08d2d76";
         let pk = RistrettoPublicKey::from_hex(hex).unwrap();
-        assert_eq!(format!("{}", pk), hex);
-        assert_eq!(format!("{:?}", pk), hex);
+        assert_eq!(format!("{pk}"), hex);
+        assert_eq!(format!("{pk:?}"), hex);
     }
 
     #[test]
@@ -825,7 +825,7 @@ mod test {
     fn visibility_test() {
         let key =
             RistrettoSecretKey::from_hex("b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c").unwrap();
-        let invisible = format!("{:?}", key);
+        let invisible = format!("{key:?}");
         assert!(!invisible.contains("016c"));
         let visible = format!("{:?}", key.reveal());
         assert!(visible.contains("016c"));

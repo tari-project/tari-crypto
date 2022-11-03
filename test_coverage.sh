@@ -10,12 +10,13 @@
 # 5. genhtml
 # $ sudo apt install lcov
 
-RUSTFLAGS="-Zinstrument-coverage"
-RUSTUP_TOOLCHAIN=nightly
+RUSTFLAGS="-C instrument-coverage"
+RUSTUP_TOOLCHAIN=${RUSTUP_TOOLCHAIN:-nightly}
+echo "Using ${RUSTUP_TOOLCHAIN} toolchain"
 LLVM_PROFILE_FILE="./cov_raw/tari_crypto-%m.profraw"
 
 get_binaries() {
-  files=$( RUSTFLAGS=$RUSTFLAGS cargo test --tests --no-run --message-format=json \
+  files=$( RUSTFLAGS=$RUSTFLAGS cargo +${RUSTUP_TOOLCHAIN} test --tests --no-run --message-format=json \
               | jq -r "select(.profile.test == true) | .filenames[]" \
               | grep -v dSYM - \
         );
@@ -24,10 +25,12 @@ get_binaries() {
 
 get_binaries
 
+echo "** Generating ..."
+echo ${files}
 # Remove old coverage files
-rm cov_raw/*profraw cov_raw/tari_crypto.profdata cov_raw/tari_crypto.lcov cov_raw/tari_crypto.txt
+rm -fr cov_raw coverage_report default*.profraw
 
-RUSTFLAGS=$RUSTFLAGS LLVM_PROFILE_FILE=$LLVM_PROFILE_FILE cargo test --tests
+RUSTFLAGS=$RUSTFLAGS LLVM_PROFILE_FILE=${LLVM_PROFILE_FILE} cargo +${RUSTUP_TOOLCHAIN} test --tests
 
 cargo profdata -- \
   merge -sparse ./cov_raw/tari_crypto-*.profraw -o ./cov_raw/tari_crypto.profdata

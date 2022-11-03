@@ -26,27 +26,26 @@ pub enum CommitmentAndPublicKeySignatureError {
 }
 
 /// # Commitment and public key (CAPK) signatures
-/// 
+///
 /// Given a commitment `commitment = a*H + x*G` and group element `pubkey = y*G`, a CAPK signature is based on
 /// a representation proof of both openings: `(a, x)` and `y`. It additionally binds to arbitrary message data `m`
 /// via the challenge to produce a signature construction.
-/// 
+///
 /// It is used in Tari protocols as part of transaction authorization.
-/// 
+///
 /// The construction works as follows:
 /// - Sample scalar nonces `r_a, r_x, r_y` uniformly at random.
 /// - Compute ephemeral values `ephemeral_commitment = r_a*H + r_x*G` and `ephemeral_pubkey = r_y*G`.
 /// - Use strong Fiat-Shamir to produce a challenge `e`. If `e == 0` (this is unlikely), abort and start over.
 /// - Compute the responses `u_a = r_a + e*a` and `u_x = r_x + e*x` and `u_y = r_y + e*y`.
-/// 
+///
 /// The signature is the tuple `(ephemeral_commitment, ephemeral_pubkey, u_a, u_x, u_y)`.
-/// 
+///
 /// To verify:
 /// - The verifier computes the challenge `e` and rejects the signature if `e == 0` (this is unlikely).
-/// - Verification succeeds if and only if the following equations hold:
-///     `u_a*H + u*x*G == ephemeral_commitment + e*commitment`
-///     `u_y*G == ephemeral_pubkey + e*pubkey`
-/// 
+/// - Verification succeeds if and only if the following equations hold: `u_a*H + u*x*G == ephemeral_commitment +
+///   e*commitment` `u_y*G == ephemeral_pubkey + e*pubkey`
+///
 /// We note that it is possible to make verification slightly more efficient. To do so, the verifier selects a nonzero
 /// scalar weight `w` uniformly at random (not through Fiat-Shamir!) and accepts the signature if and only if the
 /// following equation holds:
@@ -69,7 +68,13 @@ where
 {
     /// Creates a new [CommitmentSignature]
     pub fn new(ephemeral_commitment: HomomorphicCommitment<P>, ephemeral_pubkey: P, u_a: K, u_x: K, u_y: K) -> Self {
-        CommitmentAndPublicKeySignature { ephemeral_commitment, ephemeral_pubkey, u_a, u_x, u_y }
+        CommitmentAndPublicKeySignature {
+            ephemeral_commitment,
+            ephemeral_pubkey,
+            u_a,
+            u_x,
+            u_y,
+        }
     }
 
     /// Complete a signature using the given challenge. The challenge is provided by the caller to support the
@@ -147,7 +152,14 @@ where
     }
 
     /// Verify a signature on a commitment and group element statement using a given challenge (as a scalar)
-    pub fn verify<'a, C, R>(&self, commitment: &'a HomomorphicCommitment<P>, pubkey: &'a P, challenge: &K, factory: &C, rng: &mut R) -> bool
+    pub fn verify<'a, C, R>(
+        &self,
+        commitment: &'a HomomorphicCommitment<P>,
+        pubkey: &'a P,
+        challenge: &K,
+        factory: &C,
+        rng: &mut R,
+    ) -> bool
     where
         for<'b> &'a HomomorphicCommitment<P>: Mul<&'b K, Output = HomomorphicCommitment<P>>,
         for<'b> &'b P: Mul<&'b K, Output = P>,
@@ -160,7 +172,7 @@ where
     {
         // The challenge cannot be zero
         if *challenge == K::default() {
-            return false
+            return false;
         }
 
         // Use a single weighted equation for verification to avoid unnecessary group operations
@@ -169,8 +181,12 @@ where
         let w = K::random(rng); // must be random and not Fiat-Shamir!
 
         // u_a*H + (u_x + w*u_y)*G == ephemeral_commitment + w*ephemeral_pubkey + e*commitment + (w*e)*pubkey
-        let verifier_lhs = factory.commit(&(&self.u_x + &(&w * &self.u_y)), &self.u_a).as_public_key().to_owned();
-        let verifier_rhs_unweighted = self.ephemeral_commitment.as_public_key() + (commitment * challenge).as_public_key();
+        let verifier_lhs = factory
+            .commit(&(&self.u_x + &(&w * &self.u_y)), &self.u_a)
+            .as_public_key()
+            .to_owned();
+        let verifier_rhs_unweighted =
+            self.ephemeral_commitment.as_public_key() + (commitment * challenge).as_public_key();
         let verifier_rhs_weighted = &self.ephemeral_pubkey * &w + pubkey * &(&w * challenge);
 
         verifier_lhs == verifier_rhs_unweighted + verifier_rhs_weighted
@@ -178,7 +194,13 @@ where
 
     /// Get the signature tuple `(ephemeral_commitment, ephemeral_pubkey, u_a, u_x, u_y)`
     pub fn complete_signature_tuple(&self) -> (&HomomorphicCommitment<P>, &P, &K, &K, &K) {
-        (&self.ephemeral_commitment, &self.ephemeral_pubkey, &self.u_a, &self.u_x, &self.u_y)
+        (
+            &self.ephemeral_commitment,
+            &self.ephemeral_pubkey,
+            &self.u_a,
+            &self.u_x,
+            &self.u_y,
+        )
     }
 
     /// Get the response value `u_a`
@@ -205,10 +227,10 @@ where
     pub fn ephemeral_pubkey(&self) -> &P {
         &self.ephemeral_pubkey
     }
-    
+
     /// Produce a canonical byte representation of the commitment signature
     pub fn to_vec(&self) -> Vec<u8> {
-        let mut buf = Vec::with_capacity(2*P::key_length() + 3*K::key_length());
+        let mut buf = Vec::with_capacity(2 * P::key_length() + 3 * K::key_length());
         buf.extend_from_slice(self.ephemeral_commitment().as_bytes());
         buf.extend_from_slice(self.ephemeral_pubkey().as_bytes());
         buf.extend_from_slice(self.u_a().as_bytes());
@@ -235,7 +257,13 @@ where
         let u_x_sum = self.u_x() + rhs.u_x();
         let u_y_sum = self.u_y() + rhs.u_y();
 
-        CommitmentAndPublicKeySignature::new(ephemeral_commitment_sum, ephemeral_pubkey_sum_sum, u_a_sum, u_x_sum, u_y_sum)
+        CommitmentAndPublicKeySignature::new(
+            ephemeral_commitment_sum,
+            ephemeral_pubkey_sum_sum,
+            u_a_sum,
+            u_x_sum,
+            u_y_sum,
+        )
     }
 }
 
@@ -256,7 +284,13 @@ where
         let u_x_sum = self.u_x() + rhs.u_x();
         let u_y_sum = self.u_y() + rhs.u_y();
 
-        CommitmentAndPublicKeySignature::new(ephemeral_commitment_sum, ephemeral_pubkey_sum_sum, u_a_sum, u_x_sum, u_y_sum)
+        CommitmentAndPublicKeySignature::new(
+            ephemeral_commitment_sum,
+            ephemeral_pubkey_sum_sum,
+            u_a_sum,
+            u_x_sum,
+            u_y_sum,
+        )
     }
 }
 
@@ -266,7 +300,13 @@ where
     K: SecretKey,
 {
     fn default() -> Self {
-        CommitmentAndPublicKeySignature::new(HomomorphicCommitment::<P>::default(), P::default(), K::default(), K::default(), K::default())
+        CommitmentAndPublicKeySignature::new(
+            HomomorphicCommitment::<P>::default(),
+            P::default(),
+            K::default(),
+            K::default(),
+            K::default(),
+        )
     }
 }
 
@@ -319,10 +359,10 @@ where
 {
     fn eq(&self, other: &Self) -> bool {
         self.ephemeral_commitment().eq(other.ephemeral_commitment()) &&
-        self.ephemeral_pubkey().eq(other.ephemeral_pubkey()) &&
-        self.u_a().eq(other.u_a()) &&
-        self.u_x().eq(other.u_x()) &&
-        self.u_y().eq(other.u_y())
+            self.ephemeral_pubkey().eq(other.ephemeral_pubkey()) &&
+            self.u_a().eq(other.u_a()) &&
+            self.u_x().eq(other.u_x()) &&
+            self.u_y().eq(other.u_y())
     }
 }
 
