@@ -491,36 +491,30 @@ mod test {
             assert!(!verify(
                 null_mut(),
                 msg.as_ptr() as *const c_char,
-                &mut pub_nonce,
-                &mut signature,
+                &pub_nonce,
+                &signature,
                 &mut err_code
             ),);
+            assert!(!verify(&pub_key, null_mut(), &pub_nonce, &signature, &mut err_code),);
             assert!(!verify(
                 &pub_key,
+                msg.as_ptr() as *const c_char,
                 null_mut(),
-                &mut pub_nonce,
-                &mut signature,
+                &signature,
                 &mut err_code
             ),);
             assert!(!verify(
                 &pub_key,
                 msg.as_ptr() as *const c_char,
-                null_mut(),
-                &mut signature,
-                &mut err_code
-            ),);
-            assert!(!verify(
-                &pub_key,
-                msg.as_ptr() as *const c_char,
-                &mut pub_nonce,
+                &pub_nonce,
                 null_mut(),
                 &mut err_code
             ),);
             assert!(!verify(
                 &pub_key,
                 msg.as_ptr() as *const c_char,
-                &mut pub_nonce,
-                &mut signature,
+                &pub_nonce,
+                &signature,
                 null_mut()
             ),);
         }
@@ -540,8 +534,8 @@ mod test {
             assert!(verify(
                 &pub_key,
                 msg.as_ptr() as *const c_char,
-                &mut pub_nonce,
-                &mut signature,
+                &pub_nonce,
+                &signature,
                 &mut err_code
             ));
         }

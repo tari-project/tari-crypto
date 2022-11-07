@@ -9,7 +9,6 @@ use tari_crypto::{
     keys::{PublicKey, SecretKey},
     ristretto::{RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
 };
-use tari_utilities::byte_array::ByteArray;
 
 fn generate_secret_key(c: &mut Criterion) {
     c.bench_function("Generate secret key", |b| {
@@ -46,7 +45,7 @@ fn sign_message(c: &mut Criterion) {
         b.iter_batched(
             gen_keypair,
             |d| {
-                let _sig = RistrettoSchnorr::sign_message(&d.k, &d.m).unwrap();
+                let _sig = RistrettoSchnorr::sign_message(&d.k, d.m).unwrap();
             },
             BatchSize::SmallInput,
         );
@@ -60,10 +59,10 @@ fn verify_message(c: &mut Criterion) {
         b.iter_batched(
             || {
                 let d = gen_keypair();
-                let s = RistrettoSchnorr::sign_message(&d.k, &d.m).unwrap();
+                let s = RistrettoSchnorr::sign_message(&d.k, d.m).unwrap();
                 (d, s)
             },
-            |(d, s)| assert!(s.verify_message(&d.p, &d.m)),
+            |(d, s)| assert!(s.verify_message(&d.p, d.m)),
             BatchSize::SmallInput,
         );
     });
