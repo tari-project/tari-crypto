@@ -23,7 +23,6 @@ use crate::{
         RistrettoSchnorr,
         RistrettoSecretKey,
     },
-    signatures::SchnorrSignature,
 };
 
 /// Result of calling [check_signature] and [check_comsig_signature] and [check_comandpubsig_signature]
@@ -182,7 +181,7 @@ pub(super) fn sign_with_key(
         None => RistrettoPublicKey::random_keypair(&mut OsRng),
     };
     let P = RistrettoPublicKey::from_secret_key(k);
-    let e = SchnorrSignature::construct_domain_separated_challenge::<_, Blake256>(&R, &P, msg);
+    let e = RistrettoSchnorr::construct_domain_separated_challenge::<_, Blake256>(&R, &P, msg);
     let sig = match RistrettoSchnorr::sign_raw(k, r, e.as_ref()) {
         Ok(s) => s,
         Err(e) => {
@@ -850,7 +849,7 @@ mod test {
             assert!(result.error.is_empty());
             let p_nonce = RistrettoPublicKey::from_hex(&result.public_nonce.unwrap()).unwrap();
             let s = RistrettoSecretKey::from_hex(&result.signature.unwrap()).unwrap();
-            assert!(SchnorrSignature::new(p_nonce, s).verify_message(&pk, SAMPLE_CHALLENGE));
+            assert!(RistrettoSchnorr::new(p_nonce, s).verify_message(&pk, SAMPLE_CHALLENGE));
         }
 
         #[wasm_bindgen_test]
@@ -902,7 +901,7 @@ mod test {
             let p_nonce = RistrettoPublicKey::from_hex(&result.public_nonce.unwrap()).unwrap();
             assert_eq!(p_nonce, expected_pr);
             let s = RistrettoSecretKey::from_hex(&result.signature.unwrap()).unwrap();
-            assert!(SchnorrSignature::new(p_nonce, s).verify_challenge(&pk, &hash(SAMPLE_CHALLENGE)));
+            assert!(RistrettoSchnorr::new(p_nonce, s).verify_challenge(&pk, &hash(SAMPLE_CHALLENGE)));
         }
     }
 
