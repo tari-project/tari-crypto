@@ -7,6 +7,7 @@
 
 use std::{
     cmp::Ordering,
+    marker::PhantomData,
     ops::{Add, Mul},
 };
 
@@ -18,7 +19,7 @@ use thiserror::Error;
 use crate::{
     hash::blake2::Blake256,
     hash_domain,
-    hashing::{DomainSeparatedHash, DomainSeparatedHasher},
+    hashing::{DomainSeparatedHash, DomainSeparatedHasher, DomainSeparation},
     keys::{PublicKey, SecretKey},
 };
 
@@ -41,21 +42,24 @@ pub enum SchnorrSignatureError {
 /// More details on Schnorr signatures can be found at [TLU](https://tlu.tarilabs.com/cryptography/introduction-schnorr-signatures).
 #[allow(non_snake_case)]
 #[derive(PartialEq, Eq, Copy, Debug, Clone, Serialize, Deserialize, Hash)]
-pub struct SchnorrSignature<P, K> {
+pub struct SchnorrSignature<P, K, H = SchnorrSigChallenge> {
     public_nonce: P,
     signature: K,
+    _phantom: PhantomData<H>,
 }
 
-impl<P, K> SchnorrSignature<P, K>
+impl<P, K, H> SchnorrSignature<P, K, H>
 where
     P: PublicKey<K = K>,
     K: SecretKey,
+    H: DomainSeparation,
 {
     /// Create a new `SchnorrSignature`.
     pub fn new(public_nonce: P, signature: K) -> Self {
         SchnorrSignature {
             public_nonce,
             signature,
+            _phantom: PhantomData,
         }
     }
 
@@ -120,6 +124,28 @@ where
         B: AsRef<[u8]>,
     {
         let nonce = K::random(&mut rand::thread_rng());
+        Self::sign_with_nonce_and_message(secret, nonce, message)
+    }
+
+    /// Signs a message with the given secret key and provided nonce.
+    ///
+    /// This method correctly binds the nonce and the public key to the signature challenge, using domain-separated
+    /// hashing. The hasher is also opinionated in the sense that Blake2b 256-bit digest is always used.
+    ///
+    /// ** Important **: It is the caller's responsibility to ensure that the nonce is unique. This API tries to
+    /// prevent this by taking ownership of the nonce, which means that the caller has to explicitly clone the nonce
+    /// in order to re-use it, which is a small deterrent, but better than nothing.
+    ///
+    /// To delegate nonce handling to the callee, use [`Self::sign_message`] instead.
+    pub fn sign_with_nonce_and_message<'a, B>(
+        secret: &'a K,
+        nonce: K,
+        message: B,
+    ) -> Result<Self, SchnorrSignatureError>
+    where
+        K: Add<Output = K> + Mul<&'a K, Output = K>,
+        B: AsRef<[u8]>,
+    {
         let public_nonce = P::from_secret_key(&nonce);
         let public_key = P::from_secret_key(secret);
         let challenge = Self::construct_domain_separated_challenge::<_, Blake256>(&public_nonce, &public_key, message);
@@ -143,7 +169,7 @@ where
         B: AsRef<[u8]>,
         D: Digest,
     {
-        DomainSeparatedHasher::<D, SchnorrSigChallenge>::new_with_label("challenge")
+        DomainSeparatedHasher::<D, H>::new_with_label("challenge")
             .chain(public_nonce.as_bytes())
             .chain(public_key.as_bytes())
             .chain(message.as_ref())

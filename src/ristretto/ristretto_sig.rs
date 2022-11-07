@@ -3,7 +3,7 @@
 
 use crate::{
     ristretto::{RistrettoPublicKey, RistrettoSecretKey},
-    signatures::SchnorrSignature,
+    signatures::{SchnorrSigChallenge, SchnorrSignature},
 };
 
 /// # A Schnorr signature implementation on Ristretto
@@ -82,7 +82,8 @@ use crate::{
 ///     SchnorrSignature::sign_message(&k, msg).unwrap();
 /// assert!(sig.verify_message(&P, msg));
 /// ```
-pub type RistrettoSchnorr = SchnorrSignature<RistrettoPublicKey, RistrettoSecretKey>;
+pub type RistrettoSchnorr = SchnorrSignature<RistrettoPublicKey, RistrettoSecretKey, SchnorrSigChallenge>;
+pub type RistrettoSchnorrWithDomain<H> = SchnorrSignature<RistrettoPublicKey, RistrettoSecretKey, H>;
 
 #[cfg(test)]
 mod test {
@@ -94,9 +95,15 @@ mod test {
 
     use crate::{
         hash::blake2::Blake256,
+        hash_domain,
         keys::{PublicKey, SecretKey},
-        ristretto::{RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
-        signatures::SchnorrSignature,
+        ristretto::{
+            ristretto_sig::RistrettoSchnorrWithDomain,
+            RistrettoPublicKey,
+            RistrettoSchnorr,
+            RistrettoSecretKey,
+        },
+        signatures::{SchnorrSigChallenge, SchnorrSignature},
     };
 
     #[test]
@@ -182,7 +189,9 @@ mod test {
         let R =
             RistrettoPublicKey::from_hex("fa14cb581ce5717248444721242e6b195a482d503a853dea4acb513074d8d803").unwrap();
         let msg = "Moving Pictures";
-        let hash = SchnorrSignature::construct_domain_separated_challenge::<_, Blake256>(&R, &P, msg);
+        let hash = SchnorrSignature::<_, _, SchnorrSigChallenge>::construct_domain_separated_challenge::<_, Blake256>(
+            &R, &P, msg,
+        );
         let naiive = Blake256::new()
             .chain(R.as_bytes())
             .chain(P.as_bytes())
@@ -194,6 +203,28 @@ mod test {
             to_hex(hash.as_ref()),
             "d8f6b29b641113c91175b8d44f265ff1167d58d5aa5ee03e6f1f521505b09d80"
         );
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn custom_hash_domain() {
+        hash_domain!(TestDomain, "test.signature.com");
+        let mut rng = rand::thread_rng();
+        let (k, P) = RistrettoPublicKey::random_keypair(&mut rng);
+        let (r, _) = RistrettoPublicKey::random_keypair(&mut rng);
+        let msg = "Moving Pictures";
+        // Using default domain
+        // NEVER re-use nonces in practice. This is done here explicitly to indicate that the domain separation
+        // prevents accidental signature duplication.
+        let sig1 = RistrettoSchnorr::sign_with_nonce_and_message(&k, r.clone(), msg).unwrap();
+        // Using custom domain
+        let sig2 = RistrettoSchnorrWithDomain::<TestDomain>::sign_with_nonce_and_message(&k, r, msg).unwrap();
+        // The type system won't even let this compile :)
+        // assert_ne!(sig1, sig2);
+        // Prove that the nonces were reused. Again, NEVER do this
+        assert_eq!(sig1.get_public_nonce(), sig2.get_public_nonce());
+        // But the signatures are different, for the same message, secret and nonce.
+        assert_ne!(sig1.get_signature(), sig2.get_signature());
     }
 
     #[test]
