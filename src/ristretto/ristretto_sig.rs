@@ -83,6 +83,36 @@ use crate::{
 /// assert!(sig.verify_message(&P, msg));
 /// ```
 pub type RistrettoSchnorr = SchnorrSignature<RistrettoPublicKey, RistrettoSecretKey, SchnorrSigChallenge>;
+
+/// # A Schnorr signature implementation on Ristretto with a custom domain separation tag
+///
+/// Usage is identical to [`RistrettoSchnorr`], except that you are able to specify the domain separation tag to use
+/// when computing challenges for the signature.
+///
+/// ## Example
+/// /// ```edition2018
+/// # use tari_crypto::ristretto::*;
+/// # use tari_crypto::keys::*;
+/// # use tari_crypto::hash_domain;
+/// # use tari_crypto::signatures::SchnorrSignature;
+/// # use tari_crypto::hash::blake2::Blake256;
+/// # use tari_utilities::hex::*;
+/// # use tari_utilities::ByteArray;
+/// # use digest::Digest;
+///
+/// hash_domain!(MyCustomDomain, "com.example.custom");
+///
+/// let msg = "Maskerade";
+/// let k = RistrettoSecretKey::from_hex(
+///     "bd0b253a619310340a4fa2de54cdd212eac7d088ee1dc47e305c3f6cbd020908",
+/// )
+/// .unwrap();
+/// # #[allow(non_snake_case)]
+/// let P = RistrettoPublicKey::from_secret_key(&k);
+/// let sig: SchnorrSignature<RistrettoPublicKey, RistrettoSecretKey, MyCustomDomain> =
+///     SchnorrSignature::sign_message(&k, msg).unwrap();
+/// assert!(sig.verify_message(&P, msg));
+/// ```
 pub type RistrettoSchnorrWithDomain<H> = SchnorrSignature<RistrettoPublicKey, RistrettoSecretKey, H>;
 
 #[cfg(test)]

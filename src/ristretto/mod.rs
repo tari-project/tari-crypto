@@ -21,7 +21,7 @@ pub use self::{
     ristretto_com_and_pub_sig::RistrettoComAndPubSig,
     ristretto_com_sig::RistrettoComSig,
     ristretto_keys::{RistrettoPublicKey, RistrettoSecretKey},
-    ristretto_sig::RistrettoSchnorr,
+    ristretto_sig::{RistrettoSchnorr, RistrettoSchnorrWithDomain},
 };
 
 // test modules
