@@ -23,7 +23,6 @@ use crate::{
         RistrettoSchnorr,
         RistrettoSecretKey,
     },
-    signatures::SchnorrSignature,
 };
 
 pub const KEY_LENGTH: usize = 32;
@@ -52,19 +51,21 @@ pub unsafe extern "C" fn random_keypair(priv_key: *mut KeyArray, pub_key: *mut K
     OK
 }
 
-/// Generate a Schnorr signature (s, R) using the provided private key and challenge (k, e).
+/// Generate a Schnorr signature (s, R) using the provided private key and message (k, m).
 ///
 /// # Safety
 /// The caller MUST ensure that the string is null terminated e.g. "msg\0".
 /// If any args are null then the function returns -1
+///
+/// The public nonce and signature are returned in the provided mutable arrays.
 #[no_mangle]
 pub unsafe extern "C" fn sign(
     priv_key: *const KeyArray,
     msg: *const c_char,
-    nonce: *mut KeyArray,
+    public_nonce: *mut KeyArray,
     signature: *mut KeyArray,
 ) -> c_int {
-    if nonce.is_null() || signature.is_null() || priv_key.is_null() || msg.is_null() {
+    if public_nonce.is_null() || signature.is_null() || priv_key.is_null() || msg.is_null() {
         return NULL_POINTER;
     }
     let k = match RistrettoSecretKey::from_bytes(&(*priv_key)) {
@@ -78,17 +79,17 @@ pub unsafe extern "C" fn sign(
         Ok(s) => s,
         _ => return STR_CONV_ERR,
     };
-    let e = SchnorrSignature::construct_domain_separated_challenge::<_, Blake256>(&pub_r, &pubkey, msg.as_bytes());
+    let e = RistrettoSchnorr::construct_domain_separated_challenge::<_, Blake256>(&pub_r, &pubkey, msg.as_bytes());
     let sig = match RistrettoSchnorr::sign_raw(&k, r, e.as_ref()) {
         Ok(sig) => sig,
         _ => return SIGNING_ERROR,
     };
-    (*nonce).copy_from_slice(sig.get_public_nonce().as_bytes());
+    (*public_nonce).copy_from_slice(sig.get_public_nonce().as_bytes());
     (*signature).copy_from_slice(sig.get_signature().as_bytes());
     OK
 }
 
-/// Verify that a Schnorr signature (s, R) is valid for the provided public key and challenge (P, e).
+/// Verify that a Schnorr signature (s, R) is valid for the provided public key and message (P, m).
 ///
 /// # Safety
 /// The caller MUST ensure that the string is null terminated e.g. "msg\0".
@@ -97,8 +98,8 @@ pub unsafe extern "C" fn sign(
 pub unsafe extern "C" fn verify(
     pub_key: *const KeyArray,
     msg: *const c_char,
-    pub_nonce: *mut KeyArray,
-    signature: *mut KeyArray,
+    pub_nonce: *const KeyArray,
+    signature: *const KeyArray,
     err_code: *mut c_int,
 ) -> bool {
     if pub_key.is_null() || msg.is_null() || pub_nonce.is_null() || signature.is_null() || err_code.is_null() {

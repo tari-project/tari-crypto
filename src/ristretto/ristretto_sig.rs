@@ -223,6 +223,8 @@ mod test {
         // assert_ne!(sig1, sig2);
         // Prove that the nonces were reused. Again, NEVER do this
         assert_eq!(sig1.get_public_nonce(), sig2.get_public_nonce());
+        assert!(sig1.verify_message(&P, msg));
+        assert!(sig2.verify_message(&P, msg));
         // But the signatures are different, for the same message, secret and nonce.
         assert_ne!(sig1.get_signature(), sig2.get_signature());
     }
