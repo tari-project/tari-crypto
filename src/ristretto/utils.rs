@@ -29,6 +29,10 @@ pub struct SignatureSet {
 /// # Panics
 ///
 /// The function panics if it cannot generate a suitable signature
+#[deprecated(
+    since = "0.16.0",
+    note = "Use SchnorrSignature::sign_message instead. This method will be removed in v1.0.0"
+)]
 pub fn sign<D: Digest>(
     private_key: &RistrettoSecretKey,
     message: &[u8],
@@ -41,7 +45,7 @@ pub fn sign<D: Digest>(
         .finalize()
         .to_vec();
     let e = RistrettoSecretKey::from_bytes(&message).map_err(|_| SchnorrSignatureError::InvalidChallenge)?;
-    let s = RistrettoSchnorr::sign(private_key.clone(), nonce.clone(), e.as_bytes())?;
+    let s = RistrettoSchnorr::sign_raw(private_key, nonce.clone(), e.as_bytes())?;
     Ok(SignatureSet {
         nonce,
         public_nonce,

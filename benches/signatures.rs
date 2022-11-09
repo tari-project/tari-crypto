@@ -9,7 +9,6 @@ use tari_crypto::{
     keys::{PublicKey, SecretKey},
     ristretto::{RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
 };
-use tari_utilities::byte_array::ByteArray;
 
 fn generate_secret_key(c: &mut Criterion) {
     c.bench_function("Generate secret key", |b| {
@@ -30,18 +29,15 @@ fn native_keypair(c: &mut Criterion) {
 struct SigningData {
     k: RistrettoSecretKey,
     p: RistrettoPublicKey,
-    r: RistrettoSecretKey,
-    m: RistrettoSecretKey,
+    m: [u8; 32],
 }
 
 fn gen_keypair() -> SigningData {
     let mut rng = thread_rng();
-    let mut msg = [0u8; 32];
-    rng.fill_bytes(&mut msg);
+    let mut m = [0u8; 32];
+    rng.fill_bytes(&mut m);
     let (k, p) = RistrettoPublicKey::random_keypair(&mut rng);
-    let r = RistrettoSecretKey::random(&mut rng);
-    let m = RistrettoSecretKey::from_bytes(&msg).unwrap();
-    SigningData { k, p, r, m }
+    SigningData { k, p, m }
 }
 
 fn sign_message(c: &mut Criterion) {
@@ -49,7 +45,7 @@ fn sign_message(c: &mut Criterion) {
         b.iter_batched(
             gen_keypair,
             |d| {
-                let _sig = RistrettoSchnorr::sign(d.k, d.r, &d.m.to_vec()).unwrap();
+                let _sig = RistrettoSchnorr::sign_message(&d.k, d.m).unwrap();
             },
             BatchSize::SmallInput,
         );
@@ -63,10 +59,10 @@ fn verify_message(c: &mut Criterion) {
         b.iter_batched(
             || {
                 let d = gen_keypair();
-                let s = RistrettoSchnorr::sign(d.k.clone(), d.r.clone(), &d.m.to_vec()).unwrap();
+                let s = RistrettoSchnorr::sign_message(&d.k, d.m).unwrap();
                 (d, s)
             },
-            |(d, s)| assert!(s.verify(&d.p, &d.m)),
+            |(d, s)| assert!(s.verify_message(&d.p, d.m)),
             BatchSize::SmallInput,
         );
     });

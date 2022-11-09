@@ -520,6 +520,7 @@ pub trait DerivedKeyDomain: DomainSeparation {
 #[macro_export]
 macro_rules! hash_domain {
     ($name:ident, $domain:expr, $version: expr) => {
+        /// A hashing domain instance
         #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
         pub struct $name;
 
