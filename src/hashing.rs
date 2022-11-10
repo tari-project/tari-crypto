@@ -31,7 +31,7 @@
 use std::{marker::PhantomData, ops::Deref};
 
 use blake2::VarBlake2b;
-use digest::{Digest, Output, Update, FixedOutput};
+use digest::{Digest, FixedOutput, Output, Update};
 use sha3::Sha3_256;
 use tari_utilities::ByteArray;
 
@@ -306,9 +306,10 @@ pub trait AsFixedBytes<const I: usize>: AsRef<[u8]> {
 
 impl<const I: usize, D: Digest> AsFixedBytes<I> for DomainSeparatedHash<D> {}
 
-impl<TInnerDigest: FixedOutput, TDomain: DomainSeparation> FixedOutput for DomainSeparatedHasher<TInnerDigest, TDomain> {
+impl<TInnerDigest: FixedOutput, TDomain: DomainSeparation> FixedOutput
+    for DomainSeparatedHasher<TInnerDigest, TDomain>
+{
     type OutputSize = TInnerDigest::OutputSize;
-
 
     fn finalize_into(self, out: &mut digest::generic_array::GenericArray<u8, Self::OutputSize>) {
         self.inner.finalize_into(out);
@@ -584,7 +585,7 @@ pub fn create_hasher<D: Digest, HD: DomainSeparation>() -> DomainSeparatedHasher
 #[cfg(test)]
 mod test {
     use blake2::Blake2b;
-    use digest::{Digest, FixedOutput, generic_array::GenericArray};
+    use digest::{generic_array::GenericArray, Digest, FixedOutput};
     use tari_utilities::hex::{from_hex, to_hex};
 
     use crate::{
