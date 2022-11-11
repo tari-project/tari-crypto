@@ -31,7 +31,7 @@
 use std::{marker::PhantomData, ops::Deref};
 
 use blake2::VarBlake2b;
-use digest::{Digest, Output, Update};
+use digest::{Digest, FixedOutput, Output, Update};
 use sha3::Sha3_256;
 use tari_utilities::ByteArray;
 
@@ -306,6 +306,20 @@ pub trait AsFixedBytes<const I: usize>: AsRef<[u8]> {
 
 impl<const I: usize, D: Digest> AsFixedBytes<I> for DomainSeparatedHash<D> {}
 
+impl<TInnerDigest: FixedOutput, TDomain: DomainSeparation> FixedOutput
+    for DomainSeparatedHasher<TInnerDigest, TDomain>
+{
+    type OutputSize = TInnerDigest::OutputSize;
+
+    fn finalize_into(self, out: &mut digest::generic_array::GenericArray<u8, Self::OutputSize>) {
+        self.inner.finalize_into(out);
+    }
+
+    fn finalize_into_reset(&mut self, out: &mut digest::generic_array::GenericArray<u8, Self::OutputSize>) {
+        self.inner.finalize_into_reset(out);
+    }
+}
+
 /// Implements Digest so that it can be used for other crates
 impl<TInnerDigest: Digest, TDomain: DomainSeparation> Digest for DomainSeparatedHasher<TInnerDigest, TDomain> {
     type OutputSize = TInnerDigest::OutputSize;
@@ -571,7 +585,7 @@ pub fn create_hasher<D: Digest, HD: DomainSeparation>() -> DomainSeparatedHasher
 #[cfg(test)]
 mod test {
     use blake2::Blake2b;
-    use digest::Digest;
+    use digest::{generic_array::GenericArray, Digest, FixedOutput};
     use tari_utilities::hex::{from_hex, to_hex};
 
     use crate::{
@@ -626,6 +640,26 @@ mod test {
         assert_eq!(MacDomain::domain(), "com.tari.mac");
         assert_eq!(MacDomain::domain_separation_tag(""), "com.tari.mac.v1");
         assert_eq!(MacDomain::domain_separation_tag("test"), "com.tari.mac.v1.test");
+    }
+
+    #[test]
+    fn finalize_into() {
+        hash_domain!(TestHasher, "com.example.test");
+        let mut hasher = DomainSeparatedHasher::<Blake256, TestHasher>::new();
+        hasher.update([0, 0, 0]);
+
+        let mut output = GenericArray::<u8, <Blake256 as Digest>::OutputSize>::default();
+        hasher.finalize_into(&mut output);
+    }
+
+    #[test]
+    fn finalize_into_reset() {
+        hash_domain!(TestHasher, "com.example.test");
+        let mut hasher = DomainSeparatedHasher::<Blake256, TestHasher>::new();
+        hasher.update([0, 0, 0]);
+
+        let mut output = GenericArray::<u8, <Blake256 as Digest>::OutputSize>::default();
+        hasher.finalize_into_reset(&mut output);
     }
 
     #[test]

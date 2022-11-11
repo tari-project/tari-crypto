@@ -11,6 +11,7 @@ use std::ops::Add;
 use rand::{CryptoRng, Rng};
 use serde::{de::DeserializeOwned, ser::Serialize};
 use tari_utilities::ByteArray;
+use zeroize::Zeroize;
 
 /// A trait specifying common behaviour for representing `SecretKey`s. Specific elliptic curve
 /// implementations need to implement this trait for them to be used in Tari.
@@ -26,7 +27,7 @@ use tari_utilities::ByteArray;
 /// let k = RistrettoSecretKey::random(&mut rng);
 /// let p = RistrettoPublicKey::from_secret_key(&k);
 /// ```
-pub trait SecretKey: ByteArray + Clone + PartialEq + Eq + Add<Output = Self> + Default {
+pub trait SecretKey: ByteArray + Clone + PartialEq + Eq + Add<Output = Self> + Default + Zeroize {
     /// The length of the key, in bytes
     fn key_length() -> usize;
     /// Generates a random secret key
@@ -40,7 +41,7 @@ pub trait SecretKey: ByteArray + Clone + PartialEq + Eq + Add<Output = Self> + D
 ///
 /// See [SecretKey](trait.SecretKey.html) for an example.
 pub trait PublicKey:
-    ByteArray + Add<Output = Self> + Clone + PartialOrd + Ord + Default + Serialize + DeserializeOwned
+    ByteArray + Add<Output = Self> + Clone + PartialOrd + Ord + Default + Serialize + DeserializeOwned + Zeroize
 {
     /// The output size len of Public Key
     const KEY_LEN: usize;
