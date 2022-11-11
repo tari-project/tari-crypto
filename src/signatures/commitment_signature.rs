@@ -44,8 +44,10 @@ pub enum CommitmentSignatureError {
 /// Verification of the Commitment Signature (R, u, v) entails the following:
 ///   S = v*H + u*G          ... (Pedersen commitment of the publicly known private signature keys)
 ///   S =? R + e.C           ... (final verification)
+
 #[allow(non_snake_case)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "borsh", derive(borsh::BorshDeserialize, borsh::BorshSerialize))]
 pub struct CommitmentSignature<P, K> {
     public_nonce: HomomorphicCommitment<P>,
     u: K,
@@ -64,7 +66,9 @@ where
 
     /// This is the left-hand side of the signature verification equation
     pub fn calc_signature_verifier<C>(&self, factory: &C) -> HomomorphicCommitment<P>
-    where C: HomomorphicCommitmentFactory<P = P> {
+    where
+        C: HomomorphicCommitmentFactory<P = P>,
+    {
         // v*H + u*G
         factory.commit(&self.u, &self.v)
     }

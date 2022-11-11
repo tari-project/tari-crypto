@@ -16,7 +16,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2022-01-17
+          toolchain: nightly
           target: wasm32-unknown-unknown
           override: true
       - name: install wasm-pack

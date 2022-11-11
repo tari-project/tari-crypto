@@ -9,6 +9,8 @@ use std::{
     hash::{Hash, Hasher},
     ops::{Add, Mul, Sub},
 };
+#[cfg(feature = "borsh")]
+use std::{convert::TryInto, io, io::Write};
 
 use blake2::Blake2b;
 use curve25519_dalek::{
@@ -54,6 +56,24 @@ use crate::{
 #[zeroize(drop)]
 pub struct RistrettoSecretKey(pub(crate) Scalar);
 
+#[cfg(feature = "borsh")]
+impl borsh::BorshSerialize for RistrettoSecretKey {
+    fn serialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
+        borsh::BorshSerialize::serialize(&self.0.as_bytes(), writer)
+    }
+}
+
+#[cfg(feature = "borsh")]
+impl borsh::BorshDeserialize for RistrettoSecretKey {
+    fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
+        Ok(Self(
+            // Self::from_bytes(buf).map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e.to_string()))
+            Scalar::from_canonical_bytes((&buf[..]).try_into().unwrap())
+                .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "Deserialize error"))?,
+        ))
+    }
+}
+
 const SCALAR_LENGTH: usize = 32;
 const PUBLIC_KEY_LENGTH: usize = 32;
 
@@ -76,7 +96,9 @@ impl ByteArray for RistrettoSecretKey {
     /// not exactly 32 bytes long, `from_bytes` returns an error. This function is guaranteed to return a valid key
     /// in the group since it performs a mod _l_ on the input.
     fn from_bytes(bytes: &[u8]) -> Result<RistrettoSecretKey, ByteArrayError>
-    where Self: Sized {
+    where
+        Self: Sized,
+    {
         if bytes.len() != 32 {
             return Err(ByteArrayError::IncorrectLength);
         }
@@ -236,6 +258,21 @@ impl<'a> Borrow<Scalar> for &'a RistrettoSecretKey {
 pub struct RistrettoPublicKey {
     point: RistrettoPoint,
     compressed: OnceCell<CompressedRistretto>,
+}
+
+#[cfg(feature = "borsh")]
+impl borsh::BorshSerialize for RistrettoPublicKey {
+    fn serialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
+        borsh::BorshSerialize::serialize(&self.as_bytes(), writer)
+    }
+}
+
+#[cfg(feature = "borsh")]
+impl borsh::BorshDeserialize for RistrettoPublicKey {
+    fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
+        let bytes: Vec<u8> = borsh::BorshDeserialize::deserialize(buf)?;
+        Self::from_bytes(&bytes.as_slice()).map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e.to_string()))
+    }
 }
 
 impl RistrettoPublicKey {
@@ -407,7 +444,9 @@ impl ByteArray for RistrettoPublicKey {
     /// * The byte array is not exactly 32 bytes
     /// * The byte array does not represent a valid (compressed) point on the ristretto255 curve
     fn from_bytes(bytes: &[u8]) -> Result<RistrettoPublicKey, ByteArrayError>
-    where Self: Sized {
+    where
+        Self: Sized,
+    {
         // Check the length here, because The Ristretto constructor panics rather than returning an error
         if bytes.len() != 32 {
             return Err(ByteArrayError::IncorrectLength);

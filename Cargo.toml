@@ -15,6 +15,7 @@ tari_utilities = { git = "https://github.com/tari-project/tari_utilities.git", t
 
 base64 = "0.10.1"
 blake2 = "0.9.1"
+borsh = { version = "0.9.3", optional = true }
 bulletproofs = { package = "tari_bulletproofs", git = "https://github.com/tari-project/bulletproofs", tag = "v4.3.0" }
 bulletproofs_plus = { package = "tari_bulletproofs_plus", git = "https://github.com/tari-project/bulletproofs-plus", tag = "v0.1.0" }
 curve25519-dalek = { package = "curve25519-dalek", version = "3.2.1", default-features = false, features = ["serde", "alloc"] }
@@ -49,6 +50,7 @@ simd_backend = ["curve25519-dalek/simd_backend", "bulletproofs/simd_backend"]
 wasm = ["wasm-bindgen", "getrandom/js", "rand/wasm-bindgen", "serde-wasm-bindgen"]
 ffi = []
 musig = []
+borsh = [ "dep:borsh" ]
 
 [lib]
 # Disable benchmarks to allow Criterion to take over

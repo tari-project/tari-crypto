@@ -35,8 +35,23 @@ use crate::{
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct HomomorphicCommitment<P>(pub(crate) P);
 
+#[cfg(feature = "borsh")]
+impl<P: borsh::BorshDeserialize> borsh::BorshDeserialize for HomomorphicCommitment<P> {
+    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        Ok(Self(P::deserialize(buf)?))
+    }
+}
+
+#[cfg(feature = "borsh")]
+impl<P: borsh::BorshSerialize> borsh::BorshSerialize for HomomorphicCommitment<P> {
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        self.0.serialize(writer)
+    }
+}
+
 impl<P> HomomorphicCommitment<P>
-where P: PublicKey
+where
+    P: PublicKey,
 {
     /// Get this commitment as a public key point
     pub fn as_public_key(&self) -> &P {
@@ -50,7 +65,8 @@ where P: PublicKey
 }
 
 impl<P> ByteArray for HomomorphicCommitment<P>
-where P: PublicKey
+where
+    P: PublicKey,
 {
     fn from_bytes(bytes: &[u8]) -> Result<Self, ByteArrayError> {
         let p = P::from_bytes(bytes)?;
@@ -63,7 +79,8 @@ where P: PublicKey
 }
 
 impl<P> PartialOrd for HomomorphicCommitment<P>
-where P: PublicKey
+where
+    P: PublicKey,
 {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.0.cmp(&other.0))
@@ -71,7 +88,8 @@ where P: PublicKey
 }
 
 impl<P> Ord for HomomorphicCommitment<P>
-where P: PublicKey
+where
+    P: PublicKey,
 {
     fn cmp(&self, other: &Self) -> Ordering {
         self.0.cmp(&other.0)

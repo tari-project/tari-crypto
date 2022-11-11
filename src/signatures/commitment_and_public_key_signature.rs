@@ -52,7 +52,9 @@ pub enum CommitmentAndPublicKeySignatureError {
 ///     `u_a*H + (u_x + w*u_y)*G - ephemeral_commitment - w*ephemeral_pubkey - e*commitment - (w*e)*pubkey == 0`
 /// The use of efficient multiscalar multiplication algorithms may also be useful for efficiency.
 /// The use of precomputation tables for `G` and `H` may also be useful for efficiency.
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize, borsh::BorshDeserialize))]
 pub struct CommitmentAndPublicKeySignature<P, K> {
     ephemeral_commitment: HomomorphicCommitment<P>,
     ephemeral_pubkey: P,
@@ -358,11 +360,11 @@ where
     K: SecretKey,
 {
     fn eq(&self, other: &Self) -> bool {
-        self.ephemeral_commitment().eq(other.ephemeral_commitment()) &&
-            self.ephemeral_pubkey().eq(other.ephemeral_pubkey()) &&
-            self.u_a().eq(other.u_a()) &&
-            self.u_x().eq(other.u_x()) &&
-            self.u_y().eq(other.u_y())
+        self.ephemeral_commitment().eq(other.ephemeral_commitment())
+            && self.ephemeral_pubkey().eq(other.ephemeral_pubkey())
+            && self.u_a().eq(other.u_a())
+            && self.u_x().eq(other.u_x())
+            && self.u_y().eq(other.u_y())
     }
 }
 
