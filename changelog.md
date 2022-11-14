@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.16.0](https://github.com/tari-project/tari-crypto/compare/v0.15.7...v0.16.0) (2022-11-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* improve signature api  (#145)
+
+### Features
+
+* functionality to work with `Hidden` types ([#148](https://github.com/tari-project/tari-crypto/issues/148)) ([086d164](https://github.com/tari-project/tari-crypto/commit/086d164d792b471bc13b88e1d577fd5c32ed4d45))
+* improve signature api  ([#145](https://github.com/tari-project/tari-crypto/issues/145)) ([27a9472](https://github.com/tari-project/tari-crypto/commit/27a947295fbb69db9ac9d04818c122b697ca92da))
+
+
+### Bug Fixes
+
+* resolve wasm deprecation warnings ([#146](https://github.com/tari-project/tari-crypto/issues/146)) ([b65f1cd](https://github.com/tari-project/tari-crypto/commit/b65f1cda2087f87e883652283b183a2321b12d22))
+
 ### [0.15.7](https://github.com/tari-project/tari-crypto/compare/v0.15.6...v0.15.7) (2022-10-27)
 
 
