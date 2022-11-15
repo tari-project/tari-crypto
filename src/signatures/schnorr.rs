@@ -45,6 +45,7 @@ pub enum SchnorrSignatureError {
 pub struct SchnorrSignature<P, K, H = SchnorrSigChallenge> {
     public_nonce: P,
     signature: K,
+    #[serde(skip)]
     _phantom: PhantomData<H>,
 }
 
