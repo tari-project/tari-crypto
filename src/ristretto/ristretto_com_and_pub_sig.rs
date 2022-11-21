@@ -242,9 +242,12 @@ mod test {
             &factory,
         )
         .unwrap();
-        // verify signature
+
+        // verify signature fails
         assert!(!sig_p_2.verify_challenge(&commitment, &pubkey, &challenge, &factory, &mut rng));
-        let sig_p_total = &sig_p_1 + &sig_p_2; 
+
+        let sig_p_total = &sig_p_1 + &sig_p_2;
+
         assert_eq!(sig_p_total, sig_total);
 
         // verify signature
