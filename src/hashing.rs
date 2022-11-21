@@ -663,6 +663,20 @@ mod test {
     }
 
     #[test]
+    fn test_safe_array() {
+        use tari_utilities::{hidden::Hidden, hidden_type, safe_array::SafeArray};
+        use zeroize::Zeroize;
+
+        hash_domain!(TestHasher, "com.example.test");
+        let mut hasher = DomainSeparatedHasher::<Blake256, TestHasher>::new();
+        hasher.update([0, 0, 0]);
+
+        hidden_type!(Key, SafeArray<u8, 32>);
+        let mut key = Key::from(SafeArray::default()); // all zeroes
+        hasher.finalize_into_reset(GenericArray::from_mut_slice(key.reveal_mut()));
+    }
+
+    #[test]
     fn dst_hasher() {
         hash_domain!(GenericHashDomain, "com.tari.generic");
         assert_eq!(GenericHashDomain::domain_separation_tag(""), "com.tari.generic.v1");
