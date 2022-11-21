@@ -220,7 +220,7 @@ mod test {
         let sig_p_1 = RistrettoComAndPubSig::sign(
             &a_value,
             &x_value,
-            default_pk,
+            &default_pk,
             &r_a,
             &r_x,
             &default_pk,
@@ -228,11 +228,13 @@ mod test {
             &factory,
         )
         .unwrap();
+        // verify signature fails
+        assert!(!sig_p_1.verify_challenge(&commitment, &pubkey, &challenge, &factory, &mut rng));
 
         let sig_p_2 = RistrettoComAndPubSig::sign(
             &default_pk,
             &default_pk,
-            y_value,
+            &y_value,
             &default_pk,
             &default_pk,
             &r_y,
@@ -240,6 +242,9 @@ mod test {
             &factory,
         )
         .unwrap();
+        // verify signature
+        assert!(!sig_p_2.verify_challenge(&commitment, &pubkey, &challenge, &factory, &mut rng));
+        let sig_p_total = &sig_p_1 + &sig_p_2; 
         assert_eq!(sig_p_total, sig_total);
 
         // verify signature
