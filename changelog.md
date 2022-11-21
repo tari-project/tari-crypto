@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.16.2](https://github.com/tari-project/tari-crypto/compare/v0.16.1...v0.16.2) (2022-11-21)
+
+
+### Features
+
+* update tari_utilities and tests ([#152](https://github.com/tari-project/tari-crypto/issues/152)) ([c61cd00](https://github.com/tari-project/tari-crypto/commit/c61cd0049b91505664e79fe0f5db34c0babbec8a))
+
 ### [0.16.1](https://github.com/tari-project/tari-crypto/compare/v0.16.0...v0.16.1) (2022-11-17)
 
 ## [0.16.0](https://github.com/tari-project/tari-crypto/compare/v0.15.7...v0.16.0) (2022-11-14)
