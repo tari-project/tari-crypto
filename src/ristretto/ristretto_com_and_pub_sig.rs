@@ -162,6 +162,9 @@ mod test {
             (&ephemeral_commitment, &ephemeral_pubkey, &u_a, &u_x, &u_y)
         );
 
+        // verify signature
+        assert!(sig.verify_challenge(&commitment, &pubkey, &challenge, &factory, &mut rng));
+
         // A different statement should fail
         let evil_a = RistrettoSecretKey::random(&mut rng);
         let evil_x = RistrettoSecretKey::random(&mut rng);
@@ -176,6 +179,79 @@ mod test {
         // A different challenge should fail
         let evil_challenge = Blake256::digest(b"Guards! Guards!");
         assert!(!sig.verify_challenge(&commitment, &pubkey, &evil_challenge, &factory, &mut rng));
+    }
+
+    /// Create two partial signatures to the same challenge and computes if the total aggregate signature is valid.
+    #[test]
+    fn sign_and_verify_message_partial() {
+        let mut rng = rand::thread_rng();
+
+        // Witness data
+        let a_value = RistrettoSecretKey::random(&mut rng);
+        let x_value = RistrettoSecretKey::random(&mut rng);
+        let y_value = RistrettoSecretKey::random(&mut rng);
+
+        // Statement data
+        let factory = PedersenCommitmentFactory::default();
+        let commitment = factory.commit(&x_value, &a_value);
+        let pubkey = RistrettoPublicKey::from_secret_key(&y_value);
+
+        // Nonce data
+        let r_a = RistrettoSecretKey::random(&mut rng);
+        let r_x = RistrettoSecretKey::random(&mut rng);
+        let r_y = RistrettoSecretKey::random(&mut rng);
+        let ephemeral_commitment = factory.commit(&r_x, &r_a);
+        let ephemeral_pubkey = RistrettoPublicKey::from_secret_key(&r_y);
+
+        // Challenge; doesn't use proper Fiat-Shamir, so it's for testing only!
+        let challenge = Blake256::new()
+            .chain(commitment.as_bytes())
+            .chain(pubkey.as_bytes())
+            .chain(ephemeral_commitment.as_bytes())
+            .chain(ephemeral_pubkey.as_bytes())
+            .chain(b"Small Gods")
+            .finalize();
+
+        let sig_total =
+            RistrettoComAndPubSig::sign(&a_value, &x_value, &y_value, &r_a, &r_x, &r_y, &challenge, &factory).unwrap();
+
+        let default_pk = RistrettoSecretKey::default();
+
+        let sig_p_1 = RistrettoComAndPubSig::sign(
+            &a_value,
+            &x_value,
+            &default_pk,
+            &r_a,
+            &r_x,
+            &default_pk,
+            &challenge,
+            &factory,
+        )
+        .unwrap();
+        // verify signature fails
+        assert!(!sig_p_1.verify_challenge(&commitment, &pubkey, &challenge, &factory, &mut rng));
+
+        let sig_p_2 = RistrettoComAndPubSig::sign(
+            &default_pk,
+            &default_pk,
+            &y_value,
+            &default_pk,
+            &default_pk,
+            &r_y,
+            &challenge,
+            &factory,
+        )
+        .unwrap();
+
+        // verify signature fails
+        assert!(!sig_p_2.verify_challenge(&commitment, &pubkey, &challenge, &factory, &mut rng));
+
+        let sig_p_total = &sig_p_1 + &sig_p_2;
+
+        assert_eq!(sig_p_total, sig_total);
+
+        // verify signature
+        assert!(sig_p_total.verify_challenge(&commitment, &pubkey, &challenge, &factory, &mut rng));
     }
 
     /// Test that commitment signatures are linear, as in a multisignature construction
