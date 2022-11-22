@@ -332,8 +332,8 @@ impl PublicKey for RistrettoPublicKey {
     }
 
     fn batch_mul(scalars: &[Self::K], points: &[Self]) -> Self {
-        let p: Vec<&RistrettoPoint> = points.iter().map(|p| &p.point).collect();
-        let s: Vec<&Scalar> = scalars.iter().map(|k| &k.0).collect();
+        let p = points.iter().map(|p| &p.point);
+        let s = scalars.iter().map(|k| &k.0);
         let p = RistrettoPoint::multiscalar_mul(s, p);
         RistrettoPublicKey::new_from_pk(p)
     }
