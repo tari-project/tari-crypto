@@ -82,6 +82,7 @@ where
     /// Complete a signature using the given challenge. The challenge is provided by the caller to support the
     /// multiparty use case. It is _very important_ that it be computed using strong Fiat-Shamir! Further, the
     /// values `r_a, r_x, r_y` are nonces, must be sampled uniformly at random, and must never be reused.
+    #[allow(clippy::too_many_arguments)]
     pub fn sign<C>(
         a: &K,
         x: &K,
@@ -360,11 +361,11 @@ where
     K: SecretKey,
 {
     fn eq(&self, other: &Self) -> bool {
-        self.ephemeral_commitment().eq(other.ephemeral_commitment())
-            && self.ephemeral_pubkey().eq(other.ephemeral_pubkey())
-            && self.u_a().eq(other.u_a())
-            && self.u_x().eq(other.u_x())
-            && self.u_y().eq(other.u_y())
+        self.ephemeral_commitment().eq(other.ephemeral_commitment()) &&
+            self.ephemeral_pubkey().eq(other.ephemeral_pubkey()) &&
+            self.u_a().eq(other.u_a()) &&
+            self.u_x().eq(other.u_x()) &&
+            self.u_y().eq(other.u_y())
     }
 }
 

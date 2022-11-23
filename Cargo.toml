@@ -50,7 +50,6 @@ simd_backend = ["curve25519-dalek/simd_backend", "bulletproofs/simd_backend"]
 wasm = ["wasm-bindgen", "getrandom/js", "rand/wasm-bindgen", "serde-wasm-bindgen"]
 ffi = []
 musig = []
-borsh = [ "dep:borsh" ]
 
 [lib]
 # Disable benchmarks to allow Criterion to take over

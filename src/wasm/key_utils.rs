@@ -152,7 +152,7 @@ pub fn sign_challenge_with_nonce(private_key: &str, private_nonce: &str, challen
         Ok(s) => s,
         Err(e) => {
             result.error = format!("Could not create signature. {e}");
-            return JsValue::from_serde(&result).unwrap();
+            return serde_wasm_bindgen::to_value(&result).unwrap();
         },
     };
     result.public_nonce = Some(pub_r.to_hex());
@@ -500,6 +500,7 @@ pub fn sign_comandpubsig_challenge_with_nonce(
     serde_wasm_bindgen::to_value(&result).unwrap()
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn sign_comandpubsig_message_with_key(
     private_key_a: &RistrettoSecretKey,
     private_key_x: &RistrettoSecretKey,
@@ -523,6 +524,7 @@ pub(crate) fn sign_comandpubsig_message_with_key(
     );
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn sign_comandpubsig_with_key(
     private_key_a: &RistrettoSecretKey,
     private_key_x: &RistrettoSecretKey,
@@ -572,6 +574,7 @@ pub(crate) fn sign_comandpubsig_with_key(
 }
 
 /// Checks the validity of a Commitment signature
+#[allow(clippy::too_many_arguments)]
 #[allow(non_snake_case)]
 #[wasm_bindgen]
 pub fn check_comandpubsig_signature(
@@ -1322,6 +1325,7 @@ mod test {
     mod check_comandpubsig_signature {
         use super::*;
 
+        #[allow(clippy::too_many_arguments)]
         fn check_comandpubsig_signature(
             ephemeral_commitment: &str,
             ephemeral_pubkey: &str,
@@ -1405,6 +1409,7 @@ mod test {
 
         #[wasm_bindgen_test]
         fn it_fails_if_verification_is_invalid() {
+            #[allow(clippy::too_many_arguments)]
             fn it_fails(
                 ephemeral_commitment: &str,
                 ephemeral_pubkey: &str,

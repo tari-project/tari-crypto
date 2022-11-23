@@ -101,9 +101,7 @@ where
     ///
     /// If you want a simple API that binds the nonce and public key to the message, use [`sign_message`] instead.
     pub fn sign_raw<'a>(secret: &'a K, nonce: K, challenge: &[u8]) -> Result<Self, SchnorrSignatureError>
-    where
-        K: Add<Output = K> + Mul<&'a K, Output = K>,
-    {
+    where K: Add<Output = K> + Mul<&'a K, Output = K> {
         // s = r + e.k
         let e = match K::from_bytes(challenge) {
             Ok(e) => e,

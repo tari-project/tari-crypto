@@ -50,8 +50,7 @@ impl<P: borsh::BorshSerialize> borsh::BorshSerialize for HomomorphicCommitment<P
 }
 
 impl<P> HomomorphicCommitment<P>
-where
-    P: PublicKey,
+where P: PublicKey
 {
     /// Get this commitment as a public key point
     pub fn as_public_key(&self) -> &P {
@@ -65,8 +64,7 @@ where
 }
 
 impl<P> ByteArray for HomomorphicCommitment<P>
-where
-    P: PublicKey,
+where P: PublicKey
 {
     fn from_bytes(bytes: &[u8]) -> Result<Self, ByteArrayError> {
         let p = P::from_bytes(bytes)?;
@@ -79,8 +77,7 @@ where
 }
 
 impl<P> PartialOrd for HomomorphicCommitment<P>
-where
-    P: PublicKey,
+where P: PublicKey
 {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.0.cmp(&other.0))
@@ -88,8 +85,7 @@ where
 }
 
 impl<P> Ord for HomomorphicCommitment<P>
-where
-    P: PublicKey,
+where P: PublicKey
 {
     fn cmp(&self, other: &Self) -> Ordering {
         self.0.cmp(&other.0)

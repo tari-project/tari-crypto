@@ -484,8 +484,8 @@ mod test {
     pub fn test_verify_invalid_params() {
         let pub_key = [1; KEY_LENGTH];
         let msg = "msg\0";
-        let mut pub_nonce = [0; KEY_LENGTH];
-        let mut signature = [0; KEY_LENGTH];
+        let pub_nonce = [0; KEY_LENGTH];
+        let signature = [0; KEY_LENGTH];
         let mut err_code = 0i32;
         unsafe {
             assert!(!verify(
