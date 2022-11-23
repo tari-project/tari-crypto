@@ -7,6 +7,7 @@
 
 use std::{
     cmp::Ordering,
+    hash::{Hash, Hasher},
     marker::PhantomData,
     ops::{Add, Mul},
 };
@@ -41,7 +42,7 @@ pub enum SchnorrSignatureError {
 ///
 /// More details on Schnorr signatures can be found at [TLU](https://tlu.tarilabs.com/cryptography/introduction-schnorr-signatures).
 #[allow(non_snake_case)]
-#[derive(PartialEq, Eq, Copy, Debug, Clone, Serialize, Deserialize, Hash)]
+#[derive(Copy, Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize, borsh::BorshDeserialize))]
 pub struct SchnorrSignature<P, K, H = SchnorrSigChallenge> {
     public_nonce: P,
@@ -229,12 +230,13 @@ where
     }
 }
 
-impl<'a, 'b, P, K> Add<&'b SchnorrSignature<P, K>> for &'a SchnorrSignature<P, K>
+impl<'a, 'b, P, K, H> Add<&'b SchnorrSignature<P, K>> for &'a SchnorrSignature<P, K, H>
 where
     P: PublicKey<K = K>,
     &'a P: Add<&'b P, Output = P>,
     K: SecretKey,
     &'a K: Add<&'b K, Output = K>,
+    H: DomainSeparation,
 {
     type Output = SchnorrSignature<P, K>;
 
@@ -245,12 +247,13 @@ where
     }
 }
 
-impl<'a, P, K> Add<SchnorrSignature<P, K>> for &'a SchnorrSignature<P, K>
+impl<'a, P, K, H> Add<SchnorrSignature<P, K>> for &'a SchnorrSignature<P, K, H>
 where
     P: PublicKey<K = K>,
     for<'b> &'a P: Add<&'b P, Output = P>,
     K: SecretKey,
     for<'b> &'a K: Add<&'b K, Output = K>,
+    H: DomainSeparation,
 {
     type Output = SchnorrSignature<P, K>;
 
@@ -261,17 +264,18 @@ where
     }
 }
 
-impl<P, K> Default for SchnorrSignature<P, K>
+impl<P, K, H> Default for SchnorrSignature<P, K, H>
 where
     P: PublicKey<K = K>,
     K: SecretKey,
+    H: DomainSeparation,
 {
     fn default() -> Self {
         SchnorrSignature::new(P::default(), K::default())
     }
 }
 
-impl<P, K> Ord for SchnorrSignature<P, K>
+impl<P, K, H> Ord for SchnorrSignature<P, K, H>
 where
     P: Eq + Ord,
     K: Eq + ByteArray,
@@ -289,13 +293,41 @@ where
     }
 }
 
-impl<P, K> PartialOrd for SchnorrSignature<P, K>
+impl<P, K, H> PartialOrd for SchnorrSignature<P, K, H>
 where
     P: Eq + Ord,
     K: Eq + ByteArray,
 {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
+    }
+}
+
+impl<P, K, H> Eq for SchnorrSignature<P, K, H>
+where
+    P: Eq,
+    K: Eq,
+{
+}
+
+impl<P, K, H> PartialEq for SchnorrSignature<P, K, H>
+where
+    P: PartialEq,
+    K: PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.public_nonce.eq(&other.public_nonce) && self.signature.eq(&other.signature)
+    }
+}
+
+impl<P, K, H> Hash for SchnorrSignature<P, K, H>
+where
+    P: Hash,
+    K: Hash,
+{
+    fn hash<T: Hasher>(&self, state: &mut T) {
+        self.public_nonce.hash(state);
+        self.signature.hash(state);
     }
 }
 
