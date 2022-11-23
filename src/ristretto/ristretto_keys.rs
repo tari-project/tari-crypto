@@ -93,9 +93,7 @@ impl ByteArray for RistrettoSecretKey {
     /// not exactly 32 bytes long, `from_bytes` returns an error. This function is guaranteed to return a valid key
     /// in the group since it performs a mod _l_ on the input.
     fn from_bytes(bytes: &[u8]) -> Result<RistrettoSecretKey, ByteArrayError>
-    where
-        Self: Sized,
-    {
+    where Self: Sized {
         if bytes.len() != 32 {
             return Err(ByteArrayError::IncorrectLength);
         }
@@ -441,9 +439,7 @@ impl ByteArray for RistrettoPublicKey {
     /// * The byte array is not exactly 32 bytes
     /// * The byte array does not represent a valid (compressed) point on the ristretto255 curve
     fn from_bytes(bytes: &[u8]) -> Result<RistrettoPublicKey, ByteArrayError>
-    where
-        Self: Sized,
-    {
+    where Self: Sized {
         // Check the length here, because The Ristretto constructor panics rather than returning an error
         if bytes.len() != 32 {
             return Err(ByteArrayError::IncorrectLength);
