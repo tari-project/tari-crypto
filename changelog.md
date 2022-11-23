@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.16.3](https://github.com/tari-project/tari-crypto/compare/v0.16.2...v0.16.3) (2022-11-23)
+
+
+### Features
+
+* add Borsh ([#150](https://github.com/tari-project/tari-crypto/issues/150)) ([4a4b633](https://github.com/tari-project/tari-crypto/commit/4a4b633699124b17dfb9163c125db7c403d58404))
+
+
+### Bug Fixes
+
+* remove 2 unnecessary allocations in batch_mul ([#154](https://github.com/tari-project/tari-crypto/issues/154)) ([ea33445](https://github.com/tari-project/tari-crypto/commit/ea3344585b28f5b5449d90b718f1c64929768937))
+
 ### [0.16.2](https://github.com/tari-project/tari-crypto/compare/v0.16.1...v0.16.2) (2022-11-21)
 
 
