@@ -10,7 +10,7 @@ use std::{
     ops::{Add, Mul, Sub},
 };
 #[cfg(feature = "borsh")]
-use std::{convert::TryInto, io, io::Write};
+use std::{io, io::Write};
 
 use blake2::Blake2b;
 use curve25519_dalek::{
@@ -59,18 +59,15 @@ pub struct RistrettoSecretKey(pub(crate) Scalar);
 #[cfg(feature = "borsh")]
 impl borsh::BorshSerialize for RistrettoSecretKey {
     fn serialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
-        borsh::BorshSerialize::serialize(&self.0.as_bytes(), writer)
+        borsh::BorshSerialize::serialize(&self.as_bytes(), writer)
     }
 }
 
 #[cfg(feature = "borsh")]
 impl borsh::BorshDeserialize for RistrettoSecretKey {
     fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
-        Ok(Self(
-            // Self::from_bytes(buf).map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e.to_string()))
-            Scalar::from_canonical_bytes((&buf[..]).try_into().unwrap())
-                .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "Deserialize error"))?,
-        ))
+        let bytes: Vec<u8> = borsh::BorshDeserialize::deserialize(buf)?;
+        Self::from_bytes(bytes.as_slice()).map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e.to_string()))
     }
 }
 
@@ -96,7 +93,9 @@ impl ByteArray for RistrettoSecretKey {
     /// not exactly 32 bytes long, `from_bytes` returns an error. This function is guaranteed to return a valid key
     /// in the group since it performs a mod _l_ on the input.
     fn from_bytes(bytes: &[u8]) -> Result<RistrettoSecretKey, ByteArrayError>
-    where Self: Sized {
+    where
+        Self: Sized,
+    {
         if bytes.len() != 32 {
             return Err(ByteArrayError::IncorrectLength);
         }
@@ -442,7 +441,9 @@ impl ByteArray for RistrettoPublicKey {
     /// * The byte array is not exactly 32 bytes
     /// * The byte array does not represent a valid (compressed) point on the ristretto255 curve
     fn from_bytes(bytes: &[u8]) -> Result<RistrettoPublicKey, ByteArrayError>
-    where Self: Sized {
+    where
+        Self: Sized,
+    {
         // Check the length here, because The Ristretto constructor panics rather than returning an error
         if bytes.len() != 32 {
             return Err(ByteArrayError::IncorrectLength);
@@ -882,5 +883,29 @@ mod test {
         assert_eq!(p.compressed.get(), None); // no compressed point yet
         assert_eq!(p.as_bytes(), &zeros); // this compresses the point
         assert_eq!(p.compressed.get().unwrap().as_bytes(), &zeros); // check directly for good measure
+    }
+
+    #[cfg(feature = "borsh")]
+    mod borsh {
+        use borsh::{BorshDeserialize, BorshSerialize};
+
+        use crate::ristretto::{test_common::get_keypair, RistrettoPublicKey, RistrettoSecretKey};
+
+        #[test]
+        fn test_serialize_secret_key() {
+            let (secret_key_a, public_key_a) = get_keypair();
+            let (secret_key_b, public_key_b) = get_keypair();
+            let mut v = Vec::new();
+            secret_key_a.serialize(&mut v).unwrap();
+            public_key_a.serialize(&mut v).unwrap();
+            secret_key_b.serialize(&mut v).unwrap();
+            public_key_b.serialize(&mut v).unwrap();
+            let buf = &mut v.as_slice();
+            assert_eq!(RistrettoSecretKey::deserialize(buf).unwrap(), secret_key_a);
+            assert_eq!(RistrettoPublicKey::deserialize(buf).unwrap(), public_key_a);
+            assert_eq!(RistrettoSecretKey::deserialize(buf).unwrap(), secret_key_b);
+            assert_eq!(RistrettoPublicKey::deserialize(buf).unwrap(), public_key_b);
+            assert!(buf.is_empty());
+        }
     }
 }
