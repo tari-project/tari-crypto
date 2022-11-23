@@ -52,7 +52,9 @@ pub enum CommitmentAndPublicKeySignatureError {
 ///     `u_a*H + (u_x + w*u_y)*G - ephemeral_commitment - w*ephemeral_pubkey - e*commitment - (w*e)*pubkey == 0`
 /// The use of efficient multiscalar multiplication algorithms may also be useful for efficiency.
 /// The use of precomputation tables for `G` and `H` may also be useful for efficiency.
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize, borsh::BorshDeserialize))]
 pub struct CommitmentAndPublicKeySignature<P, K> {
     ephemeral_commitment: HomomorphicCommitment<P>,
     ephemeral_pubkey: P,
@@ -80,6 +82,7 @@ where
     /// Complete a signature using the given challenge. The challenge is provided by the caller to support the
     /// multiparty use case. It is _very important_ that it be computed using strong Fiat-Shamir! Further, the
     /// values `r_a, r_x, r_y` are nonces, must be sampled uniformly at random, and must never be reused.
+    #[allow(clippy::too_many_arguments)]
     pub fn sign<C>(
         a: &K,
         x: &K,

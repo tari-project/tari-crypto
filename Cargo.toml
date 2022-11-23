@@ -11,10 +11,11 @@ version = "0.16.2"
 edition = "2018"
 
 [dependencies]
-tari_utilities = { git = "https://github.com/tari-project/tari_utilities.git", tag="v0.4.9" }
+tari_utilities = { git = "https://github.com/tari-project/tari_utilities.git", tag = "v0.4.10" }
 
 base64 = "0.10.1"
 blake2 = "0.9.1"
+borsh = { version = "0.9.3", optional = true }
 bulletproofs = { package = "tari_bulletproofs", git = "https://github.com/tari-project/bulletproofs", tag = "v4.3.0" }
 bulletproofs_plus = { package = "tari_bulletproofs_plus", git = "https://github.com/tari-project/bulletproofs-plus", tag = "v0.1.0" }
 curve25519-dalek = { package = "curve25519-dalek", version = "3.2.1", default-features = false, features = ["serde", "alloc"] }

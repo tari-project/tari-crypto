@@ -9,6 +9,8 @@ use std::{
     hash::{Hash, Hasher},
     ops::{Add, Mul, Sub},
 };
+#[cfg(feature = "borsh")]
+use std::{convert::TryInto, io, io::Write};
 
 use blake2::Blake2b;
 use curve25519_dalek::{
@@ -53,6 +55,24 @@ use crate::{
 #[derive(Eq, Clone, Default, Zeroize)]
 #[zeroize(drop)]
 pub struct RistrettoSecretKey(pub(crate) Scalar);
+
+#[cfg(feature = "borsh")]
+impl borsh::BorshSerialize for RistrettoSecretKey {
+    fn serialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
+        borsh::BorshSerialize::serialize(&self.0.as_bytes(), writer)
+    }
+}
+
+#[cfg(feature = "borsh")]
+impl borsh::BorshDeserialize for RistrettoSecretKey {
+    fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
+        Ok(Self(
+            // Self::from_bytes(buf).map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e.to_string()))
+            Scalar::from_canonical_bytes((&buf[..]).try_into().unwrap())
+                .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "Deserialize error"))?,
+        ))
+    }
+}
 
 const SCALAR_LENGTH: usize = 32;
 const PUBLIC_KEY_LENGTH: usize = 32;
@@ -236,6 +256,21 @@ impl<'a> Borrow<Scalar> for &'a RistrettoSecretKey {
 pub struct RistrettoPublicKey {
     point: RistrettoPoint,
     compressed: OnceCell<CompressedRistretto>,
+}
+
+#[cfg(feature = "borsh")]
+impl borsh::BorshSerialize for RistrettoPublicKey {
+    fn serialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
+        borsh::BorshSerialize::serialize(&self.as_bytes(), writer)
+    }
+}
+
+#[cfg(feature = "borsh")]
+impl borsh::BorshDeserialize for RistrettoPublicKey {
+    fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
+        let bytes: Vec<u8> = borsh::BorshDeserialize::deserialize(buf)?;
+        Self::from_bytes(bytes.as_slice()).map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e.to_string()))
+    }
 }
 
 impl RistrettoPublicKey {

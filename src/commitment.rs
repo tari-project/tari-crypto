@@ -35,6 +35,20 @@ use crate::{
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct HomomorphicCommitment<P>(pub(crate) P);
 
+#[cfg(feature = "borsh")]
+impl<P: borsh::BorshDeserialize> borsh::BorshDeserialize for HomomorphicCommitment<P> {
+    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        Ok(Self(P::deserialize(buf)?))
+    }
+}
+
+#[cfg(feature = "borsh")]
+impl<P: borsh::BorshSerialize> borsh::BorshSerialize for HomomorphicCommitment<P> {
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        self.0.serialize(writer)
+    }
+}
+
 impl<P> HomomorphicCommitment<P>
 where P: PublicKey
 {
