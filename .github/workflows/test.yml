@@ -43,7 +43,7 @@ jobs:
           command: test
           # TODO: re-add all features once https://github.com/rust-lang/packed_simd/pull/341 is used by dalek
           # args: --release --all-features
-          args: --release --features wasm --features ffi
+          args: --release --features wasm --features ffi --features borsh
       - name: docs build
         uses: actions-rs/cargo@v1
         with:
