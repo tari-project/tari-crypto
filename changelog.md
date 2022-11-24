@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.16.5](https://github.com/tari-project/tari-crypto/compare/v0.16.4...v0.16.5) (2022-11-24)
+
+
+### Features
+
+* relax zeroize ([#157](https://github.com/tari-project/tari-crypto/issues/157)) ([270f568](https://github.com/tari-project/tari-crypto/commit/270f5681ee29de303e11ffd5d5c05b1cb1c8407e))
+
 ### [0.16.4](https://github.com/tari-project/tari-crypto/compare/v0.16.3...v0.16.4) (2022-11-24)
 
 
