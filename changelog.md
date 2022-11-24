@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.16.4](https://github.com/tari-project/tari-crypto/compare/v0.16.3...v0.16.4) (2022-11-24)
+
+
+### Bug Fixes
+
+* serialization of RistrettoSecretKey ([#156](https://github.com/tari-project/tari-crypto/issues/156)) ([a51d55f](https://github.com/tari-project/tari-crypto/commit/a51d55f71651a014dd6cd8a7722a85da6c6b3ae2))
+
 ### [0.16.3](https://github.com/tari-project/tari-crypto/compare/v0.16.2...v0.16.3) (2022-11-23)
 
 
