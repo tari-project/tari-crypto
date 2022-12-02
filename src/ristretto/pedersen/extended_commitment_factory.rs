@@ -22,6 +22,7 @@ use crate::{
     ristretto::{
         constants::{RISTRETTO_NUMS_POINTS, RISTRETTO_NUMS_POINTS_COMPRESSED},
         pedersen::{
+            scalar_mul_with_pre_computation_tables,
             PedersenCommitment,
             RISTRETTO_PEDERSEN_G,
             RISTRETTO_PEDERSEN_G_COMPRESSED,
@@ -90,6 +91,10 @@ impl ExtendedPedersenCommitmentFactory {
     {
         if blinding_factors.is_empty() || blinding_factors.len() > self.extension_degree as usize {
             Err(CommitmentError::ExtensionDegree("blinding vector".to_string()))
+        } else if blinding_factors.len() == 1 &&
+            (self.g_base_vec[0], self.h_base) == (RISTRETTO_PEDERSEN_G, *RISTRETTO_PEDERSEN_H)
+        {
+            Ok(scalar_mul_with_pre_computation_tables(&blinding_factors[0], value))
         } else {
             let scalars = once(value).chain(blinding_factors);
             let g_base_head = self.g_base_vec.iter().take(blinding_factors.len());
