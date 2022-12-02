@@ -6,14 +6,15 @@
 use std::{borrow::Borrow, iter::Sum};
 
 use curve25519_dalek::{
-    constants::{RISTRETTO_BASEPOINT_COMPRESSED, RISTRETTO_BASEPOINT_POINT},
+    constants::{RISTRETTO_BASEPOINT_COMPRESSED, RISTRETTO_BASEPOINT_POINT, RISTRETTO_BASEPOINT_TABLE},
     ristretto::{CompressedRistretto, RistrettoPoint},
+    scalar::Scalar,
 };
 
 use crate::{
     commitment::HomomorphicCommitment,
     ristretto::{
-        constants::{RISTRETTO_NUMS_POINTS, RISTRETTO_NUMS_POINTS_COMPRESSED},
+        constants::{RISTRETTO_NUMS_POINTS, RISTRETTO_NUMS_POINTS_COMPRESSED, RISTRETTO_NUMS_TABLE_0},
         RistrettoPublicKey,
     },
 };
@@ -48,6 +49,10 @@ where T: Borrow<PedersenCommitment>
         let sum = RistrettoPublicKey::new_from_pk(total);
         HomomorphicCommitment(sum)
     }
+}
+
+pub(crate) fn scalar_mul_with_pre_computation_tables(k: &Scalar, v: &Scalar) -> RistrettoPoint {
+    &RISTRETTO_BASEPOINT_TABLE * k + &*RISTRETTO_NUMS_TABLE_0 * v
 }
 
 #[cfg(test)]
