@@ -97,7 +97,7 @@ where
         self.seed = seed;
     }
 
-    /// Reset the randomizer to its original seed
+    /// Reset the randomizer using the seed last provided by either the constructor or reseeding
     pub fn reset(&mut self) {
         self.reseed(self.seed.clone());
     }
