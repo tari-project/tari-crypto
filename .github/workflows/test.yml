@@ -28,16 +28,14 @@ jobs:
         with:
           command: test
           args: --release
-      - name: test/debug all features
-        if: ${{ matrix.rust != 'stable' }}
+      - name: test/debug features
         uses: actions-rs/cargo@v1
         with:
           command: test
           # TODO: re-add all features once https://github.com/rust-lang/packed_simd/pull/341 is used by dalek
           # args: --all-features
-          args: --features wasm --features ffi
-      - name: test/release all features
-        if: ${{ matrix.rust != 'stable' }}
+          args: --features wasm --features ffi --features borsh
+      - name: test/release features
         uses: actions-rs/cargo@v1
         with:
           command: test
