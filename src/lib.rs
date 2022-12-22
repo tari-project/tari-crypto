@@ -9,6 +9,7 @@ extern crate lazy_static;
 #[macro_use]
 mod macros;
 pub mod commitment;
+pub mod deterministic_randomizer;
 pub mod dhke;
 pub mod hash;
 pub mod hashing;
