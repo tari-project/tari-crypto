@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.16.6](https://github.com/tari-project/tari-crypto/compare/v0.16.5...v0.16.6) (2023-01-04)
+
+
+### Features
+
+* deterministic pseudorandom operations ([#140](https://github.com/tari-project/tari-crypto/issues/140)) ([306cf1b](https://github.com/tari-project/tari-crypto/commit/306cf1be8fa12f95cb3ca2d7a8a6c77e47cf3feb))
+* use pre-computation tables for extended commitment factory with extension degree = 1 ([#158](https://github.com/tari-project/tari-crypto/issues/158)) ([0d816e4](https://github.com/tari-project/tari-crypto/commit/0d816e4a3522e3b4ea1cae43616fb168e2364000))
+
+
+### Bug Fixes
+
+* make schnorr sig impls more general ([#155](https://github.com/tari-project/tari-crypto/issues/155)) ([656fe7a](https://github.com/tari-project/tari-crypto/commit/656fe7a3ac77f3b9bf0f8178cc6a1481099336bc))
+* use updated range proof API ([#160](https://github.com/tari-project/tari-crypto/issues/160)) ([be0a491](https://github.com/tari-project/tari-crypto/commit/be0a491e719c89ff025fe96673efb480d19452f8))
+
 ### [0.16.5](https://github.com/tari-project/tari-crypto/compare/v0.16.4...v0.16.5) (2022-11-24)
 
 
