@@ -11,7 +11,7 @@ use bulletproofs_plus::{
     extended_mask::ExtendedMask as BulletproofsExtendedMask,
     generators::pedersen_gens::ExtensionDegree as BulletproofsExtensionDegree,
     range_parameters::RangeParameters,
-    range_proof::RangeProof,
+    range_proof::{RangeProof, VerifyAction},
     range_statement::RangeStatement,
     range_witness::RangeWitness,
     PedersenGens,
@@ -237,9 +237,12 @@ impl RangeProofService for BulletproofsPlusService {
                     minimum_value_promises: vec![None],
                     seed_nonce: None,
                 };
-                match RistrettoRangeProof::verify_do_not_recover_masks(self.transcript_label, &[statement], &[
-                    rp.clone()
-                ]) {
+                match RistrettoRangeProof::verify_batch(
+                    self.transcript_label,
+                    &[statement],
+                    &[rp.clone()],
+                    VerifyAction::VerifyOnly,
+                ) {
                     Ok(_) => true,
                     Err(e) => {
                         if self.generators.extension_degree() != rp.extension_degree() {
@@ -357,7 +360,12 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
 
         // Verify and recover
         let mut recovered_extended_masks = Vec::new();
-        match RistrettoRangeProof::verify_and_recover_masks(self.transcript_label, &range_statements, &range_proofs) {
+        match RistrettoRangeProof::verify_batch(
+            self.transcript_label,
+            &range_statements,
+            &range_proofs,
+            VerifyAction::RecoverAndVerify,
+        ) {
             Ok(recovered_masks) => {
                 if recovered_masks.is_empty() {
                     // A mask vector should always be returned so this is a valid error condition
@@ -396,8 +404,12 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
         let range_proofs = self.deserialize_range_proofs(&proofs)?;
 
         // Verify
-        match RistrettoRangeProof::verify_do_not_recover_masks(self.transcript_label, &range_statements, &range_proofs)
-        {
+        match RistrettoRangeProof::verify_batch(
+            self.transcript_label,
+            &range_statements,
+            &range_proofs,
+            VerifyAction::VerifyOnly,
+        ) {
             Ok(_) => Ok(()),
             Err(e) => Err(RangeProofError::InvalidRangeProof(format!(
                 "Internal range proof(s) error ({})",
@@ -423,7 +435,12 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
                 };
                 // Prepare the range statement
 
-                match RistrettoRangeProof::recover_masks_ony(self.transcript_label, &vec![statement], &[rp]) {
+                match RistrettoRangeProof::verify_batch(
+                    self.transcript_label,
+                    &vec![statement],
+                    &[rp],
+                    VerifyAction::RecoverOnly,
+                ) {
                     Ok(recovered_mask) => {
                         if recovered_mask.is_empty() {
                             Err(RangeProofError::InvalidRewind(
@@ -463,7 +480,12 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
                 // Prepare the range statement
                 let range_statements = self.prepare_private_range_statements(vec![statement]);
 
-                match RistrettoRangeProof::recover_masks_ony(self.transcript_label, &range_statements, &[rp]) {
+                match RistrettoRangeProof::verify_batch(
+                    self.transcript_label,
+                    &range_statements,
+                    &[rp],
+                    VerifyAction::RecoverOnly,
+                ) {
                     Ok(recovered_mask) => {
                         if recovered_mask.is_empty() {
                             Ok(None)
