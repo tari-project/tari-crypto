@@ -31,7 +31,7 @@ impl Blake256 {
         persona: &[u8],
         output_size: usize,
     ) -> Result<Self, HashError> {
-        if salt.len() > 16 || persona.len() > 16 || output_size < 1 || output_size > U64::to_usize() {
+        if key.len() > 64 || salt.len() > 16 || persona.len() > 16 || output_size < 1 || output_size > U64::to_usize() {
             Err(HashError::WrongLength)
         } else {
             Ok(Self(VarBlake2b::with_params(key, salt, persona, output_size)))
@@ -151,5 +151,36 @@ mod test {
         assert_ne!(salted, keyed);
         assert_ne!(keyed, personalised);
         assert_ne!(keyed, salted);
+    }
+
+    #[test]
+    fn bad_parameters() {
+        // A valid key is at most 64 bytes
+        let key = [1u8; 64];
+        let bad_key = [1u8; 65];
+
+        // A valid salt is at most 16 bytes
+        let salt = [1u8; 16];
+        let bad_salt = [1u8; 17];
+
+        // A valid persona is at most 16 bytes
+        let persona = [1u8; 16];
+        let bad_persona = [1u8; 17];
+
+        // A valid output is at least 1 byte and at most 64 bytes
+        let output = 64;
+        let bad_output_short = 0;
+        let bad_output_long = 65;
+
+        // Valid parameter sets
+        assert!(Blake256::with_params(&key, &salt, &persona).is_ok());
+        assert!(Blake256::with_params_var_size(&key, &salt, &persona, output).is_ok());
+
+        // Invalid parameter sets
+        assert!(Blake256::with_params(&bad_key, &salt, &persona).is_err());
+        assert!(Blake256::with_params(&key, &bad_salt, &persona).is_err());
+        assert!(Blake256::with_params(&key, &salt, &bad_persona).is_err());
+        assert!(Blake256::with_params_var_size(&key, &salt, &persona, bad_output_short).is_err());
+        assert!(Blake256::with_params_var_size(&key, &salt, &persona, bad_output_long).is_err());
     }
 }
