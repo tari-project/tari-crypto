@@ -1,8 +1,9 @@
 // Copyright 2019. The Tari Project
 // SPDX-License-Identifier: BSD-3-Clause
 
-//! Constant [NUMS](https://www.ietf.org/archive/id/draft-black-numscurves-02.txt) points for the Ristretto curve. There are 10 provided, but this library currently only
-//! uses the first
+//! Provides nothing-up-my-sleeve (NUMS) generators of the Ristretto group, both in uncompressed and compressed forms.
+//! Generates a precomputation table for the first of these points for use in commitments.
+//! Tests the correctness of the NUMS construction.
 
 use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoBasepointTable, RistrettoPoint};
 
