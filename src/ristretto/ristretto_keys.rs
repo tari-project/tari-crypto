@@ -397,7 +397,45 @@ impl Default for RistrettoPublicKey {
 
 impl fmt::Display for RistrettoPublicKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.to_hex())
+        self.fmt_case(f, false)
+    }
+}
+
+impl RistrettoPublicKey {
+    // Formats a 64 char hex string to a given width.
+    // If w >= 64, we pad the result.
+    // If 7 <= w < 64, we replace the middle of the string with "..."
+    // If w <= 6, we return the first w chars of the string
+    fn fmt_case(&self, f: &mut fmt::Formatter, uppercase: bool) -> fmt::Result {
+        let mut hex = self.to_hex();
+        if uppercase {
+            hex = hex.to_uppercase();
+        }
+        if f.alternate() {
+            hex = format!("0x{hex}");
+        }
+        match f.width() {
+            None => f.write_str(hex.as_str()),
+            Some(w @ 1..=6) => f.write_str(&hex[..w]),
+            Some(w @ 7..=63) => {
+                let left = (w - 3) / 2;
+                let right = hex.len() - (w - left - 3);
+                f.write_str(format!("{}...{}", &hex[..left], &hex[right..]).as_str())
+            },
+            _ => std::fmt::Display::fmt(&hex, f),
+        }
+    }
+}
+
+impl fmt::LowerHex for RistrettoPublicKey {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.fmt_case(f, false)
+    }
+}
+
+impl fmt::UpperHex for RistrettoPublicKey {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.fmt_case(f, true)
     }
 }
 
@@ -818,6 +856,79 @@ mod test {
         let pk = RistrettoPublicKey::from_hex(hex).unwrap();
         assert_eq!(format!("{pk}"), hex);
         assert_eq!(format!("{pk:?}"), hex);
+    }
+
+    #[test]
+    fn pubkey_display_width_formatting() {
+        let hex = "e2f2ae0a6abc4e71a884a961c500515f58e30b6aa582dd8db6a65945e08d2d76";
+        let pk = RistrettoPublicKey::from_hex(hex).unwrap();
+        assert_eq!(format!("{:0}", pk), hex);
+        assert_eq!(format!("{pk:2}"), "e2");
+        assert_eq!(format!("{pk:6}"), "e2f2ae");
+        assert_eq!(format!("{pk:7}"), "e2...76");
+        assert_eq!(format!("{pk:16}"), "e2f2ae...08d2d76");
+        assert_eq!(
+            format!("{pk:62}"),
+            "e2f2ae0a6abc4e71a884a961c5005...e30b6aa582dd8db6a65945e08d2d76"
+        );
+        assert_eq!(
+            format!("{pk:63}"),
+            "e2f2ae0a6abc4e71a884a961c50051...e30b6aa582dd8db6a65945e08d2d76"
+        );
+        assert_eq!(
+            format!("{pk:64}"),
+            "e2f2ae0a6abc4e71a884a961c500515f58e30b6aa582dd8db6a65945e08d2d76"
+        );
+        assert_eq!(
+            format!("{pk:65}"),
+            "e2f2ae0a6abc4e71a884a961c500515f58e30b6aa582dd8db6a65945e08d2d76 "
+        );
+        assert_eq!(
+            format!("{pk:*>66}"),
+            "**e2f2ae0a6abc4e71a884a961c500515f58e30b6aa582dd8db6a65945e08d2d76"
+        );
+        assert_eq!(
+            format!("{pk:*<66}"),
+            "e2f2ae0a6abc4e71a884a961c500515f58e30b6aa582dd8db6a65945e08d2d76**"
+        );
+        assert_eq!(
+            format!("{pk:*^66}"),
+            "*e2f2ae0a6abc4e71a884a961c500515f58e30b6aa582dd8db6a65945e08d2d76*"
+        );
+    }
+
+    #[test]
+    fn pubkey_hex_formatting() {
+        let hex = "e2f2ae0a6abc4e71a884a961c500515f58e30b6aa582dd8db6a65945e08d2d76";
+        let pk = RistrettoPublicKey::from_hex(hex).unwrap();
+        assert_eq!(
+            format!("{pk:#x}"),
+            "0xe2f2ae0a6abc4e71a884a961c500515f58e30b6aa582dd8db6a65945e08d2d76"
+        );
+        assert_eq!(
+            format!("{pk:x}"),
+            "e2f2ae0a6abc4e71a884a961c500515f58e30b6aa582dd8db6a65945e08d2d76"
+        );
+        assert_eq!(
+            format!("{pk:#X}"),
+            "0xE2F2AE0A6ABC4E71A884A961C500515F58E30B6AA582DD8DB6A65945E08D2D76"
+        );
+        assert_eq!(
+            format!("{pk:X}"),
+            "E2F2AE0A6ABC4E71A884A961C500515F58E30B6AA582DD8DB6A65945E08D2D76"
+        );
+    }
+
+    #[test]
+    fn pubkey_combined_formatting() {
+        let hex = "e2f2ae0a6abc4e71a884a961c500515f58e30b6aa582dd8db6a65945e08d2d76";
+        let pk = RistrettoPublicKey::from_hex(hex).unwrap();
+        assert_eq!(format!("{pk:2X}"), "E2");
+        assert_eq!(format!("{pk:9X}"), "E2F...D76");
+        assert_eq!(
+            format!("{pk:*^#68X}"),
+            "*0xE2F2AE0A6ABC4E71A884A961C500515F58E30B6AA582DD8DB6A65945E08D2D76*"
+        );
     }
 
     #[test]
