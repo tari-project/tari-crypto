@@ -90,7 +90,7 @@ pub type RistrettoSchnorr = SchnorrSignature<RistrettoPublicKey, RistrettoSecret
 /// when computing challenges for the signature.
 ///
 /// ## Example
-/// /// ```edition2018
+/// ```edition2018
 /// # use tari_crypto::ristretto::*;
 /// # use tari_crypto::keys::*;
 /// # use tari_crypto::hash_domain;
@@ -103,10 +103,7 @@ pub type RistrettoSchnorr = SchnorrSignature<RistrettoPublicKey, RistrettoSecret
 /// hash_domain!(MyCustomDomain, "com.example.custom");
 ///
 /// let msg = "Maskerade";
-/// let k = RistrettoSecretKey::from_hex(
-///     "bd0b253a619310340a4fa2de54cdd212eac7d088ee1dc47e305c3f6cbd020908",
-/// )
-/// .unwrap();
+/// let k = RistrettoSecretKey::from_hex("bd0b253a619310340a4fa2de54cdd212eac7d088ee1dc47e305c3f6cbd020908").unwrap();
 /// # #[allow(non_snake_case)]
 /// let P = RistrettoPublicKey::from_secret_key(&k);
 /// let sig: SchnorrSignature<RistrettoPublicKey, RistrettoSecretKey, MyCustomDomain> =
