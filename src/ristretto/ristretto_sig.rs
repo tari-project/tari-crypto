@@ -90,7 +90,7 @@ pub type RistrettoSchnorr = SchnorrSignature<RistrettoPublicKey, RistrettoSecret
 /// when computing challenges for the signature.
 ///
 /// ## Example
-/// /// ```edition2018
+/// ```edition2018
 /// # use tari_crypto::ristretto::*;
 /// # use tari_crypto::keys::*;
 /// # use tari_crypto::hash_domain;
