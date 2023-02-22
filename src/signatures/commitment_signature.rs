@@ -8,7 +8,7 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use tari_utilities::ByteArray;
+use tari_utilities::{ByteArray, ByteArrayError};
 use thiserror::Error;
 
 use crate::{
@@ -66,7 +66,9 @@ where
 
     /// This is the left-hand side of the signature verification equation
     pub fn calc_signature_verifier<C>(&self, factory: &C) -> HomomorphicCommitment<P>
-    where C: HomomorphicCommitmentFactory<P = P> {
+    where
+        C: HomomorphicCommitmentFactory<P = P>,
+    {
         // v*H + u*G
         factory.commit(&self.u, &self.v)
     }
@@ -74,6 +76,39 @@ where
     /// Sign the provided challenge with the value commitment's value and blinding factor. The two nonces should be
     /// completely random and never reused - that responsibility lies with the calling function.
     pub fn sign<C>(
+        secret_a: &K,
+        secret_x: &K,
+        nonce_a: &K,
+        nonce_x: &K,
+        challenge: &[u8],
+        factory: &C,
+    ) -> Result<Self, CommitmentSignatureError>
+    where
+        K: Mul<P, Output = P>,
+        for<'a> &'a K: Add<&'a K, Output = K>,
+        for<'a> &'a K: Mul<&'a K, Output = K>,
+        C: HomomorphicCommitmentFactory<P = P>,
+    {
+        let e = match K::from_bytes(challenge) {
+            Ok(e) => e,
+            Err(_) => return Err(CommitmentSignatureError::InvalidChallenge),
+        };
+        let ea = &e * secret_a;
+        let ex = &e * secret_x;
+
+        let v = nonce_a + &ea;
+        let u = nonce_x + &ex;
+
+        let public_commitment_nonce = factory.commit(nonce_x, nonce_a);
+
+        Ok(Self::new(public_commitment_nonce, u, v))
+    }
+
+    /// Sign the provided challenge with the value commitment's value and blinding factor. `secret` and private `nonce`.
+    ///
+    /// WARNING: The provided secret keys and nonces are NOT bound to the challenge. This method assumes that the challenge has
+    /// been constructed such that all commitments are already included in the challenge.
+    pub fn sign_raw<C>(
         secret_a: &K,
         secret_x: &K,
         nonce_a: &K,
@@ -159,13 +194,27 @@ where
         &self.public_nonce
     }
 
-    /// Returns a canonical byte representation of the commitment signature
+    /// Returns a canonical vector of bytes representation of the commitment signature
     pub fn to_vec(&self) -> Vec<u8> {
         let mut buf = Vec::with_capacity(P::key_length() + K::key_length() + K::key_length());
         buf.extend_from_slice(self.public_nonce().as_bytes());
         buf.extend_from_slice(self.u().as_bytes());
         buf.extend_from_slice(self.v().as_bytes());
         buf
+    }
+
+    /// From a canonical vector of bytes representation, retrieves a commitment signature
+    pub fn from_vec(data: &Vec<u8>) -> Result<Self, ByteArrayError> {
+        Self::from_bytes(&data[..])
+    }
+
+    /// From a canonical byte representation, retrieves a commitment signature
+    pub fn from_bytes(buf: &[u8]) -> Result<Self, ByteArrayError> {
+        let public_nonce = HomomorphicCommitment::from_public_key(&P::from_bytes(&buf[0..P::KEY_LEN])?);
+        let u = K::from_bytes(&buf[P::KEY_LEN..P::KEY_LEN + K::key_length()])?;
+        let v = K::from_bytes(&buf[P::KEY_LEN + K::key_length()..P::KEY_LEN + 2 * K::key_length()])?;
+
+        Ok(Self { public_nonce, u, v })
     }
 }
 
