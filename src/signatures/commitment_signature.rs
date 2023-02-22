@@ -95,8 +95,8 @@ where
     /// Sign the provided challenge with the value commitment's value and blinding factor. The two nonces should be
     /// completely random and never reused - that responsibility lies with the calling function.
     ///
-    /// WARNING: The provided secret keys and nonces are NOT bound to the challenge. This method assumes that the challenge has
-    /// been constructed such that all commitments are already included in the challenge.
+    /// WARNING: The provided secret keys and nonces are NOT bound to the challenge. This method assumes that the
+    /// challenge has been constructed such that all commitments are already included in the challenge.
     pub fn sign_raw<C>(
         secret_a: &K,
         secret_x: &K,
@@ -190,11 +190,6 @@ where
         buf.extend_from_slice(self.u().as_bytes());
         buf.extend_from_slice(self.v().as_bytes());
         buf
-    }
-
-    /// From a canonical vector of bytes representation, retrieves a commitment signature
-    pub fn from_vec(data: &Vec<u8>) -> Result<Self, ByteArrayError> {
-        Self::from_bytes(&data[..])
     }
 
     /// From a canonical byte representation, retrieves a commitment signature
