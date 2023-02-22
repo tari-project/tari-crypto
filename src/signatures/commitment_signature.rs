@@ -89,19 +89,7 @@ where
         for<'a> &'a K: Mul<&'a K, Output = K>,
         C: HomomorphicCommitmentFactory<P = P>,
     {
-        let e = match K::from_bytes(challenge) {
-            Ok(e) => e,
-            Err(_) => return Err(CommitmentSignatureError::InvalidChallenge),
-        };
-        let ea = &e * secret_a;
-        let ex = &e * secret_x;
-
-        let v = nonce_a + &ea;
-        let u = nonce_x + &ex;
-
-        let public_commitment_nonce = factory.commit(nonce_x, nonce_a);
-
-        Ok(Self::new(public_commitment_nonce, u, v))
+        Self::sign_raw(secret_a, secret_x, nonce_a, nonce_x, challenge, factory)
     }
 
     /// Sign the provided challenge with the value commitment's value and blinding factor. `secret` and private `nonce`.
