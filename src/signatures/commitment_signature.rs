@@ -66,8 +66,7 @@ where
 
     /// This is the left-hand side of the signature verification equation
     pub fn calc_signature_verifier<C>(&self, factory: &C) -> HomomorphicCommitment<P>
-    where
-        C: HomomorphicCommitmentFactory<P = P>,
+    where C: HomomorphicCommitmentFactory<P = P>,
     {
         // v*H + u*G
         factory.commit(&self.u, &self.v)
