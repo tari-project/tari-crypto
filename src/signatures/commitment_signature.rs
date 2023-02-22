@@ -183,7 +183,7 @@ where
         &self.public_nonce
     }
 
-    /// Returns a canonical bytes representation of the commitment signature
+    /// Returns a canonical byte representation of the commitment signature
     pub fn to_vec(&self) -> Vec<u8> {
         let mut buf = Vec::with_capacity(P::key_length() + K::key_length() + K::key_length());
         buf.extend_from_slice(self.public_nonce().as_bytes());
