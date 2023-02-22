@@ -92,7 +92,8 @@ where
         Self::sign_raw(secret_a, secret_x, nonce_a, nonce_x, challenge, factory)
     }
 
-    /// Sign the provided challenge with the value commitment's value and blinding factor. `secret` and private `nonce`.
+    /// Sign the provided challenge with the value commitment's value and blinding factor. The two nonces should be
+    /// completely random and never reused - that responsibility lies with the calling function.
     ///
     /// WARNING: The provided secret keys and nonces are NOT bound to the challenge. This method assumes that the challenge has
     /// been constructed such that all commitments are already included in the challenge.
