@@ -66,7 +66,9 @@ where
 
     /// This is the left-hand side of the signature verification equation
     pub fn calc_signature_verifier<C>(&self, factory: &C) -> HomomorphicCommitment<P>
-    where C: HomomorphicCommitmentFactory<P = P> {
+    where
+        C: HomomorphicCommitmentFactory<P = P>,
+    {
         // v*H + u*G
         factory.commit(&self.u, &self.v)
     }
@@ -197,6 +199,9 @@ where
 
     /// From a canonical byte representation, retrieves a commitment signature
     pub fn from_bytes(buf: &[u8]) -> Result<Self, ByteArrayError> {
+        if buf.len() != P::KEY_LEN + 2 * K::key_length() {
+            return Err(ByteArrayError::IncorrectLength);
+        }
         let public_nonce = HomomorphicCommitment::from_public_key(&P::from_bytes(&buf[0..P::KEY_LEN])?);
         let u = K::from_bytes(&buf[P::KEY_LEN..P::KEY_LEN + K::key_length()])?;
         let v = K::from_bytes(&buf[P::KEY_LEN + K::key_length()..P::KEY_LEN + 2 * K::key_length()])?;
