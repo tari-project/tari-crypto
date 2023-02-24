@@ -5,7 +5,7 @@
 //! This module defines generic traits for handling the digital signature operations, agnostic
 //! of the underlying elliptic curve implementation
 
-use std::{
+use core::{
     cmp::Ordering,
     hash::{Hash, Hasher},
     marker::PhantomData,
@@ -13,9 +13,9 @@ use std::{
 };
 
 use digest::Digest;
-use serde::{Deserialize, Serialize};
+use rand_core::{CryptoRng, RngCore};
+use snafu::prelude::*;
 use tari_utilities::ByteArray;
-use thiserror::Error;
 
 use crate::{
     hash::blake2::Blake256,
@@ -28,10 +28,11 @@ use crate::{
 hash_domain!(SchnorrSigChallenge, "com.tari.schnorr_signature", 1);
 
 /// An error occurred during construction of a SchnorrSignature
-#[derive(Clone, Debug, Error, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Snafu, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(missing_docs)]
 pub enum SchnorrSignatureError {
-    #[error("An invalid challenge was provided")]
+    #[snafu(display("An invalid challenge was provided"))]
     InvalidChallenge,
 }
 
@@ -42,12 +43,13 @@ pub enum SchnorrSignatureError {
 ///
 /// More details on Schnorr signatures can be found at [TLU](https://tlu.tarilabs.com/cryptography/introduction-schnorr-signatures).
 #[allow(non_snake_case)]
-#[derive(Copy, Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize, borsh::BorshDeserialize))]
+#[derive(Copy, Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "borsh_ser", derive(borsh::BorshSerialize, borsh::BorshDeserialize))]
 pub struct SchnorrSignature<P, K, H = SchnorrSigChallenge> {
     public_nonce: P,
     signature: K,
-    #[serde(skip)]
+    #[cfg_attr(feature = "serde", serde(skip))]
     _phantom: PhantomData<H>,
 }
 
@@ -121,12 +123,16 @@ where
     ///
     /// it is possible to customise the challenge by using [`construct_domain_separated_challenge`] and [`sign_raw`]
     /// yourself, or even use [`sign_raw`] using a completely custom challenge.
-    pub fn sign_message<'a, B>(secret: &'a K, message: B) -> Result<Self, SchnorrSignatureError>
+    pub fn sign_message<'a, B, R: RngCore + CryptoRng>(
+        secret: &'a K,
+        message: B,
+        rng: &mut R,
+    ) -> Result<Self, SchnorrSignatureError>
     where
         K: Add<Output = K> + Mul<&'a K, Output = K>,
         B: AsRef<[u8]>,
     {
-        let nonce = K::random(&mut rand::thread_rng());
+        let nonce = K::random(rng);
         Self::sign_with_nonce_and_message(secret, nonce, message)
     }
 

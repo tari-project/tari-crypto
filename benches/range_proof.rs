@@ -22,7 +22,7 @@ fn setup(n: usize) -> (DalekRangeProofService, RistrettoSecretKey, u64, Pedersen
     let prover = DalekRangeProofService::new(n, &base).unwrap();
     let k = RistrettoSecretKey::random(&mut rng);
     let n_max = 1u64 << (n as u64 - 1);
-    let v = rng.gen_range(1, n_max);
+    let v = rng.gen_range(1..n_max);
     let c = base.commit_value(&k, v);
     (prover, k, v, c)
 }
@@ -46,7 +46,7 @@ pub fn generate_rangeproof(c: &mut Criterion) {
 }
 
 criterion_group!(
-name = range_proofs;
-config = Criterion::default().warm_up_time(Duration::from_millis(1_500));
-targets = generate_rangeproof
+    name = range_proofs;
+    config = Criterion::default().warm_up_time(Duration::from_millis(1_500));
+    targets = generate_rangeproof
 );

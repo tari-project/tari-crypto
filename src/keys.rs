@@ -6,16 +6,25 @@
 //! implementation of ECC curve). The idea being that we can swap out the underlying
 //! implementation without worrying too much about the impact on upstream code.
 
-use std::ops::Add;
+use core::ops::Add;
 
-use rand::{CryptoRng, Rng};
+use rand_core::{CryptoRng, RngCore};
+#[cfg(feature = "serde")]
 use serde::{de::DeserializeOwned, ser::Serialize};
 use tari_utilities::ByteArray;
+#[cfg(feature = "zero")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// A trait specifying common behaviour for representing `SecretKey`s. Specific elliptic curve
 /// implementations need to implement this trait for them to be used in Tari.
-///
+#[cfg(feature = "zero")]
+pub trait SuperSecretKey:
+    ByteArray + Clone + PartialEq + Eq + Add<Output = Self> + Default + Zeroize + ZeroizeOnDrop
+{
+}
+#[cfg(not(feature = "zero"))]
+pub trait SuperSecretKey: ByteArray + Clone + PartialEq + Eq + Add<Output = Self> + Default {}
+
 /// ## Example
 ///
 /// Assuming there is a Ristretto implementation,
@@ -27,9 +36,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 /// let k = RistrettoSecretKey::random(&mut rng);
 /// let p = RistrettoPublicKey::from_secret_key(&k);
 /// ```
-pub trait SecretKey:
-    ByteArray + Clone + PartialEq + Eq + Add<Output = Self> + Default + Zeroize + ZeroizeOnDrop
-{
+pub trait SecretKey: SuperSecretKey {
     /// The length of the byte encoding of a key, in bytes
     const KEY_LEN: usize;
 
@@ -39,18 +46,32 @@ pub trait SecretKey:
     }
 
     /// Generates a random secret key
-    fn random<R: Rng + CryptoRng>(rng: &mut R) -> Self;
+    fn random<R: RngCore + CryptoRng>(rng: &mut R) -> Self;
 }
+impl<T: SecretKey> SuperSecretKey for T {}
 
 //----------------------------------------   Public Keys  ----------------------------------------//
-
 /// A trait specifying common behaviour for representing `PublicKey`s. Specific elliptic curve
 /// implementations need to implement this trait for them to be used in Tari.
-///
-/// See [SecretKey](trait.SecretKey.html) for an example.
-pub trait PublicKey:
+#[cfg(all(feature = "serde", feature = "zero"))]
+pub trait SuperPublicKey:
     ByteArray + Add<Output = Self> + Clone + PartialOrd + Ord + Default + Serialize + DeserializeOwned + Zeroize
 {
+}
+#[cfg(all(feature = "serde", not(feature = "zero")))]
+pub trait SuperPublicKey:
+    ByteArray + Add<Output = Self> + Clone + PartialOrd + Ord + Default + Serialize + DeserializeOwned
+{
+}
+#[cfg(all(not(feature = "serde"), feature = "zero"))]
+pub trait SuperPublicKey: ByteArray + Add<Output = Self> + Clone + PartialOrd + Ord + Default + Zeroize {}
+#[cfg(all(not(feature = "serde"), not(feature = "zero")))]
+pub trait SuperPublicKey: ByteArray + Add<Output = Self> + Clone + PartialOrd + Ord + Default {}
+impl<T: PublicKey> SuperPublicKey for T {}
+
+/// See [SecretKey](trait.SecretKey.html) for an example.
+
+pub trait PublicKey: SuperPublicKey {
     /// The length of the byte encoding of a key, in bytes
     const KEY_LEN: usize;
 
@@ -71,7 +92,7 @@ pub trait PublicKey:
     fn batch_mul(scalars: &[Self::K], points: &[Self]) -> Self;
 
     /// Generate a random public and secret key
-    fn random_keypair<R: Rng + CryptoRng>(rng: &mut R) -> (Self::K, Self) {
+    fn random_keypair<R: RngCore + CryptoRng>(rng: &mut R) -> (Self::K, Self) {
         let k = Self::K::random(rng);
         let pk = Self::from_secret_key(&k);
         (k, pk)

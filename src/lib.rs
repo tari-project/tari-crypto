@@ -2,9 +2,17 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 //! Tari-Crypto
+#![no_std]
 
 #[macro_use]
 extern crate lazy_static;
+#[allow(unused_imports)]
+#[macro_use]
+extern crate alloc;
+
+#[cfg(any(feature = "wasm", feature = "ffi"))]
+#[macro_use]
+extern crate std;
 
 #[macro_use]
 mod macros;

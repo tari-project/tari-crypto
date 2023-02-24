@@ -2,27 +2,29 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 //! The Tari-compatible implementation of Ristretto based on the curve25519-dalek implementation
-use std::{
+use alloc::{string::ToString, vec::Vec};
+use core::{
     borrow::Borrow,
     cmp::Ordering,
     fmt,
     hash::{Hash, Hasher},
     ops::{Add, Mul, Sub},
 };
-#[cfg(feature = "borsh")]
-use std::{io, io::Write};
 
 use blake2::Blake2b;
+#[cfg(feature = "borsh_ser")]
+use borsh::maybestd::{io, io::Write};
 use curve25519_dalek::{
     constants::RISTRETTO_BASEPOINT_TABLE,
     ristretto::{CompressedRistretto, RistrettoPoint},
     scalar::Scalar,
     traits::MultiscalarMul,
 };
-use digest::Digest;
-use once_cell::sync::OnceCell;
-use rand::{CryptoRng, Rng};
+use digest::{consts::U64, Digest};
+use once_cell::unsync::OnceCell;
+use rand_core::{CryptoRng, RngCore};
 use tari_utilities::{hex::Hex, ByteArray, ByteArrayError, Hashable};
+#[cfg(feature = "zero")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::{
@@ -52,20 +54,22 @@ use crate::{
 /// let _k2 = RistrettoSecretKey::from_hex(&"100000002000000030000000040000000");
 /// let _k3 = RistrettoSecretKey::random(&mut rng);
 /// ```
-#[derive(Eq, Clone, Default, Zeroize, ZeroizeOnDrop)]
+#[derive(Eq, Clone, Default)]
+#[cfg_attr(feature = "zero", derive(Zeroize, ZeroizeOnDrop))]
 pub struct RistrettoSecretKey(pub(crate) Scalar);
 
-#[cfg(feature = "borsh")]
+#[cfg(feature = "borsh_ser")]
 impl borsh::BorshSerialize for RistrettoSecretKey {
     fn serialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
         borsh::BorshSerialize::serialize(&self.as_bytes(), writer)
     }
 }
 
-#[cfg(feature = "borsh")]
+#[cfg(feature = "borsh_ser")]
 impl borsh::BorshDeserialize for RistrettoSecretKey {
-    fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
-        let bytes: Vec<u8> = borsh::BorshDeserialize::deserialize(buf)?;
+    fn deserialize_reader<R>(reader: &mut R) -> Result<Self, io::Error>
+    where R: io::Read {
+        let bytes: Vec<u8> = borsh::BorshDeserialize::deserialize_reader(reader)?;
         Self::from_bytes(bytes.as_slice()).map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e.to_string()))
     }
 }
@@ -75,7 +79,7 @@ impl SecretKey for RistrettoSecretKey {
     const KEY_LEN: usize = 32;
 
     /// Return a random secret key on the `ristretto255` curve using the supplied CSPRNG.
-    fn random<R: Rng + CryptoRng>(rng: &mut R) -> Self {
+    fn random<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
         RistrettoSecretKey(Scalar::random(rng))
     }
 }
@@ -89,7 +93,7 @@ impl ByteArray for RistrettoSecretKey {
     fn from_bytes(bytes: &[u8]) -> Result<RistrettoSecretKey, ByteArrayError>
     where Self: Sized {
         if bytes.len() != 32 {
-            return Err(ByteArrayError::IncorrectLength);
+            return Err(ByteArrayError::IncorrectLength {});
         }
         let mut a = [0u8; 32];
         a.copy_from_slice(bytes);
@@ -137,7 +141,7 @@ impl RistrettoSecretKey {
     /// Get the multiplicative inverse of a nonzero secret key
     /// If zero is passed, returns `None`; annoying, but a useful guardrail
     pub fn invert(&self) -> Option<Self> {
-        if self.0 == Scalar::zero() {
+        if self.0 == Scalar::ZERO {
             None
         } else {
             Some(RistrettoSecretKey(self.0.invert()))
@@ -259,17 +263,18 @@ pub struct RistrettoPublicKey {
     compressed: OnceCell<CompressedRistretto>,
 }
 
-#[cfg(feature = "borsh")]
+#[cfg(feature = "borsh_ser")]
 impl borsh::BorshSerialize for RistrettoPublicKey {
     fn serialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
         borsh::BorshSerialize::serialize(&self.as_bytes(), writer)
     }
 }
 
-#[cfg(feature = "borsh")]
+#[cfg(feature = "borsh_ser")]
 impl borsh::BorshDeserialize for RistrettoPublicKey {
-    fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
-        let bytes: Vec<u8> = borsh::BorshDeserialize::deserialize(buf)?;
+    fn deserialize_reader<R>(reader: &mut R) -> Result<Self, io::Error>
+    where R: io::Read {
+        let bytes: Vec<u8> = borsh::BorshDeserialize::deserialize_reader(reader)?;
         Self::from_bytes(bytes.as_slice()).map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e.to_string()))
     }
 }
@@ -293,9 +298,9 @@ impl RistrettoPublicKey {
     /// A verifiable group generator using a domain separated hasher
     pub fn new_generator(label: &'static str) -> Result<RistrettoPublicKey, HashingError> {
         // This function requires 512 bytes of data, so let's be opinionated here and use blake2b
-        let hash = DomainSeparatedHasher::<Blake2b, RistrettoGeneratorPoint>::new_with_label(label).finalize();
+        let hash = DomainSeparatedHasher::<Blake2b<U64>, RistrettoGeneratorPoint>::new_with_label(label).finalize();
         if hash.as_ref().len() < 64 {
-            return Err(HashingError::DigestTooShort(64));
+            return Err(HashingError::DigestTooShort { bytes: 64 });
         }
         let mut bytes = [0u8; 64];
         bytes.copy_from_slice(hash.as_ref());
@@ -312,7 +317,7 @@ impl RistrettoPublicKey {
         self.compressed.get_or_init(|| self.point.compress())
     }
 }
-
+#[cfg(feature = "zero")]
 impl Zeroize for RistrettoPublicKey {
     /// Zeroizes both the point and (if it exists) the compressed point
     fn zeroize(&mut self) {
@@ -329,6 +334,7 @@ impl Zeroize for RistrettoPublicKey {
 
 /// The Domain Separation Tag type for the KDF algorithm, version 1
 pub struct RistrettoKdf;
+
 impl DerivedKeyDomain for RistrettoKdf {
     type DerivedKeyType = RistrettoSecretKey;
 }
@@ -363,7 +369,7 @@ impl PublicKey for RistrettoPublicKey {
 
     /// Generates a new Public key from the given secret key
     fn from_secret_key(k: &Self::K) -> RistrettoPublicKey {
-        let pk = &k.0 * &RISTRETTO_BASEPOINT_TABLE;
+        let pk = &k.0 * RISTRETTO_BASEPOINT_TABLE;
         RistrettoPublicKey::new_from_pk(pk)
     }
 
@@ -378,7 +384,7 @@ impl PublicKey for RistrettoPublicKey {
 // Requires custom Hashable implementation for RistrettoPublicKey as CompressedRistretto doesnt implement this trait
 impl Hashable for RistrettoPublicKey {
     fn hash(&self) -> Vec<u8> {
-        Blake2b::digest(self.as_bytes()).to_vec()
+        Blake2b::<U64>::digest(self.as_bytes()).to_vec()
     }
 }
 
@@ -426,7 +432,7 @@ impl RistrettoPublicKey {
                 let right = hex.len() - (w - left - 3);
                 f.write_str(format!("{}...{}", &hex[..left], &hex[right..]).as_str())
             },
-            _ => std::fmt::Display::fmt(&hex, f),
+            _ => core::fmt::Display::fmt(&hex, f),
         }
     }
 }
@@ -484,14 +490,16 @@ impl ByteArray for RistrettoPublicKey {
     where Self: Sized {
         // Check the length here, because The Ristretto constructor panics rather than returning an error
         if bytes.len() != 32 {
-            return Err(ByteArrayError::IncorrectLength);
+            return Err(ByteArrayError::IncorrectLength {});
         }
-        let compressed = CompressedRistretto::from_slice(bytes);
+        let compressed = CompressedRistretto::from_slice(bytes).map_err(|_| ByteArrayError::ConversionError {
+            reason: "Invalid Public key".to_string(),
+        })?;
         match RistrettoPublicKey::new_from_compressed(compressed) {
             Some(p) => Ok(p),
-            None => Err(ByteArrayError::ConversionError(
-                "Invalid compressed Ristretto point".to_string(),
-            )),
+            None => Err(ByteArrayError::ConversionError {
+                reason: "Invalid compressed Ristretto point".to_string(),
+            }),
         }
     }
 
@@ -779,6 +787,7 @@ mod test {
         assert_completely_equal(&pk, &RistrettoPublicKey::from_secret_key(&k));
     }
 
+    #[cfg(feature = "zero")]
     #[test]
     fn secret_keys_are_cleared_after_drop() {
         let zero = &vec![0u8; 32][..];
@@ -792,7 +801,7 @@ mod test {
         // can fail in release mode, even though the values were effectively scrubbed.
         if cfg!(debug_assertions) {
             unsafe {
-                use std::slice;
+                use core::slice;
                 assert_eq!(slice::from_raw_parts(ptr, 32), zero);
             }
         }
@@ -949,7 +958,7 @@ mod test {
     #[test]
     fn kdf_key_too_short() {
         let err = RistrettoKdf::generate::<Blake256>(b"this_key_is_too_short", b"data", "test").err();
-        assert!(matches!(err, Some(HashingError::InputTooShort)));
+        assert!(matches!(err, Some(HashingError::InputTooShort {})));
     }
 
     #[test]
@@ -977,7 +986,7 @@ mod test {
         let visible = format!("{:?}", key.reveal());
         assert!(visible.contains("016c"));
     }
-
+    #[cfg(feature = "zero")]
     #[test]
     fn zeroize_test() {
         let mut rng = rand::thread_rng();
@@ -996,6 +1005,7 @@ mod test {
         assert_eq!(p.compressed.get().unwrap().as_bytes(), &zeros); // check directly for good measure
     }
 
+    #[cfg(feature = "borsh_ser")]
     #[test]
     fn test_inverse() {
         // 0^{-1} is undefined
@@ -1021,6 +1031,8 @@ mod test {
 
     #[cfg(feature = "borsh")]
     mod borsh {
+        use alloc::vec::Vec;
+
         use borsh::{BorshDeserialize, BorshSerialize};
 
         use crate::ristretto::{test_common::get_keypair, RistrettoPublicKey, RistrettoSecretKey};

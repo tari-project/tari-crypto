@@ -99,7 +99,7 @@ pub type RistrettoComSig = CommitmentSignature<RistrettoPublicKey, RistrettoSecr
 
 #[cfg(test)]
 mod test {
-    use digest::Digest;
+    use digest::{Digest, Update};
     use tari_utilities::{hex::from_hex, ByteArray};
 
     use crate::{
@@ -140,7 +140,7 @@ mod test {
         let k_2 = RistrettoSecretKey::random(&mut rng);
         let nonce_commitment = factory.commit(&k_1, &k_2);
 
-        let challenge = Blake256::new()
+        let challenge = Blake256::default()
             .chain(commitment.as_bytes())
             .chain(nonce_commitment.as_bytes())
             .chain(b"Small Gods")
@@ -183,7 +183,7 @@ mod test {
         let k_2_bob = RistrettoSecretKey::random(&mut rng);
         let nonce_commitment_bob = factory.commit(&k_1_bob, &k_2_bob);
         // Each of them creates the Challenge committing to both commitments of both parties
-        let challenge = Blake256::new()
+        let challenge = Blake256::default()
             .chain(commitment_alice.as_bytes())
             .chain(commitment_bob.as_bytes())
             .chain(nonce_commitment_alice.as_bytes())

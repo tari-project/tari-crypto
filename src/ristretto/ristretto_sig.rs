@@ -52,9 +52,10 @@ use crate::{
 /// }
 ///
 /// #[allow(non_snake_case)]
+/// let mut rng = rand::thread_rng();
 /// let (k, P) = get_keypair();
 /// let msg = "Small Gods";
-/// let sig = RistrettoSchnorr::sign_message(&k, &msg);
+/// let sig = RistrettoSchnorr::sign_message(&k, &msg, &mut rng);
 /// ```
 ///
 /// # Verifying signatures
@@ -77,9 +78,10 @@ use crate::{
 /// )
 /// .unwrap();
 /// # #[allow(non_snake_case)]
+/// let mut rng = rand::thread_rng();
 /// let P = RistrettoPublicKey::from_secret_key(&k);
 /// let sig: SchnorrSignature<RistrettoPublicKey, RistrettoSecretKey> =
-///     SchnorrSignature::sign_message(&k, msg).unwrap();
+///     SchnorrSignature::sign_message(&k, msg, &mut rng).unwrap();
 /// assert!(sig.verify_message(&P, msg));
 /// ```
 pub type RistrettoSchnorr = SchnorrSignature<RistrettoPublicKey, RistrettoSecretKey, SchnorrSigChallenge>;
@@ -109,15 +111,16 @@ pub type RistrettoSchnorr = SchnorrSignature<RistrettoPublicKey, RistrettoSecret
 /// .unwrap();
 /// # #[allow(non_snake_case)]
 /// let P = RistrettoPublicKey::from_secret_key(&k);
+/// let mut rng = rand::thread_rng();
 /// let sig: SchnorrSignature<RistrettoPublicKey, RistrettoSecretKey, MyCustomDomain> =
-///     SchnorrSignature::sign_message(&k, msg).unwrap();
+///     SchnorrSignature::sign_message(&k, msg, &mut rng).unwrap();
 /// assert!(sig.verify_message(&P, msg));
 /// ```
 pub type RistrettoSchnorrWithDomain<H> = SchnorrSignature<RistrettoPublicKey, RistrettoSecretKey, H>;
 
 #[cfg(test)]
 mod test {
-    use digest::Digest;
+    use digest::{Digest, Update};
     use tari_utilities::{
         hex::{from_hex, to_hex, Hex},
         ByteArray,
@@ -151,7 +154,7 @@ mod test {
         let (k, P) = RistrettoPublicKey::random_keypair(&mut rng);
         let (r, R) = RistrettoPublicKey::random_keypair(&mut rng);
         // Use sign raw, and bind the nonce and public key manually
-        let e = Blake256::new()
+        let e = Blake256::default()
             .chain(P.as_bytes())
             .chain(R.as_bytes())
             .chain(b"Small Gods")
@@ -182,7 +185,7 @@ mod test {
         let (k2, P2) = RistrettoPublicKey::random_keypair(&mut rng);
         let (r2, R2) = RistrettoPublicKey::random_keypair(&mut rng);
         // Each of them creates the Challenge = H(R1 || R2 || P1 || P2 || m)
-        let e = Blake256::new()
+        let e = Blake256::default()
             .chain(R1.as_bytes())
             .chain(R2.as_bytes())
             .chain(P1.as_bytes())
@@ -222,7 +225,7 @@ mod test {
         let hash = SchnorrSignature::<_, _, SchnorrSigChallenge>::construct_domain_separated_challenge::<_, Blake256>(
             &R, &P, msg,
         );
-        let naiive = Blake256::new()
+        let naiive = Blake256::default()
             .chain(R.as_bytes())
             .chain(P.as_bytes())
             .chain(msg)
@@ -264,7 +267,8 @@ mod test {
     fn sign_and_verify_message() {
         let mut rng = rand::thread_rng();
         let (k, P) = RistrettoPublicKey::random_keypair(&mut rng);
-        let sig = RistrettoSchnorr::sign_message(&k, "Queues are things that happen to other people").unwrap();
+        let sig =
+            RistrettoSchnorr::sign_message(&k, "Queues are things that happen to other people", &mut rng).unwrap();
         assert!(sig.verify_message(&P, "Queues are things that happen to other people"));
         assert!(!sig.verify_message(&P, "Qs are things that happen to other people"));
         assert!(!sig.verify_message(&(&P + &P), "Queues are things that happen to other people"));

@@ -13,6 +13,13 @@ jobs:
           components: clippy, rustfmt
           toolchain: nightly
           override: true
+      - name: toolchain thumbv8m.main-none-eabi
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          target: thumbv8m.main-none-eabi
+          override: true
       - name: Check formatting
         uses: actions-rs/cargo@v1
         with:
@@ -30,8 +37,19 @@ jobs:
           command: lints
           toolchain: nightly
           args: clippy --all-targets --all-features
-      - name: Cargo check
+      - name: Cargo check std
         uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --release --all-targets
+          args: --release --all-targets --all-features
+      - name: Cargo check no default for non std
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --release --no-default-features --features "no_std" --features "borsh_ser"
+      - name: Cargo build no default for non std target
+        uses: actions-rs/cargo@v1
+        with:
+          command: rustc
+          toolchain: nightly
+          args: --release --crate-type lib --no-default-features --features "no_std" --features "borsh_ser" -Zavoid-dev-deps --target=thumbv8m.main-none-eabi

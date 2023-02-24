@@ -4,9 +4,12 @@
 //! A deterministic randomizer with utility functions for operating on numbers and arrays in a reproducible and
 //! platform-indepdent way.
 
-use std::convert::TryFrom;
+use alloc::vec::Vec;
+use core::convert::TryFrom;
 
 use rand_core::{CryptoRng, RngCore, SeedableRng};
+#[cfg(feature = "zero")]
+use zeroize::Zeroize;
 
 /// Error representing a failed shuffle
 #[derive(Debug)]
@@ -69,6 +72,7 @@ pub struct RandomizerError;
 /// (CSPRNG), it is _not_ suitable for non-deterministic use cases like key or nonce generation. If you aren't
 /// absolutely sure that you need the functionality provided here, you should use a high-entropy non-deterministic
 /// generator instead.
+
 pub struct DeterministicRandomizer<R>
 where R: SeedableRng
 {
@@ -144,6 +148,18 @@ where
         let x = u128::from(self.prng.next_u64()) << 64 | u128::from(self.prng.next_u64());
 
         u64::try_from(x % u128::from(upper)).map_err(|_| RandomizerError)
+    }
+}
+
+#[cfg(feature = "zero")]
+impl<R> Zeroize for DeterministicRandomizer<R>
+where
+    R: CryptoRng + RngCore + SeedableRng,
+    <R as SeedableRng>::Seed: Clone,
+{
+    fn zeroize(&mut self) {
+        let seed = <R as SeedableRng>::Seed::default();
+        *self = DeterministicRandomizer::<R>::new(seed);
     }
 }
 

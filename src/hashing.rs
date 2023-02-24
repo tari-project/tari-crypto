@@ -28,10 +28,11 @@
 //!
 //! [hmac]: https://en.wikipedia.org/wiki/HMAC#Design_principles "HMAC: Design principles"
 
-use std::{marker::PhantomData, ops::Deref};
+use alloc::string::{String, ToString};
+use core::{marker::PhantomData, ops::Deref};
 
-use blake2::VarBlake2b;
-use digest::{Digest, FixedOutput, Output, Update};
+use blake2::Blake2bVar;
+use digest::{Digest, FixedOutput, FixedOutputReset, Output, OutputSizeUser, Update};
 use sha3::Sha3_256;
 use tari_utilities::ByteArray;
 
@@ -40,8 +41,8 @@ use crate::{
     keys::SecretKey,
 };
 
-/// The `DomainSeparation` trait is used to inject domain separation tags into the [`DomainSeparatedHasher`] in a way
-/// that can be applied consistently, but without hard-coding anything into the hasher itself.
+/// The `DomainSeparation` trait is used to inject domain separation tags into the [`DomainSeparatedHasher`] in a
+/// way that can be applied consistently, but without hard-coding anything into the hasher itself.
 ///
 /// Using a trait is more flexible than const strings, and lets us leverage the type system to have more fine-grained
 /// control over allowable use cases.
@@ -126,7 +127,7 @@ fn byte_to_decimal_ascii_bytes(mut byte: u8) -> (usize, [u8; 3]) {
 /// `DomainSeparatedHash` implements `AsRef<u8>`, so it is easy to use this type as a slice.
 ///
 /// The domain separation information is retained with the hash, and can be queried using
-/// [`DomainSeparatedHash::domain_separation_tag_string`].
+/// [`DomainSeparatedHash::domain_separation_tag("<tag>")`].
 ///
 /// To preserve the guarantee that the hash is properly domain separated, you cannot create an instance of this struct
 /// directly. It is the result of using [`DomainSeparatedHasher`].
@@ -303,11 +304,26 @@ pub trait AsFixedBytes<const I: usize>: AsRef<[u8]> {
         let hash_vec = self.as_ref();
         if hash_vec.is_empty() || hash_vec.len() < I {
             let hash_vec_length = if hash_vec.is_empty() { 0 } else { hash_vec.len() };
-            return Err(SliceError::CopyFromSlice(I, hash_vec_length));
+            return Err(SliceError::CopyFromSlice {
+                target: I,
+                provided: hash_vec_length,
+            });
         }
         let mut buffer: [u8; I] = [0; I];
         buffer.copy_from_slice(&hash_vec[..I]);
         Ok(buffer)
+    }
+}
+
+impl<TInnerDigest: OutputSizeUser, TDomain: DomainSeparation> OutputSizeUser
+    for DomainSeparatedHasher<TInnerDigest, TDomain>
+{
+    type OutputSize = TInnerDigest::OutputSize;
+}
+
+impl<TInnerDigest: Update, TDomain: DomainSeparation> Update for DomainSeparatedHasher<TInnerDigest, TDomain> {
+    fn update(&mut self, data: &[u8]) {
+        self.inner.update(data);
     }
 }
 
@@ -316,30 +332,37 @@ impl<const I: usize, D: Digest> AsFixedBytes<I> for DomainSeparatedHash<D> {}
 impl<TInnerDigest: FixedOutput, TDomain: DomainSeparation> FixedOutput
     for DomainSeparatedHasher<TInnerDigest, TDomain>
 {
-    type OutputSize = TInnerDigest::OutputSize;
-
-    fn finalize_into(self, out: &mut digest::generic_array::GenericArray<u8, Self::OutputSize>) {
+    fn finalize_into(self, out: &mut Output<Self>) {
         self.inner.finalize_into(out);
     }
+}
 
-    fn finalize_into_reset(&mut self, out: &mut digest::generic_array::GenericArray<u8, Self::OutputSize>) {
+impl<D: FixedOutputReset, M: DomainSeparation> DomainSeparatedHasher<D, M> {
+    /// Finalize and reset the hasher and return the hash result.
+    pub fn finalize_into_reset(&mut self, out: &mut Output<Self>) {
         self.inner.finalize_into_reset(out);
     }
 }
 
-/// Implements Digest so that it can be used for other crates
-impl<TInnerDigest: Digest, TDomain: DomainSeparation> Digest for DomainSeparatedHasher<TInnerDigest, TDomain> {
-    type OutputSize = TInnerDigest::OutputSize;
-
+// Implements Digest so that it can be used for other crates
+impl<TInnerDigest: Digest + FixedOutputReset, TDomain: DomainSeparation> Digest
+    for DomainSeparatedHasher<TInnerDigest, TDomain>
+{
     fn new() -> Self {
         DomainSeparatedHasher::<TInnerDigest, TDomain>::new()
+    }
+
+    // Create new hasher instance which has processed the provided data.
+    fn new_with_prefix(data: impl AsRef<[u8]>) -> Self {
+        let hasher = DomainSeparatedHasher::<TInnerDigest, TDomain>::new();
+        hasher.chain_update(data)
     }
 
     fn update(&mut self, data: impl AsRef<[u8]>) {
         self.update(data);
     }
 
-    fn chain(self, data: impl AsRef<[u8]>) -> Self
+    fn chain_update(self, data: impl AsRef<[u8]>) -> Self
     where Self: Sized {
         self.chain(data)
     }
@@ -354,16 +377,25 @@ impl<TInnerDigest: Digest, TDomain: DomainSeparation> Digest for DomainSeparated
         value
     }
 
+    fn finalize_into_reset(&mut self, out: &mut Output<Self>) {
+        Digest::finalize_into_reset(&mut self.inner, out);
+    }
+
+    // Write result into provided array and consume the hasher instance.
+    fn finalize_into(self, out: &mut Output<Self>) {
+        Digest::finalize_into(self.inner, out);
+    }
+
     fn reset(&mut self) {
-        self.inner.reset();
+        Digest::reset(&mut self.inner);
         TDomain::add_domain_separation_tag(&mut self.inner, self.label);
     }
 
     fn output_size() -> usize {
-        TInnerDigest::output_size()
+        <TInnerDigest as Digest>::output_size()
     }
 
-    fn digest(data: &[u8]) -> Output<Self> {
+    fn digest(data: impl AsRef<[u8]>) -> Output<Self> {
         let mut hasher = Self::new();
         hasher.update(data);
         hasher.finalize().output
@@ -377,7 +409,7 @@ impl<TInnerDigest: Digest, TDomain: DomainSeparation> Digest for DomainSeparated
 /// Notably, the SHA-2 family does *not* have this trait.
 pub trait LengthExtensionAttackResistant {}
 
-impl LengthExtensionAttackResistant for VarBlake2b {}
+impl LengthExtensionAttackResistant for Blake2bVar {}
 
 impl LengthExtensionAttackResistant for Sha3_256 {}
 
@@ -477,7 +509,7 @@ impl<D: Digest> Deref for Mac<D> {
 ///
 /// ## Example
 ///
-/// [`RistrettoKdf`] is an implementation of [`DerivedKeyDomain`] that generates Ristretto keys.
+/// `RistrettoKdf` is an implementation of [`DerivedKeyDomain`] that generates Ristretto keys.
 ///
 /// ```
 /// # use tari_utilities::ByteArray;
@@ -523,14 +555,15 @@ pub trait DerivedKeyDomain: DomainSeparation {
         Self: Sized,
         D: Digest + Update,
     {
-        if primary_key.as_ref().len() < D::output_size() {
-            return Err(HashingError::InputTooShort);
+        if primary_key.as_ref().len() < <D as Digest>::output_size() {
+            return Err(HashingError::InputTooShort {});
         }
         let hash = DomainSeparatedHasher::<D, Self>::new_with_label(label)
             .chain(primary_key)
             .chain(data)
             .finalize();
-        let derived_key = Self::DerivedKeyType::from_bytes(hash.as_ref())?;
+        let derived_key = Self::DerivedKeyType::from_bytes(hash.as_ref())
+            .map_err(|e| HashingError::ConversionFromBytes { reason: e.to_string() })?;
         Ok(derived_key)
     }
 }
@@ -590,7 +623,12 @@ pub fn create_hasher<D: Digest, HD: DomainSeparation>() -> DomainSeparatedHasher
 #[cfg(test)]
 mod test {
     use blake2::Blake2b;
-    use digest::{generic_array::GenericArray, Digest, FixedOutput};
+    use digest::{
+        consts::{U32, U64},
+        generic_array::GenericArray,
+        Digest,
+        Update,
+    };
     use tari_utilities::hex::{from_hex, to_hex};
 
     use crate::{
@@ -653,7 +691,7 @@ mod test {
         let mut hasher = DomainSeparatedHasher::<Blake256, TestHasher>::new();
         hasher.update([0, 0, 0]);
 
-        let mut output = GenericArray::<u8, <Blake256 as Digest>::OutputSize>::default();
+        let mut output = GenericArray::<u8, U32>::default();
         hasher.finalize_into(&mut output);
     }
 
@@ -663,7 +701,7 @@ mod test {
         let mut hasher = DomainSeparatedHasher::<Blake256, TestHasher>::new();
         hasher.update([0, 0, 0]);
 
-        let mut output = GenericArray::<u8, <Blake256 as Digest>::OutputSize>::default();
+        let mut output = GenericArray::<u8, U32>::default();
         hasher.finalize_into_reset(&mut output);
     }
 
@@ -805,21 +843,24 @@ mod test {
         }
         let domain = "com.discworld.v42.turtles";
         assert_eq!(MyDemoHasher::domain_separation_tag("turtles"), domain);
-        let hash = DomainSeparatedHasher::<Blake2b, MyDemoHasher>::new_with_label("turtles").finalize();
-        let expected = Blake2b::default()
+        let hash = DomainSeparatedHasher::<Blake256, MyDemoHasher>::new_with_label("turtles").finalize();
+        let expected = Blake256::default()
             .chain((domain.len() as u64).to_le_bytes())
             .chain(domain)
             .finalize();
-        assert_eq!(hash.as_ref(), expected.as_ref());
+        assert_eq!(hash.as_ref(), expected.as_slice());
     }
 
     #[test]
     fn update_domain_separation_tag() {
         hash_domain!(TestDomain, "com.test");
         let s_tag = TestDomain::domain_separation_tag("mytest");
-        let expected_hash = Blake256::new().chain(s_tag.len().to_le_bytes()).chain(s_tag).finalize();
+        let expected_hash = Blake256::default()
+            .chain(s_tag.len().to_le_bytes())
+            .chain(s_tag)
+            .finalize();
 
-        let mut digest = Blake256::new();
+        let mut digest = Blake256::default();
         TestDomain::add_domain_separation_tag(&mut digest, "mytest");
         assert_eq!(digest.finalize(), expected_hash);
     }
@@ -837,7 +878,7 @@ mod test {
                 "com.discworld"
             }
         }
-        let hash = DomainSeparatedHasher::<Blake2b, MyDemoHasher>::new_with_label("turtles")
+        let hash = DomainSeparatedHasher::<Blake2b<U64>, MyDemoHasher>::new_with_label("turtles")
             .chain("elephants")
             .finalize();
         assert_eq!(to_hex(hash.as_ref()), "64a89c7160a1076a725fac97d3f67803abd0991d82518a595072fa62df4c870bddee9160f591231c381087831bf6925616013de317ce0b02846585caf41942ac");

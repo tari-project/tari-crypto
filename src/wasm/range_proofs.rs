@@ -3,11 +3,13 @@
 
 //! Range proof proving and verification functions
 
-use serde::{Deserialize, Serialize};
+use std::string::String;
+
 use tari_utilities::hex::Hex;
 use wasm_bindgen::prelude::*;
 
 use crate::{
+    alloc::string::ToString,
     extended_range_proof::ExtendedRangeProofService,
     range_proof::RangeProofService,
     ristretto::{
@@ -24,21 +26,24 @@ use crate::{
 };
 
 /// Generated from [RangeProofFactory::create_proof]
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct RangeProofResult {
     proof: String,
     error: String,
 }
 
 /// Generated when calling [RangeProofFactory::verify]
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct VerificationResult {
     valid: bool,
     error: String,
 }
 
 /// Generated from [RangeProofFactory::create_proof]
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct RecoverResult {
     mask: String,
     error: String,

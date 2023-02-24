@@ -8,15 +8,12 @@ use curve25519_dalek::{
     traits::{Identity, MultiscalarMul},
 };
 
+#[cfg(feature = "precomputed_tables")]
+use crate::ristretto::pedersen::scalar_mul_with_pre_computation_tables;
 use crate::{
     commitment::{HomomorphicCommitment, HomomorphicCommitmentFactory},
     ristretto::{
-        pedersen::{
-            scalar_mul_with_pre_computation_tables,
-            PedersenCommitment,
-            RISTRETTO_PEDERSEN_G,
-            RISTRETTO_PEDERSEN_H,
-        },
+        pedersen::{PedersenCommitment, RISTRETTO_PEDERSEN_G, RISTRETTO_PEDERSEN_H},
         RistrettoPublicKey,
         RistrettoSecretKey,
     },
@@ -54,7 +51,14 @@ impl HomomorphicCommitmentFactory for PedersenCommitmentFactory {
     fn commit(&self, k: &RistrettoSecretKey, v: &RistrettoSecretKey) -> PedersenCommitment {
         // If we're using the default generators, speed it up using pre-computation tables
         let c = if (self.G, self.H) == (RISTRETTO_PEDERSEN_G, *RISTRETTO_PEDERSEN_H) {
-            scalar_mul_with_pre_computation_tables(&k.0, &v.0)
+            #[cfg(feature = "precomputed_tables")]
+            {
+                scalar_mul_with_pre_computation_tables(&k.0, &v.0)
+            }
+            #[cfg(not(feature = "precomputed_tables"))]
+            {
+                RistrettoPoint::multiscalar_mul(&[v.0, k.0], &[self.H, self.G])
+            }
         } else {
             RistrettoPoint::multiscalar_mul(&[v.0, k.0], &[self.H, self.G])
         };
@@ -83,6 +87,7 @@ impl HomomorphicCommitmentFactory for PedersenCommitmentFactory {
 
 #[cfg(test)]
 mod test {
+    use alloc::vec::Vec;
     use std::{
         collections::hash_map::DefaultHasher,
         convert::From,
@@ -109,7 +114,7 @@ mod test {
     #[test]
     /// Verify that the identity point is equal to a commitment to zero with a zero blinding factor on the base point
     fn check_zero() {
-        let c = RistrettoPoint::multiscalar_mul(&[Scalar::zero(), Scalar::zero()], &[
+        let c = RistrettoPoint::multiscalar_mul(&[Scalar::ZERO, Scalar::ZERO], &[
             RISTRETTO_PEDERSEN_G,
             *RISTRETTO_PEDERSEN_H,
         ]);
@@ -253,6 +258,7 @@ mod test {
             "HomomorphicCommitment(601cdc5c97e94bb16ae56f75430f8ab3ef4703c7d89ca9592e8acadc81629f0e)"
         );
         // Test 'Clone' implementation
+        #[allow(clippy::redundant_clone)]
         let c2 = c1.clone();
         assert_eq!(c1, c2);
 

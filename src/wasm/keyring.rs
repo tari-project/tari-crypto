@@ -1,7 +1,7 @@
 // Copyright 2020. The Tari Project
 // SPDX-License-Identifier: BSD-3-Clause
 
-use std::collections::HashMap;
+use std::{collections::HashMap, string::String};
 
 use rand::rngs::OsRng;
 use tari_utilities::hex::Hex;

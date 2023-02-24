@@ -438,7 +438,7 @@ mod test {
         }
         assert_ne!(priv_key, priv_key_before);
         assert_eq!(
-            RistrettoPublicKey::from_secret_key(&RistrettoSecretKey(Scalar::from_bits(priv_key))).as_bytes(),
+            RistrettoPublicKey::from_secret_key(&RistrettoSecretKey(Scalar::from_bytes_mod_order(priv_key))).as_bytes(),
             pub_key
         );
     }

@@ -6,13 +6,15 @@
 //! using a function from this module. You should use a [crate::wasm::keyring::KeyRing] instead. But sometimes, these
 //! functions are handy.
 
+use std::string::String;
+
 use blake2::Digest;
 use rand::rngs::OsRng;
-use serde::{Deserialize, Serialize};
 use tari_utilities::hex::{from_hex, Hex};
 use wasm_bindgen::prelude::*;
 
 use crate::{
+    alloc::string::ToString,
     hash::blake2::Blake256,
     keys::{PublicKey, SecretKey},
     ristretto::{
@@ -26,7 +28,8 @@ use crate::{
 };
 
 /// Result of calling [check_signature] and [check_comsig_signature] and [check_comandpubsig_signature]
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SignatureVerifyResult {
     /// True if the signature was valid
     pub result: bool,
@@ -35,7 +38,8 @@ pub struct SignatureVerifyResult {
 }
 
 /// Result of calling [sign]
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SignResult {
     /// The public nonce of the signature, if successful
     pub public_nonce: Option<String>,
@@ -46,7 +50,8 @@ pub struct SignResult {
 }
 
 /// Result of calling [sign_comsig]
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ComSignResult {
     /// The public nonce of the signature, if successful
     pub public_nonce: Option<String>,
@@ -59,7 +64,8 @@ pub struct ComSignResult {
 }
 
 /// Result of calling [sign_comandpubsig]
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ComAndPubSignResult {
     /// The ephemeral commitment of the signature, if successful
     pub ephemeral_commitment: Option<String>,
@@ -741,7 +747,7 @@ mod test {
 
     fn create_signature(msg: &str) -> (RistrettoSchnorr, RistrettoPublicKey, RistrettoSecretKey) {
         let (sk, pk) = random_keypair();
-        let sig = SchnorrSignature::sign_message(&sk, msg.as_bytes()).unwrap();
+        let sig = SchnorrSignature::sign_message(&sk, msg.as_bytes(), &mut OsRng).unwrap();
         (sig, pk, sk)
     }
 

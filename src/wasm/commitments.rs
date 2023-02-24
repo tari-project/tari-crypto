@@ -3,11 +3,13 @@
 
 //! Functions for creating and opening commitments
 
-use serde::{Deserialize, Serialize};
+use std::string::String;
+
 use tari_utilities::hex::Hex;
 use wasm_bindgen::prelude::*;
 
 use crate::{
+    alloc::string::ToString,
     commitment::HomomorphicCommitmentFactory,
     ristretto::{
         pedersen::{commitment_factory::PedersenCommitmentFactory, PedersenCommitment},
@@ -17,7 +19,8 @@ use crate::{
 };
 
 /// Returned from [commit()]
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CommitmentResult {
     /// The commitment, if successful
     pub commitment: Option<String>,

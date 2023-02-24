@@ -3,7 +3,10 @@
 
 //! Handy utility functions for use in tests and demo scripts
 
+use alloc::vec::Vec;
+
 use digest::Digest;
+use rand_core::{CryptoRng, RngCore};
 use tari_utilities::ByteArray;
 
 use crate::{
@@ -33,15 +36,15 @@ pub struct SignatureSet {
     since = "0.16.0",
     note = "Use SchnorrSignature::sign_message instead. This method will be removed in v1.0.0"
 )]
-pub fn sign<D: Digest>(
+pub fn sign<D: Digest, R: RngCore + CryptoRng>(
     private_key: &RistrettoSecretKey,
     message: &[u8],
+    rng: &mut R,
 ) -> Result<SignatureSet, SchnorrSignatureError> {
-    let mut rng = rand::thread_rng();
-    let (nonce, public_nonce) = RistrettoPublicKey::random_keypair(&mut rng);
+    let (nonce, public_nonce) = RistrettoPublicKey::random_keypair(rng);
     let message = D::new()
-        .chain(public_nonce.as_bytes())
-        .chain(message)
+        .chain_update(public_nonce.as_bytes())
+        .chain_update(message)
         .finalize()
         .to_vec();
     let e = RistrettoSecretKey::from_bytes(&message).map_err(|_| SchnorrSignatureError::InvalidChallenge)?;

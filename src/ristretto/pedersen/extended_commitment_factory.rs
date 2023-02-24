@@ -3,7 +3,8 @@
 
 //! Extended commitments are commitments that have more than one blinding factor.
 
-use std::{borrow::Borrow, iter::once};
+use alloc::{string::ToString, vec::Vec};
+use core::{borrow::Borrow, iter::once};
 
 use curve25519_dalek::{
     ristretto::{CompressedRistretto, RistrettoPoint},
@@ -11,6 +12,8 @@ use curve25519_dalek::{
     traits::{Identity, MultiscalarMul},
 };
 
+#[cfg(feature = "precomputed_tables")]
+use crate::ristretto::pedersen::scalar_mul_with_pre_computation_tables;
 use crate::{
     commitment::{
         ExtendedHomomorphicCommitmentFactory,
@@ -22,7 +25,6 @@ use crate::{
     ristretto::{
         constants::{RISTRETTO_NUMS_POINTS, RISTRETTO_NUMS_POINTS_COMPRESSED},
         pedersen::{
-            scalar_mul_with_pre_computation_tables,
             PedersenCommitment,
             RISTRETTO_PEDERSEN_G,
             RISTRETTO_PEDERSEN_G_COMPRESSED,
@@ -59,15 +61,15 @@ impl ExtendedPedersenCommitmentFactory {
         if extension_degree as usize > RISTRETTO_NUMS_POINTS.len() ||
             extension_degree as usize > RISTRETTO_NUMS_POINTS_COMPRESSED.len()
         {
-            return Err(CommitmentError::ExtensionDegree(
-                "Not enough Ristretto NUMS points to construct the extended commitment factory".to_string(),
-            ));
+            return Err(CommitmentError::CommitmentExtensionDegree {
+                reason: "Not enough Ristretto NUMS points to construct the extended commitment factory".to_string(),
+            });
         }
-        let g_base_vec = std::iter::once(&RISTRETTO_PEDERSEN_G)
+        let g_base_vec = core::iter::once(&RISTRETTO_PEDERSEN_G)
             .chain(RISTRETTO_NUMS_POINTS[1..extension_degree as usize].iter())
             .copied()
             .collect();
-        let g_base_compressed_vec = std::iter::once(&RISTRETTO_PEDERSEN_G_COMPRESSED)
+        let g_base_compressed_vec = core::iter::once(&RISTRETTO_PEDERSEN_G_COMPRESSED)
             .chain(RISTRETTO_NUMS_POINTS_COMPRESSED[1..extension_degree as usize].iter())
             .copied()
             .collect();
@@ -90,11 +92,23 @@ impl ExtendedPedersenCommitmentFactory {
         for<'a> &'a Scalar: Borrow<Scalar>,
     {
         if blinding_factors.is_empty() || blinding_factors.len() > self.extension_degree as usize {
-            Err(CommitmentError::ExtensionDegree("blinding vector".to_string()))
+            Err(CommitmentError::CommitmentExtensionDegree {
+                reason: "blinding vector".to_string(),
+            })
         } else if blinding_factors.len() == 1 &&
             (self.g_base_vec[0], self.h_base) == (RISTRETTO_PEDERSEN_G, *RISTRETTO_PEDERSEN_H)
         {
-            Ok(scalar_mul_with_pre_computation_tables(&blinding_factors[0], value))
+            #[cfg(feature = "precomputed_tables")]
+            {
+                Ok(scalar_mul_with_pre_computation_tables(&blinding_factors[0], value))
+            }
+            #[cfg(not(feature = "precomputed_tables"))]
+            {
+                let scalars = once(value).chain(blinding_factors);
+                let g_base_head = self.g_base_vec.iter().take(blinding_factors.len());
+                let points = once(&self.h_base).chain(g_base_head);
+                Ok(RistrettoPoint::multiscalar_mul(scalars, points))
+            }
         } else {
             let scalars = once(value).chain(blinding_factors);
             let g_base_head = self.g_base_vec.iter().take(blinding_factors.len());
@@ -168,7 +182,7 @@ impl ExtendedHomomorphicCommitmentFactory for ExtendedPedersenCommitmentFactory 
     ) -> Result<bool, CommitmentError> {
         let c_test = self
             .commit_extended(k_vec, v)
-            .map_err(|e| CommitmentError::ExtensionDegree(e.to_string()))?;
+            .map_err(|e| CommitmentError::CommitmentExtensionDegree { reason: e.to_string() })?;
         Ok(commitment == &c_test)
     }
 
@@ -194,6 +208,7 @@ impl ExtendedHomomorphicCommitmentFactory for ExtendedPedersenCommitmentFactory 
 
 #[cfg(test)]
 mod test {
+    use alloc::vec::Vec;
     use std::{
         collections::hash_map::DefaultHasher,
         hash::{Hash, Hasher},
@@ -264,7 +279,7 @@ mod test {
     /// points
     fn check_zero_both_traits() {
         for extension_degree in EXTENSION_DEGREE {
-            let zero_values = vec![Scalar::zero(); extension_degree as usize + 1];
+            let zero_values = vec![Scalar::ZERO; extension_degree as usize + 1];
             let mut points = Vec::with_capacity(extension_degree as usize + 1);
             let factory = ExtendedPedersenCommitmentFactory::new_with_extension_degree(extension_degree).unwrap();
             points.push(factory.h_base);
@@ -407,7 +422,7 @@ mod test {
     fn scalar_random_not_zero(rng: &mut ThreadRng) -> Scalar {
         loop {
             let value = Scalar::random(rng);
-            if value != Scalar::zero() {
+            if value != Scalar::ZERO {
                 return value;
             }
         }
@@ -591,6 +606,7 @@ mod test {
             "HomomorphicCommitment(601cdc5c97e94bb16ae56f75430f8ab3ef4703c7d89ca9592e8acadc81629f0e)"
         );
         // Test 'Clone' implementation
+        #[allow(clippy::redundant_clone)]
         let c2 = c1.clone();
         assert_eq!(c1, c2);
 
@@ -639,6 +655,7 @@ mod test {
             let c1 = factory.commit_value_extended(&k_vec, value).unwrap();
 
             // Test 'Clone` implementation
+            #[allow(clippy::redundant_clone)]
             let c2 = c1.clone();
             assert_eq!(c1, c2);
 

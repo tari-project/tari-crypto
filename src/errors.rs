@@ -3,59 +3,90 @@
 
 //! Errors used in the Tari Crypto crate
 
-use serde::{Deserialize, Serialize};
-use tari_utilities::ByteArrayError;
-use thiserror::Error;
+use alloc::string::String;
 
+use snafu::prelude::*;
 /// Errors encountered when creating of verifying range proofs
-#[derive(Debug, Clone, Error, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Snafu, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum RangeProofError {
     /// Cold not construct a range proof
-    #[error("Could not construct range proof: `{0}`")]
-    ProofConstructionError(String),
+    #[snafu(display("Could not construct range proof: `{reason}'"))]
+    ProofConstructionError {
+        /// The reason for the error
+        reason: String,
+    },
     /// The deserialization of the range proof failed
-    #[error("The deserialization of the range proof failed")]
-    InvalidProof,
+    #[snafu(display("The deserialization of the range proof failed"))]
+    InvalidProof {},
     /// Invalid input was provided to the RangeProofService constructor
-    #[error("Invalid input was provided to the RangeProofService constructor: `{0}`")]
-    InitializationError(String),
+    #[snafu(display("Invalid input was provided to the RangeProofService constructor: `{reason}'"))]
+    InitializationError {
+        /// The reason for the error
+        reason: String,
+    },
     /// Invalid range proof provided
-    #[error("Invalid range proof provided: `{0}`")]
-    InvalidRangeProof(String),
+    #[snafu(display("Invalid range proof provided: `{reason}"))]
+    InvalidRangeProof {
+        /// The reason for the error
+        reason: String,
+    },
     /// Invalid range proof rewind, the rewind keys provided must be invalid
-    #[error("Invalid range proof rewind, the rewind keys provided must be invalid")]
-    InvalidRewind(String),
+    #[snafu(display("Invalid range proof rewind, the rewind keys provided must be invalid: `{reason}'"))]
+    InvalidRewind {
+        /// The reason for the error
+        reason: String,
+    },
     /// Inconsistent extension degree
-    #[error("Inconsistent extension degree: `{0}`")]
-    ExtensionDegree(String),
+    #[snafu(display("Inconsistent extension degree: `{reason}'"))]
+    RPExtensionDegree {
+        /// The reason for the error
+        reason: String,
+    },
 }
 
 /// Errors encountered when committing values
-#[derive(Debug, Clone, Error, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Snafu, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum CommitmentError {
     /// Inconsistent extension degree
-    #[error("Inconsistent extension degree: `{0}`")]
-    ExtensionDegree(String),
+    #[snafu(display("Inconsistent extension degree: `{reason}'"))]
+    CommitmentExtensionDegree {
+        /// The reason for the error
+        reason: String,
+    },
 }
 
 /// Errors encountered when hashing
-#[derive(Debug, Error, PartialEq, Eq)]
+#[derive(Debug, Snafu, PartialEq, Eq)]
 pub enum HashingError {
     /// The input to the hashing function is too short
-    #[error("The input to the hashing function is too short.")]
-    InputTooShort,
+    #[snafu(display("The input to the hashing function is too short."))]
+    InputTooShort {},
     /// Converting a byte string into a secret key failed
-    #[error("Converting a byte string into a secret key failed. {0}")]
-    ConversionFromBytes(#[from] ByteArrayError),
+    #[snafu(display("Converting a byte string into a secret key failed.  `{reason}'"))]
+    ConversionFromBytes {
+        /// The reason for the error
+        reason: String,
+    },
     /// The digest does not produce enough output
-    #[error("The digest does produce enough output. {0} bytes are required.")]
-    DigestTooShort(usize),
+    #[snafu(display("The digest does produce enough output.`{bytes}' bytes are required."))]
+    DigestTooShort {
+        /// The number of bytes required
+        bytes: usize,
+    },
 }
 
 /// Errors encountered when copying to a buffer
-#[derive(Debug, Clone, Error, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Snafu, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum SliceError {
     /// The requested fixed slice length exceeds the available slice length
-    #[error("Cannot create fixed slice of length {0} from a slice of length {1}.")]
-    CopyFromSlice(usize, usize),
+    #[snafu(display("Cannot create fixed slice of length '{target}' from a slice of length '{provided}'"))]
+    CopyFromSlice {
+        /// The requested fixed slice length
+        target: usize,
+        /// The available slice length
+        provided: usize,
+    },
 }

@@ -70,7 +70,7 @@ pub type RistrettoComAndPubSig = CommitmentAndPublicKeySignature<RistrettoPublic
 
 #[cfg(test)]
 mod test {
-    use digest::Digest;
+    use digest::{Digest, Update};
     use tari_utilities::{hex::from_hex, ByteArray};
 
     use crate::{
@@ -132,7 +132,7 @@ mod test {
         let ephemeral_pubkey = RistrettoPublicKey::from_secret_key(&r_y);
 
         // Challenge; doesn't use proper Fiat-Shamir, so it's for testing only!
-        let challenge = Blake256::new()
+        let challenge = Blake256::default()
             .chain(commitment.as_bytes())
             .chain(pubkey.as_bytes())
             .chain(ephemeral_commitment.as_bytes())
@@ -204,7 +204,7 @@ mod test {
         let ephemeral_pubkey = RistrettoPublicKey::from_secret_key(&r_y);
 
         // Challenge; doesn't use proper Fiat-Shamir, so it's for testing only!
-        let challenge = Blake256::new()
+        let challenge = Blake256::default()
             .chain(commitment.as_bytes())
             .chain(pubkey.as_bytes())
             .chain(ephemeral_commitment.as_bytes())

@@ -1,15 +1,15 @@
 // Copyright 2021. The Tari Project
 // SPDX-License-Identifier: BSD-3-Clause
 
-use std::{
+use alloc::vec::Vec;
+use core::{
     cmp::Ordering,
     hash::{Hash, Hasher},
     ops::{Add, Mul},
 };
 
-use serde::{Deserialize, Serialize};
+use snafu::prelude::*;
 use tari_utilities::{ByteArray, ByteArrayError};
-use thiserror::Error;
 
 use crate::{
     commitment::{HomomorphicCommitment, HomomorphicCommitmentFactory},
@@ -17,10 +17,11 @@ use crate::{
 };
 
 /// An error when creating a commitment signature
-#[derive(Clone, Debug, Error, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Snafu, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(missing_docs)]
 pub enum CommitmentSignatureError {
-    #[error("An invalid challenge was provided")]
+    #[snafu(display("An invalid challenge was provided"))]
     InvalidChallenge,
 }
 
@@ -46,8 +47,9 @@ pub enum CommitmentSignatureError {
 ///   S =? R + e.C           ... (final verification)
 
 #[allow(non_snake_case)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "borsh", derive(borsh::BorshDeserialize, borsh::BorshSerialize))]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "borsh_ser", derive(borsh::BorshDeserialize, borsh::BorshSerialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CommitmentSignature<P, K> {
     public_nonce: HomomorphicCommitment<P>,
     u: K,
@@ -174,7 +176,7 @@ where
     /// From a canonical byte representation, retrieves a commitment signature
     pub fn from_bytes(buf: &[u8]) -> Result<Self, ByteArrayError> {
         if buf.len() != P::KEY_LEN + 2 * K::key_length() {
-            return Err(ByteArrayError::IncorrectLength);
+            return Err(ByteArrayError::IncorrectLength {});
         }
         let public_nonce = HomomorphicCommitment::from_public_key(&P::from_bytes(&buf[0..P::KEY_LEN])?);
         let u = K::from_bytes(&buf[P::KEY_LEN..P::KEY_LEN + K::key_length()])?;

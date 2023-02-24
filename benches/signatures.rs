@@ -41,11 +41,12 @@ fn gen_keypair() -> SigningData {
 }
 
 fn sign_message(c: &mut Criterion) {
+    let mut rng = thread_rng();
     c.bench_function("Create RistrettoSchnorr", move |b| {
         b.iter_batched(
             gen_keypair,
             |d| {
-                let _sig = RistrettoSchnorr::sign_message(&d.k, d.m).unwrap();
+                let _sig = RistrettoSchnorr::sign_message(&d.k, d.m, &mut rng).unwrap();
             },
             BatchSize::SmallInput,
         );
@@ -55,11 +56,12 @@ fn sign_message(c: &mut Criterion) {
 }
 
 fn verify_message(c: &mut Criterion) {
+    let mut rng = thread_rng();
     c.bench_function("Verify RistrettoSchnorr", move |b| {
         b.iter_batched(
             || {
                 let d = gen_keypair();
-                let s = RistrettoSchnorr::sign_message(&d.k, d.m).unwrap();
+                let s = RistrettoSchnorr::sign_message(&d.k, d.m, &mut rng).unwrap();
                 (d, s)
             },
             |(d, s)| assert!(s.verify_message(&d.p, d.m)),

@@ -3,18 +3,21 @@
 
 //! Pederson commitments utilities
 
-use std::{borrow::Borrow, iter::Sum};
+use core::{borrow::Borrow, iter::Sum};
 
+#[cfg(feature = "precomputed_tables")]
+use curve25519_dalek::{constants::RISTRETTO_BASEPOINT_TABLE, scalar::Scalar};
 use curve25519_dalek::{
-    constants::{RISTRETTO_BASEPOINT_COMPRESSED, RISTRETTO_BASEPOINT_POINT, RISTRETTO_BASEPOINT_TABLE},
+    constants::{RISTRETTO_BASEPOINT_COMPRESSED, RISTRETTO_BASEPOINT_POINT},
     ristretto::{CompressedRistretto, RistrettoPoint},
-    scalar::Scalar,
 };
 
+#[cfg(feature = "precomputed_tables")]
+use crate::ristretto::constants::RISTRETTO_NUMS_TABLE_0;
 use crate::{
     commitment::HomomorphicCommitment,
     ristretto::{
-        constants::{RISTRETTO_NUMS_POINTS, RISTRETTO_NUMS_POINTS_COMPRESSED, RISTRETTO_NUMS_TABLE_0},
+        constants::{RISTRETTO_NUMS_POINTS, RISTRETTO_NUMS_POINTS_COMPRESSED},
         RistrettoPublicKey,
     },
 };
@@ -51,8 +54,9 @@ where T: Borrow<PedersenCommitment>
     }
 }
 
+#[cfg(feature = "precomputed_tables")]
 pub(crate) fn scalar_mul_with_pre_computation_tables(k: &Scalar, v: &Scalar) -> RistrettoPoint {
-    &RISTRETTO_BASEPOINT_TABLE * k + &*RISTRETTO_NUMS_TABLE_0 * v
+    RISTRETTO_BASEPOINT_TABLE * k + &*RISTRETTO_NUMS_TABLE_0 * v
 }
 
 #[cfg(test)]

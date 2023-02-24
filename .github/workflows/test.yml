@@ -23,32 +23,24 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
+          args: --all-features
       - name: test/release
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --release
-      - name: test/debug features
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          # TODO: re-add all features once https://github.com/rust-lang/packed_simd/pull/341 is used by dalek
-          # args: --all-features
-          args: --features wasm --features ffi --features borsh
-      - name: test/release features
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          # TODO: re-add all features once https://github.com/rust-lang/packed_simd/pull/341 is used by dalek
-          # args: --release --all-features
-          args: --release --features wasm --features ffi --features borsh
+          args: --release --all-features
       - name: docs build
         uses: actions-rs/cargo@v1
         with:
           command: doc
-          args: --features wasm --features ffi
+          args: --all-features
       - name: bench
         uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --benches
+          args: --benches --all-features
+      - name: ledger no-std
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --release --features "no_std" --features "borsh_ser"

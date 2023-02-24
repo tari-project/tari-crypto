@@ -22,7 +22,8 @@
 //!   }
 //! ```
 
-use std::fmt;
+use alloc::string::String;
+use core::fmt;
 
 use serde::{
     de::{self, Visitor},
@@ -32,6 +33,7 @@ use serde::{
     Serializer,
 };
 use tari_utilities::{byte_array::ByteArray, hex::Hex};
+#[cfg(feature = "zero")]
 use zeroize::Zeroize;
 
 use crate::ristretto::{RistrettoPublicKey, RistrettoSecretKey};
@@ -95,7 +97,10 @@ impl<'de> Deserialize<'de> for RistrettoSecretKey {
         if deserializer.is_human_readable() {
             let mut s = String::deserialize(deserializer)?;
             let v = RistrettoSecretKey::from_hex(&s).map_err(de::Error::custom);
-            s.zeroize();
+            #[cfg(feature = "zero")]
+            {
+                s.zeroize();
+            }
             v
         } else {
             deserializer.deserialize_bytes(RistrettoVisitor)
@@ -109,7 +114,10 @@ impl Serialize for RistrettoSecretKey {
         if serializer.is_human_readable() {
             let mut s = self.to_hex();
             let result = s.serialize(serializer);
-            s.zeroize();
+            #[cfg(feature = "zero")]
+            {
+                s.zeroize();
+            }
             result
         } else {
             serializer.serialize_bytes(self.as_bytes())
