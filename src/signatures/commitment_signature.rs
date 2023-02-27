@@ -66,30 +66,9 @@ where
 
     /// This is the left-hand side of the signature verification equation
     pub fn calc_signature_verifier<C>(&self, factory: &C) -> HomomorphicCommitment<P>
-    where
-        C: HomomorphicCommitmentFactory<P = P>,
-    {
+    where C: HomomorphicCommitmentFactory<P = P> {
         // v*H + u*G
         factory.commit(&self.u, &self.v)
-    }
-
-    /// Sign the provided challenge with the value commitment's value and blinding factor. The two nonces should be
-    /// completely random and never reused - that responsibility lies with the calling function.
-    pub fn sign<C>(
-        secret_a: &K,
-        secret_x: &K,
-        nonce_a: &K,
-        nonce_x: &K,
-        challenge: &[u8],
-        factory: &C,
-    ) -> Result<Self, CommitmentSignatureError>
-    where
-        K: Mul<P, Output = P>,
-        for<'a> &'a K: Add<&'a K, Output = K>,
-        for<'a> &'a K: Mul<&'a K, Output = K>,
-        C: HomomorphicCommitmentFactory<P = P>,
-    {
-        Self::sign_raw(secret_a, secret_x, nonce_a, nonce_x, challenge, factory)
     }
 
     /// Sign the provided challenge with the value commitment's value and blinding factor. The two nonces should be
@@ -97,7 +76,7 @@ where
     ///
     /// WARNING: The provided secret keys and nonces are NOT bound to the challenge. This method assumes that the
     /// challenge has been constructed such that all commitments are already included in the challenge.
-    pub fn sign_raw<C>(
+    pub fn sign<C>(
         secret_a: &K,
         secret_x: &K,
         nonce_a: &K,
