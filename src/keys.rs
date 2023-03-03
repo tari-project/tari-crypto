@@ -8,7 +8,7 @@
 
 use std::ops::Add;
 
-use rand::{CryptoRng, Rng};
+use rand_core::{CryptoRng, RngCore};
 use serde::{de::DeserializeOwned, ser::Serialize};
 use tari_utilities::ByteArray;
 use zeroize::Zeroize;
@@ -31,7 +31,7 @@ pub trait SecretKey: ByteArray + Clone + PartialEq + Eq + Add<Output = Self> + D
     /// The length of the key, in bytes
     fn key_length() -> usize;
     /// Generates a random secret key
-    fn random<R: Rng + CryptoRng>(rng: &mut R) -> Self;
+    fn random<R: RngCore + CryptoRng>(rng: &mut R) -> Self;
 }
 
 //----------------------------------------   Public Keys  ----------------------------------------//
@@ -63,7 +63,7 @@ pub trait PublicKey:
     fn batch_mul(scalars: &[Self::K], points: &[Self]) -> Self;
 
     /// Generate a random public and secret key
-    fn random_keypair<R: Rng + CryptoRng>(rng: &mut R) -> (Self::K, Self) {
+    fn random_keypair<R: RngCore + CryptoRng>(rng: &mut R) -> (Self::K, Self) {
         let k = Self::K::random(rng);
         let pk = Self::from_secret_key(&k);
         (k, pk)

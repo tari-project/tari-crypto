@@ -7,7 +7,7 @@ use std::{
     ops::{Add, Mul},
 };
 
-use rand::{CryptoRng, RngCore};
+use rand_core::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
 use tari_utilities::ByteArray;
 use thiserror::Error;

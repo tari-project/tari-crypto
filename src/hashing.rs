@@ -805,7 +805,7 @@ mod test {
             .chain((domain.len() as u64).to_le_bytes())
             .chain(domain)
             .finalize();
-        assert_eq!(hash.as_ref(), expected.as_ref());
+        assert_eq!(hash.output.as_slice(), expected.as_slice());
     }
 
     #[test]

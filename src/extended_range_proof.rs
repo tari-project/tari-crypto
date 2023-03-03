@@ -3,6 +3,8 @@
 
 //! Extended range proofs
 
+use rand_core::{CryptoRng, RngCore};
+
 use crate::{
     commitment::{ExtensionDegree, HomomorphicCommitment},
     errors::RangeProofError,
@@ -20,19 +22,21 @@ pub trait ExtendedRangeProofService {
 
     /// Construct a simple non-aggregated range proof with default minimum value promise of `0` and the ability to
     /// rewind it. Requires a rewind key (seed nonce) to be included in the range proof.
-    fn construct_proof_with_recovery_seed_nonce(
+    fn construct_proof_with_recovery_seed_nonce<R: RngCore + CryptoRng>(
         &self,
         mask: &Self::K,
         value: u64,
         seed_nonce: &Self::K,
+        rng: &mut R,
     ) -> Result<Self::Proof, RangeProofError>;
 
     /// Recover the (unverified) mask for a simple non-aggregated proof using the provided seed-nonce.
-    fn recover_mask(
+    fn recover_mask<R: RngCore + CryptoRng>(
         &self,
         proof: &Self::Proof,
         commitment: &HomomorphicCommitment<Self::PK>,
         seed_nonce: &Self::K,
+        rng: &mut R
     ) -> Result<Self::K, RangeProofError>;
 
     /// Verify a recovered mask for a simple non-aggregated proof against the commitment.
@@ -49,10 +53,11 @@ pub trait ExtendedRangeProofService {
     /// The resulting (aggregated) extended proof will be sufficient evidence that the prover knows the set(s) of
     /// secret key(s) and value(s), and that each value is equal to or greater than zero or its minimum value
     /// promise and lies in the range determined by the service.
-    fn construct_extended_proof(
+    fn construct_extended_proof<R: RngCore + CryptoRng>(
         &self,
         extended_witnesses: Vec<ExtendedWitness<Self::K>>,
         seed_nonce: Option<Self::K>,
+        rng: &mut R,
     ) -> Result<Self::Proof, RangeProofError>;
 
     /// Verify the batch of range proofs against the given commitments and minimum value promises, and also recover the
@@ -64,26 +69,29 @@ pub trait ExtendedRangeProofService {
     ///   Batch recovery of masks is more expensive than linear mask recovery for the same amount of proofs, so
     ///   that is not promoted. The primary action here is batch verification at a logarithmic cost, with the
     ///   additional benefit to recover masks at an added linear cost.
-    fn verify_batch_and_recover_masks(
+    fn verify_batch_and_recover_masks<R: RngCore + CryptoRng>(
         &self,
         proofs: Vec<&Self::Proof>,
         statements: Vec<&AggregatedPrivateStatement<Self::PK>>,
+        rng: &mut R
     ) -> Result<Vec<Option<ExtendedMask<Self::K>>>, RangeProofError>;
 
     /// Verify the batch of range proofs against the given commitments and minimum value promises. If this
     /// function returns Ok, it attests to the batch of commitments having values in the range [min_val_promise; 2^64-1]
     /// and that the provers knew both the values and private keys for those commitments.
-    fn verify_batch(
+    fn verify_batch<R: RngCore + CryptoRng>(
         &self,
         proofs: Vec<&Self::Proof>,
         statements: Vec<&AggregatedPublicStatement<Self::PK>>,
+        rng: &mut R
     ) -> Result<(), RangeProofError>;
 
     /// Recover the (unverified) extended mask for a non-aggregated proof using the provided seed-nonce.
-    fn recover_extended_mask(
+    fn recover_extended_mask<R: RngCore + CryptoRng>(
         &self,
         proof: &Self::Proof,
         statement: &AggregatedPrivateStatement<Self::PK>,
+        rng: &mut R
     ) -> Result<Option<ExtendedMask<Self::K>>, RangeProofError>;
 
     /// Verify a recovered extended mask for a non-aggregated proof against the commitment.

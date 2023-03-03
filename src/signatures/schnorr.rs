@@ -13,6 +13,7 @@ use std::{
 };
 
 use digest::Digest;
+use rand_core::{CryptoRng, RngCore};
 use serde::{Deserialize, Serialize};
 use tari_utilities::ByteArray;
 use thiserror::Error;
@@ -121,12 +122,16 @@ where
     ///
     /// it is possible to customise the challenge by using [`construct_domain_separated_challenge`] and [`sign_raw`]
     /// yourself, or even use [`sign_raw`] using a completely custom challenge.
-    pub fn sign_message<'a, B>(secret: &'a K, message: B) -> Result<Self, SchnorrSignatureError>
+    pub fn sign_message<'a, B, R: RngCore + CryptoRng>(
+        secret: &'a K,
+        message: B,
+        rng: &mut R,
+    ) -> Result<Self, SchnorrSignatureError>
     where
         K: Add<Output = K> + Mul<&'a K, Output = K>,
         B: AsRef<[u8]>,
     {
-        let nonce = K::random(&mut rand::thread_rng());
+        let nonce = K::random(rng);
         Self::sign_with_nonce_and_message(secret, nonce, message)
     }
 

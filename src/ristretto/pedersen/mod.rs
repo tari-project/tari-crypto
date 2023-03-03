@@ -52,7 +52,7 @@ where T: Borrow<PedersenCommitment>
 }
 
 pub(crate) fn scalar_mul_with_pre_computation_tables(k: &Scalar, v: &Scalar) -> RistrettoPoint {
-    &RISTRETTO_BASEPOINT_TABLE * k + &*RISTRETTO_NUMS_TABLE_0 * v
+    RISTRETTO_BASEPOINT_TABLE * k + &*RISTRETTO_NUMS_TABLE_0 * v
 }
 
 #[cfg(test)]

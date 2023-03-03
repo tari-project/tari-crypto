@@ -9,6 +9,7 @@ use bulletproofs::{
     RangeProof as DalekProof,
 };
 use merlin::Transcript;
+use rand_core::{CryptoRng, RngCore};
 
 use crate::{
     errors::RangeProofError,
@@ -58,15 +59,26 @@ impl RangeProofService for DalekRangeProofService {
     type PK = RistrettoPublicKey;
     type Proof = Vec<u8>;
 
-    fn construct_proof(&self, key: &RistrettoSecretKey, value: u64) -> Result<Self::Proof, RangeProofError> {
+    fn construct_proof<R: RngCore + CryptoRng>(
+        &self,
+        key: &RistrettoSecretKey,
+        value: u64,
+        rand: &mut R,
+    ) -> Result<Self::Proof, RangeProofError> {
         let mut pt = Transcript::new(b"tari");
         let k = key.0;
-        let (proof, _) = DalekProof::prove_single(&self.bp_gens, &self.pc_gens, &mut pt, value, &k, self.range)
-            .map_err(|e| RangeProofError::ProofConstructionError(e.to_string()))?;
+        let (proof, _) =
+            DalekProof::prove_single_with_rng(&self.bp_gens, &self.pc_gens, &mut pt, value, &k, self.range, rand)
+                .map_err(|e| RangeProofError::ProofConstructionError(e.to_string()))?;
         Ok(proof.to_bytes())
     }
 
-    fn verify(&self, proof: &Self::Proof, commitment: &PedersenCommitment) -> bool {
+    fn verify<R: RngCore + CryptoRng>(
+        &self,
+        proof: &Self::Proof,
+        commitment: &PedersenCommitment,
+        _rng: &mut R,
+    ) -> bool {
         let rp = DalekProof::from_bytes(proof).map_err(|_| RangeProofError::InvalidProof);
         if rp.is_err() {
             return false;
@@ -228,20 +240,20 @@ mod test {
         let v = RistrettoSecretKey::from(42);
         let commitment_factory: PedersenCommitmentFactory = PedersenCommitmentFactory::default();
         let c = commitment_factory.commit(&k, &v);
-        let proof = prover.construct_proof(&k, 42).unwrap();
+        let proof = prover.construct_proof(&k, 42, &mut rng).unwrap();
         assert_eq!(proof.len(), (2 * n + 9) * 32);
-        assert!(prover.verify(&proof, &c));
+        assert!(prover.verify(&proof, &c, &mut rng));
         // Invalid value
         let v2 = RistrettoSecretKey::from(43);
         let c = commitment_factory.commit(&k, &v2);
-        assert!(!prover.verify(&proof, &c));
+        assert!(!prover.verify(&proof, &c, &mut rng));
         // Invalid key
         let k = RistrettoSecretKey::random(&mut rng);
         let c = commitment_factory.commit(&k, &v);
-        assert!(!prover.verify(&proof, &c));
+        assert!(!prover.verify(&proof, &c, &mut rng));
         // Both invalid
         let c = commitment_factory.commit(&k, &v2);
-        assert!(!prover.verify(&proof, &c));
+        assert!(!prover.verify(&proof, &c, &mut rng));
     }
 
     #[test]
@@ -333,15 +345,15 @@ mod test {
         let v = RistrettoSecretKey::from(in_range);
         let commitment_factory = PedersenCommitmentFactory::default();
         let c = commitment_factory.commit(&k, &v);
-        let proof = prover.construct_proof(&k, in_range).unwrap();
-        assert!(prover.verify(&proof, &c));
+        let proof = prover.construct_proof(&k, in_range, &mut rng).unwrap();
+        assert!(prover.verify(&proof, &c, &mut rng));
         // Test value out of range
-        let proof = prover.construct_proof(&k, out_of_range).unwrap();
+        let proof = prover.construct_proof(&k, out_of_range, &mut rng).unwrap();
         // Test every single value from 0..255 - the proof should fail for every one
         for i in 0..257 {
             let v = RistrettoSecretKey::from(i);
             let c = commitment_factory.commit(&k, &v);
-            assert!(!prover.verify(&proof, &c));
+            assert!(!prover.verify(&proof, &c, &mut rng));
         }
     }
 }

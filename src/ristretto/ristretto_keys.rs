@@ -21,7 +21,7 @@ use curve25519_dalek::{
 };
 use digest::Digest;
 use once_cell::sync::OnceCell;
-use rand::{CryptoRng, Rng};
+use rand_core::{CryptoRng, RngCore};
 use tari_utilities::{hex::Hex, ByteArray, ByteArrayError, Hashable};
 use zeroize::Zeroize;
 
@@ -81,7 +81,7 @@ impl SecretKey for RistrettoSecretKey {
     }
 
     /// Return a random secret key on the `ristretto255` curve using the supplied CSPRNG.
-    fn random<R: Rng + CryptoRng>(rng: &mut R) -> Self {
+    fn random<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
         RistrettoSecretKey(Scalar::random(rng))
     }
 }
@@ -359,7 +359,7 @@ impl PublicKey for RistrettoPublicKey {
 
     /// Generates a new Public key from the given secret key
     fn from_secret_key(k: &Self::K) -> RistrettoPublicKey {
-        let pk = &k.0 * &RISTRETTO_BASEPOINT_TABLE;
+        let pk = &k.0 * RISTRETTO_BASEPOINT_TABLE;
         RistrettoPublicKey::new_from_pk(pk)
     }
 
@@ -482,7 +482,7 @@ impl ByteArray for RistrettoPublicKey {
         if bytes.len() != 32 {
             return Err(ByteArrayError::IncorrectLength);
         }
-        let compressed = CompressedRistretto::from_slice(bytes);
+        let compressed = CompressedRistretto::from_slice(bytes).map_err(|_| ByteArrayError::ConversionError("Invalid Public key".to_string()))?;
         match RistrettoPublicKey::new_from_compressed(compressed) {
             Some(p) => Ok(p),
             None => Err(ByteArrayError::ConversionError(
