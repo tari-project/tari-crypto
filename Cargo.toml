@@ -14,7 +14,7 @@ edition = "2018"
 tari_utilities = { git = "https://github.com/swvheerden/tari_utilities.git", rev = "0a3e29d38a94a3ada4974badf51d9fdf4494e7d5", default-features = false }
 blake2 = {version="0.10.6", default-features = false}
 borsh = { version = "0.9.3", optional = true }
-bulletproofs = { package = "tari_bulletproofs", git = "https://github.com/swvheerden/bulletproofs", rev = "84e9fe0ace02913bd908c028d010bdad1b0f63a9", default-features = false, features = ["yoloproofs", "alloc"] }
+bulletproofs = { package = "tari_bulletproofs", git = "https://github.com/swvheerden/bulletproofs", rev = "01d4dd03d0b86a03c8ff2442e0799a8172f7df36", default-features = false, features = ["yoloproofs", "alloc"] }
 bulletproofs_plus = { package = "tari_bulletproofs_plus", git = "https://github.com/swvheerden/bulletproofs-plus", rev = "137f4a6d133694d318bb4b8d991ec3f10b32e968", default-features = false}
 curve25519-dalek = {git = "https://github.com/swvheerden/curve25519-dalek", rev = "c8120bbb67c0c93da45710edae36db98e8036cbf", default-features = false, features = [ "alloc"] }
 digest = {version ="0.10", default-features = false}
