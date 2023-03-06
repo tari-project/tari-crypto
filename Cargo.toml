@@ -11,7 +11,7 @@ version = "0.16.6"
 edition = "2018"
 
 [dependencies]
-tari_utilities = { git = "https://github.com/swvheerden/tari_utilities.git", rev = "661e22918215abc564d7850e80c82c076a417ed9", default-features = false }
+tari_utilities = { git = "https://github.com/swvheerden/tari_utilities.git", rev = "053e53b14bfe02bf487670a793b0d16999938d73", default-features = false }
 base64 = "0.10.1"
 blake2 = {version="0.10.6", default-features = false}
 borsh = { version = "0.9.3", optional = true }
@@ -25,7 +25,7 @@ log = "0.4.0"
 merlin = { version = "3", default-features = false }
 once_cell = {version="1.8.0", default-features = false}
 rand = { version = "0.8", default-features = false }
-rand_chacha = "0.3.1"
+rand_chacha = { version  = "0.3.1", default-features = false }
 rand_core = "0.6.4"
 serde = { version = "1.0.150", default-features = false, optional = true}
 serde_json = { version = "1.0", default-features = false, optional = true}
