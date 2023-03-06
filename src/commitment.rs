@@ -12,8 +12,10 @@ use std::{
     hash::{Hash, Hasher},
     ops::{Add, Mul, Sub},
 };
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
+
+//#[cfg(feature = "serde")]
+//use serde::{Deserialize, Serialize};
+
 use tari_utilities::{ByteArray, ByteArrayError};
 
 use crate::{
