@@ -95,7 +95,7 @@ impl ByteArray for RistrettoSecretKey {
     fn from_bytes(bytes: &[u8]) -> Result<RistrettoSecretKey, ByteArrayError>
     where Self: Sized {
         if bytes.len() != 32 {
-            return Err(ByteArrayError::IncorrectLength);
+            return Err(ByteArrayError::IncorrectLength {});
         }
         let mut a = [0u8; 32];
         a.copy_from_slice(bytes);
@@ -480,15 +480,16 @@ impl ByteArray for RistrettoPublicKey {
     where Self: Sized {
         // Check the length here, because The Ristretto constructor panics rather than returning an error
         if bytes.len() != 32 {
-            return Err(ByteArrayError::IncorrectLength);
+            return Err(ByteArrayError::IncorrectLength {});
         }
-        let compressed = CompressedRistretto::from_slice(bytes)
-            .map_err(|_| ByteArrayError::ConversionError("Invalid Public key".to_string()))?;
+        let compressed = CompressedRistretto::from_slice(bytes).map_err(|_| ByteArrayError::ConversionError {
+            reason: "Invalid Public key".to_string(),
+        })?;
         match RistrettoPublicKey::new_from_compressed(compressed) {
             Some(p) => Ok(p),
-            None => Err(ByteArrayError::ConversionError(
-                "Invalid compressed Ristretto point".to_string(),
-            )),
+            None => Err(ByteArrayError::ConversionError {
+                reason: "Invalid compressed Ristretto point".to_string(),
+            }),
         }
     }
 
