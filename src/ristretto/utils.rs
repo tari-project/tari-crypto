@@ -7,6 +7,7 @@ use digest::Digest;
 use rand_core::{CryptoRng, RngCore};
 use tari_utilities::ByteArray;
 
+
 use crate::{
     keys::PublicKey,
     ristretto::{RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
@@ -41,8 +42,8 @@ pub fn sign<D: Digest, R: RngCore + CryptoRng>(
 ) -> Result<SignatureSet, SchnorrSignatureError> {
     let (nonce, public_nonce) = RistrettoPublicKey::random_keypair(rng);
     let message = D::new()
-        .chain(public_nonce.as_bytes())
-        .chain(message)
+        .chain_update(public_nonce.as_bytes())
+        .chain_update(message)
         .finalize()
         .to_vec();
     let e = RistrettoSecretKey::from_bytes(&message).map_err(|_| SchnorrSignatureError::InvalidChallenge)?;

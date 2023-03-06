@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 //! A convenience wrapper produce 256 bit hashes from Blake2b
-
-use blake2::{digest::VariableOutput, VarBlake2b};
+/*
+use blake2::{digest::VariableOutput, Blake2bVar};
 use digest::{
     consts::{U32, U64},
     generic_array::{typenum::Unsigned, GenericArray},
@@ -16,7 +16,7 @@ use super::error::HashError;
 
 /// A convenience wrapper produce 256 bit hashes from Blake2b
 #[derive(Clone, Debug)]
-pub struct Blake256(VarBlake2b);
+pub struct Blake256(Blake2bVar);
 
 impl Blake256 {
     /// Constructs a `Blake256` hashing context with parameters that allow hash keying, salting and personalization.
@@ -34,7 +34,7 @@ impl Blake256 {
         if key.len() > 64 || salt.len() > 16 || persona.len() > 16 || output_size < 1 || output_size > U64::to_usize() {
             Err(HashError::WrongLength)
         } else {
-            Ok(Self(VarBlake2b::with_params(key, salt, persona, output_size)))
+            Ok(Self(Blake2bVar::with_params(key, salt, persona, output_size)))
         }
     }
 }
@@ -182,5 +182,30 @@ mod test {
         assert!(Blake256::with_params(&key, &salt, &bad_persona).is_err());
         assert!(Blake256::with_params_var_size(&key, &salt, &persona, bad_output_short).is_err());
         assert!(Blake256::with_params_var_size(&key, &salt, &persona, bad_output_long).is_err());
+    }
+}
+ */
+
+
+use blake2::{Blake2b, digest::consts::U32};
+
+pub type Blake256 = Blake2b<U32>;
+#[cfg(test)]
+mod test {
+    use blake2::digest::FixedOutput;
+    use digest::{generic_array::GenericArray, Digest};
+    use tari_utilities::hex;
+    use digest::Update;
+
+    use crate::hash::blake2::Blake256;
+
+    #[test]
+    fn blake256() {
+        let e = Blake256::new().chain(b"one").chain(b"two").finalize().to_vec();
+        let h = hex::to_hex(&e);
+        assert_eq!(
+            h.as_str(),
+            "03521c1777639fc6e5c3d8c3b4600870f18becc155ad7f8053d2c65bc78e4aa0"
+        );
     }
 }

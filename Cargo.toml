@@ -14,12 +14,12 @@ edition = "2018"
 tari_utilities = { git = "https://github.com/tari-project/tari_utilities.git", tag = "v0.4.10" }
 
 base64 = "0.10.1"
-blake2 = {version="0.9.1", default-features = false}
+blake2 = {version="0.10.6", default-features = false}
 borsh = { version = "0.9.3", optional = true }
 bulletproofs = { package = "tari_bulletproofs", git = "https://github.com/swvheerden/bulletproofs", rev = "cb044e72e981d839b61a91ce6e2a3dcf1c0153e2", default-features = false, features = ["yoloproofs"] }
-bulletproofs_plus = { package = "tari_bulletproofs_plus", git = "https://github.com/swvheerden/bulletproofs-plus", rev = "6f852973585afb006654f357b217d51cc4ad2d43", default-features = false}
+bulletproofs_plus = { package = "tari_bulletproofs_plus", git = "https://github.com/swvheerden/bulletproofs-plus", rev = "f6025c4dd7ce27cc315cdbc00f38894a32dd192f", default-features = false}
 curve25519-dalek = {git = "https://github.com/swvheerden/curve25519-dalek", rev = "c8120bbb67c0c93da45710edae36db98e8036cbf", default-features = false, features = ["serde", "alloc"] }
-digest = {version ="0.9.0", default-features = false}
+digest = {version ="0.10", default-features = false}
 getrandom = { version = "0.2.3", default-features = false, optional = true }
 lazy_static = {git = "https://github.com/rust-lang-nursery/lazy-static.rs.git", rev= "e83d664", default-features = false}
 log = "0.4.0"
@@ -31,7 +31,7 @@ rand_core = "0.6.4"
 serde = { version = "1.0.150", default-features = false, optional = true}
 serde_json = { version = "1.0", default-features = false, optional = true}
 serde-wasm-bindgen = { version = "0.4", optional = true }
-sha3 = "0.9.0"
+sha3 = "0.10.6"
 thiserror = "1.0.20"
 wasm-bindgen = { version = "^0.2", features = ["serde-serialize"], optional = true }
 zeroize = "1"
@@ -41,7 +41,7 @@ rand = "0.8.5"
 bincode = "1.1.4"
 criterion = "0.3.4"
 rand_chacha = "0.3.1"
-sha2 = "0.9.5"
+sha2 = "0.10.6"
 wasm-bindgen-test = "0.3.24"
 
 [build-dependencies]

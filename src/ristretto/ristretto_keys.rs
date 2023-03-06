@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 //! The Tari-compatible implementation of Ristretto based on the curve25519-dalek implementation
-use std::{
+use core::{
     borrow::Borrow,
     cmp::Ordering,
     fmt,
@@ -11,7 +11,7 @@ use std::{
 };
 #[cfg(feature = "borsh")]
 use std::{io, io::Write};
-
+use digest::consts::U64;
 use blake2::Blake2b;
 use curve25519_dalek::{
     constants::RISTRETTO_BASEPOINT_TABLE,
@@ -289,7 +289,7 @@ impl RistrettoPublicKey {
     /// A verifiable group generator using a domain separated hasher
     pub fn new_generator(label: &'static str) -> Result<RistrettoPublicKey, HashingError> {
         // This function requires 512 bytes of data, so let's be opinionated here and use blake2b
-        let hash = DomainSeparatedHasher::<Blake2b, RistrettoGeneratorPoint>::new_with_label(label).finalize();
+        let hash = DomainSeparatedHasher::<Blake2b<U64>, RistrettoGeneratorPoint>::new_with_label(label).finalize();
         if hash.as_ref().len() < 64 {
             return Err(HashingError::DigestTooShort(64));
         }
@@ -374,7 +374,7 @@ impl PublicKey for RistrettoPublicKey {
 // Requires custom Hashable implementation for RistrettoPublicKey as CompressedRistretto doesnt implement this trait
 impl Hashable for RistrettoPublicKey {
     fn hash(&self) -> Vec<u8> {
-        Blake2b::digest(self.as_bytes()).to_vec()
+        Blake2b::<U64>::digest(self.as_bytes()).to_vec()
     }
 }
 
