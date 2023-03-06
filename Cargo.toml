@@ -31,7 +31,7 @@ rand_core = "0.6.4"
 serde = { version = "1.0.150", default-features = false, optional = true}
 serde_json = { version = "1.0", default-features = false, optional = true}
 serde-wasm-bindgen = { version = "0.4", optional = true }
-sha3 = "0.10.6"
+sha3 = {version="0.10.6", default-features = false}
 thiserror = "1.0.20"
 wasm-bindgen = { version = "^0.2", features = ["serde-serialize"], optional = true }
 zeroize = "1"
