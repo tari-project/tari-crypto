@@ -29,10 +29,9 @@
 //! [hmac]: https://en.wikipedia.org/wiki/HMAC#Design_principles "HMAC: Design principles"
 
 use std::{marker::PhantomData, ops::Deref};
-use digest::OutputSizeUser;
 
 use blake2::Blake2bVar;
-use digest::{Digest, FixedOutput, Output, Update};
+use digest::{Digest, FixedOutput, Output, OutputSizeUser, Update};
 use sha3::Sha3_256;
 use tari_utilities::ByteArray;
 
@@ -297,7 +296,10 @@ pub trait AsFixedBytes<const I: usize>: AsRef<[u8]> {
         let hash_vec = self.as_ref();
         if hash_vec.is_empty() || hash_vec.len() < I {
             let hash_vec_length = if hash_vec.is_empty() { 0 } else { hash_vec.len() };
-            return Err(SliceError::CopyFromSlice(I, hash_vec_length));
+            return Err(SliceError::CopyFromSlice {
+                target: I,
+                provided: hash_vec_length,
+            });
         }
         let mut buffer: [u8; I] = [0; I];
         buffer.copy_from_slice(&hash_vec[..I]);
@@ -305,87 +307,85 @@ pub trait AsFixedBytes<const I: usize>: AsRef<[u8]> {
     }
 }
 
-impl<TInnerDigest: FixedOutput, TDomain: DomainSeparation> OutputSizeUser for DomainSeparatedHasher<TInnerDigest, TDomain> {
+impl<TInnerDigest: FixedOutput, TDomain: DomainSeparation> OutputSizeUser
+    for DomainSeparatedHasher<TInnerDigest, TDomain>
+{
     type OutputSize = TInnerDigest::OutputSize;
 }
 
 impl<TInnerDigest: Update, TDomain: DomainSeparation> Update for DomainSeparatedHasher<TInnerDigest, TDomain> {
-    fn update(&mut self, data: &[u8]){
+    fn update(&mut self, data: &[u8]) {
         self.inner.update(data);
     }
 }
-
-
 
 impl<const I: usize, D: Digest> AsFixedBytes<I> for DomainSeparatedHash<D> {}
 
 impl<TInnerDigest: FixedOutput, TDomain: DomainSeparation> FixedOutput
     for DomainSeparatedHasher<TInnerDigest, TDomain>
 {
-    //type OutputSize = TInnerDigest::OutputSize;
+    // type OutputSize = TInnerDigest::OutputSize;
 
     fn finalize_into(self, out: &mut digest::generic_array::GenericArray<u8, Self::OutputSize>) {
         self.inner.finalize_into(out);
     }
 
-    /*fn finalize_into_reset(&mut self, out: &mut digest::generic_array::GenericArray<u8, Self::OutputSize>) {
-        self.inner.finalize_into_reset(out);
-    }*/
+    // fn finalize_into_reset(&mut self, out: &mut digest::generic_array::GenericArray<u8, Self::OutputSize>) {
+    // self.inner.finalize_into_reset(out);
+    // }
 }
-/*
-
-/// Implements Digest so that it can be used for other crates
-impl<TInnerDigest: Digest + FixedOutput, TDomain: DomainSeparation> Digest for DomainSeparatedHasher<TInnerDigest, TDomain> {
-    //type OutputSize = TInnerDigest::OutputSize;
-
-    fn new() -> Self {
-        DomainSeparatedHasher::<TInnerDigest, TDomain>::new()
-    }
-
-    /// Create new hasher instance which has processed the provided data.
-    fn new_with_prefix(data: impl AsRef<[u8]>) -> Self{
-        let hashser = DomainSeparatedHasher::<TInnerDigest, TDomain>::new();
-        hasher.chain_update(data)
-    }
-
-    fn update(&mut self, data: impl AsRef<[u8]>) {
-        self.update(data);
-    }
-
-    fn chain_update(self, data: impl AsRef<[u8]>) -> Self
-    where Self: Sized {
-        self.chain(data)
-    }
-
-    fn finalize(self) -> Output<Self> {
-        self.finalize().output
-    }
-
-    fn finalize_reset(&mut self) -> Output<Self> {
-        let value = self.inner.finalize_reset();
-        TDomain::add_domain_separation_tag(&mut self.inner, self.label);
-        value
-    }
-    /// Write result into provided array and consume the hasher instance.
-    fn finalize_into(self, out: &mut Output<Self>) {
-
-    }
-
-    fn reset(&mut self) {
-        self.inner.reset();
-        TDomain::add_domain_separation_tag(&mut self.inner, self.label);
-    }
-
-    fn output_size() -> usize {
-        TInnerDigest::output_size()
-    }
-
-    fn digest(data: impl AsRef<[u8]>) -> Output<Self> {
-        let mut hasher = Self::new();
-        hasher.update(data);
-        hasher.finalize().output
-    }
-}*/
+// Implements Digest so that it can be used for other crates
+// impl<TInnerDigest: Digest + FixedOutput, TDomain: DomainSeparation> Digest for DomainSeparatedHasher<TInnerDigest,
+// TDomain> { type OutputSize = TInnerDigest::OutputSize;
+//
+// fn new() -> Self {
+// DomainSeparatedHasher::<TInnerDigest, TDomain>::new()
+// }
+//
+// Create new hasher instance which has processed the provided data.
+// fn new_with_prefix(data: impl AsRef<[u8]>) -> Self{
+// let hashser = DomainSeparatedHasher::<TInnerDigest, TDomain>::new();
+// hasher.chain_update(data)
+// }
+//
+// fn update(&mut self, data: impl AsRef<[u8]>) {
+// self.update(data);
+// }
+//
+// fn chain_update(self, data: impl AsRef<[u8]>) -> Self
+// where Self: Sized {
+// self.chain(data)
+// }
+//
+// fn finalize(self) -> Output<Self> {
+// self.finalize().output
+// }
+//
+// fn finalize_reset(&mut self) -> Output<Self> {
+// let value = self.inner.finalize_reset();
+// TDomain::add_domain_separation_tag(&mut self.inner, self.label);
+// value
+// }
+// Write result into provided array and consume the hasher instance.
+// fn finalize_into(self, out: &mut Output<Self>) {
+//
+// }
+//
+// fn reset(&mut self) {
+// self.inner.reset();
+// TDomain::add_domain_separation_tag(&mut self.inner, self.label);
+// }
+//
+// fn output_size() -> usize {
+// TInnerDigest::output_size()
+// }
+//
+// fn digest(data: impl AsRef<[u8]>) -> Output<Self> {
+// let mut hasher = Self::new();
+// hasher.update(data);
+// hasher.finalize().output
+// }
+// }
 
 //----------------------------------------       Extra marker traits      ----------------------------------------------
 
@@ -543,13 +543,14 @@ pub trait DerivedKeyDomain: DomainSeparation {
         D: Digest + Update,
     {
         if primary_key.as_ref().len() < <D as Digest>::output_size() {
-            return Err(HashingError::InputTooShort);
+            return Err(HashingError::InputTooShort {});
         }
         let hash = DomainSeparatedHasher::<D, Self>::new_with_label(label)
             .chain(primary_key)
             .chain(data)
             .finalize();
-        let derived_key = Self::DerivedKeyType::from_bytes(hash.as_ref())?;
+        let derived_key = Self::DerivedKeyType::from_bytes(hash.as_ref())
+            .map_err(|e| HashingError::ConversionFromBytes { reason: e.to_string() })?;
         Ok(derived_key)
     }
 }

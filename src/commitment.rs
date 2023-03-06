@@ -14,8 +14,7 @@ use std::{
 };
 
 //#[cfg(feature = "serde")]
-//use serde::{Deserialize, Serialize};
-
+// use serde::{Deserialize, Serialize};
 use tari_utilities::{ByteArray, ByteArrayError};
 
 use crate::{
@@ -253,9 +252,9 @@ impl ExtensionDegree {
             4 => Ok(ExtensionDegree::AddThreeBasePoints),
             5 => Ok(ExtensionDegree::AddFourBasePoints),
             6 => Ok(ExtensionDegree::AddFiveBasePoints),
-            _ => Err(CommitmentError::ExtensionDegree(
-                "Extension degree not valid".to_string(),
-            )),
+            _ => Err(CommitmentError::CommitmentExtensionDegree {
+                reason: "Extension degree not valid".to_string(),
+            }),
         }
     }
 }

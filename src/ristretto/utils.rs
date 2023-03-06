@@ -7,7 +7,6 @@ use digest::Digest;
 use rand_core::{CryptoRng, RngCore};
 use tari_utilities::ByteArray;
 
-
 use crate::{
     keys::PublicKey,
     ristretto::{RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},

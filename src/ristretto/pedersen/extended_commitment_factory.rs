@@ -59,9 +59,9 @@ impl ExtendedPedersenCommitmentFactory {
         if extension_degree as usize > RISTRETTO_NUMS_POINTS.len() ||
             extension_degree as usize > RISTRETTO_NUMS_POINTS_COMPRESSED.len()
         {
-            return Err(CommitmentError::ExtensionDegree(
-                "Not enough Ristretto NUMS points to construct the extended commitment factory".to_string(),
-            ));
+            return Err(CommitmentError::CommitmentExtensionDegree {
+                reason: "Not enough Ristretto NUMS points to construct the extended commitment factory".to_string(),
+            });
         }
         let g_base_vec = std::iter::once(&RISTRETTO_PEDERSEN_G)
             .chain(RISTRETTO_NUMS_POINTS[1..extension_degree as usize].iter())
@@ -90,7 +90,9 @@ impl ExtendedPedersenCommitmentFactory {
         for<'a> &'a Scalar: Borrow<Scalar>,
     {
         if blinding_factors.is_empty() || blinding_factors.len() > self.extension_degree as usize {
-            Err(CommitmentError::ExtensionDegree("blinding vector".to_string()))
+            Err(CommitmentError::CommitmentExtensionDegree {
+                reason: "blinding vector".to_string(),
+            })
         } else if blinding_factors.len() == 1 &&
             (self.g_base_vec[0], self.h_base) == (RISTRETTO_PEDERSEN_G, *RISTRETTO_PEDERSEN_H)
         {
@@ -168,7 +170,7 @@ impl ExtendedHomomorphicCommitmentFactory for ExtendedPedersenCommitmentFactory 
     ) -> Result<bool, CommitmentError> {
         let c_test = self
             .commit_extended(k_vec, v)
-            .map_err(|e| CommitmentError::ExtensionDegree(e.to_string()))?;
+            .map_err(|e| CommitmentError::CommitmentExtensionDegree { reason: e.to_string() })?;
         Ok(commitment == &c_test)
     }
 

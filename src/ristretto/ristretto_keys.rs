@@ -11,7 +11,7 @@ use core::{
 };
 #[cfg(feature = "borsh")]
 use std::{io, io::Write};
-use digest::consts::U64;
+
 use blake2::Blake2b;
 use curve25519_dalek::{
     constants::RISTRETTO_BASEPOINT_TABLE,
@@ -19,7 +19,7 @@ use curve25519_dalek::{
     scalar::Scalar,
     traits::MultiscalarMul,
 };
-use digest::Digest;
+use digest::{consts::U64, Digest};
 use once_cell::sync::OnceCell;
 use rand_core::{CryptoRng, RngCore};
 use tari_utilities::{hex::Hex, ByteArray, ByteArrayError, Hashable};
@@ -291,7 +291,7 @@ impl RistrettoPublicKey {
         // This function requires 512 bytes of data, so let's be opinionated here and use blake2b
         let hash = DomainSeparatedHasher::<Blake2b<U64>, RistrettoGeneratorPoint>::new_with_label(label).finalize();
         if hash.as_ref().len() < 64 {
-            return Err(HashingError::DigestTooShort(64));
+            return Err(HashingError::DigestTooShort { bytes: 64 });
         }
         let mut bytes = [0u8; 64];
         bytes.copy_from_slice(hash.as_ref());
@@ -482,7 +482,8 @@ impl ByteArray for RistrettoPublicKey {
         if bytes.len() != 32 {
             return Err(ByteArrayError::IncorrectLength);
         }
-        let compressed = CompressedRistretto::from_slice(bytes).map_err(|_| ByteArrayError::ConversionError("Invalid Public key".to_string()))?;
+        let compressed = CompressedRistretto::from_slice(bytes)
+            .map_err(|_| ByteArrayError::ConversionError("Invalid Public key".to_string()))?;
         match RistrettoPublicKey::new_from_compressed(compressed) {
             Some(p) => Ok(p),
             None => Err(ByteArrayError::ConversionError(

@@ -267,7 +267,8 @@ mod test {
     fn sign_and_verify_message() {
         let mut rng = rand::thread_rng();
         let (k, P) = RistrettoPublicKey::random_keypair(&mut rng);
-        let sig = RistrettoSchnorr::sign_message(&k, "Queues are things that happen to other people", &mut rng).unwrap();
+        let sig =
+            RistrettoSchnorr::sign_message(&k, "Queues are things that happen to other people", &mut rng).unwrap();
         assert!(sig.verify_message(&P, "Queues are things that happen to other people"));
         assert!(!sig.verify_message(&P, "Qs are things that happen to other people"));
         assert!(!sig.verify_message(&(&P + &P), "Queues are things that happen to other people"));

@@ -35,7 +35,6 @@ pub trait SecretKey: ByteArray + Clone + PartialEq + Eq + Add<Output = Self> + D
     fn random<R: RngCore + CryptoRng>(rng: &mut R) -> Self;
 }
 
-
 //----------------------------------------   Public Keys  ----------------------------------------//
 
 /// A trait specifying common behaviour for representing `PublicKey`s. Specific elliptic curve
@@ -73,9 +72,7 @@ pub trait PublicKey:
     }
 }
 #[cfg(not(feature = "serde"))]
-pub trait PublicKey:
-ByteArray + Add<Output = Self> + Clone + PartialOrd + Ord + Default+ Zeroize
-{
+pub trait PublicKey: ByteArray + Add<Output = Self> + Clone + PartialOrd + Ord + Default + Zeroize {
     /// The output size len of Public Key
     const KEY_LEN: usize;
 

@@ -8,9 +8,8 @@ use std::{
 };
 
 use rand_core::{CryptoRng, RngCore};
-use serde::{Deserialize, Serialize};
+use snafu::prelude::*;
 use tari_utilities::ByteArray;
-use thiserror::Error;
 
 use crate::{
     commitment::{HomomorphicCommitment, HomomorphicCommitmentFactory},
@@ -18,10 +17,11 @@ use crate::{
 };
 
 /// An error when creating a commitment signature
-#[derive(Clone, Debug, Error, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Snafu, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(missing_docs)]
 pub enum CommitmentAndPublicKeySignatureError {
-    #[error("An invalid challenge was provided")]
+    #[snafu(display("An invalid challenge was provided"))]
     InvalidChallenge,
 }
 
@@ -53,7 +53,8 @@ pub enum CommitmentAndPublicKeySignatureError {
 /// The use of efficient multiscalar multiplication algorithms may also be useful for efficiency.
 /// The use of precomputation tables for `G` and `H` may also be useful for efficiency.
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize, borsh::BorshDeserialize))]
 pub struct CommitmentAndPublicKeySignature<P, K> {
     ephemeral_commitment: HomomorphicCommitment<P>,

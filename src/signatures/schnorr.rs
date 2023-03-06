@@ -14,10 +14,8 @@ use std::{
 
 use digest::Digest;
 use rand_core::{CryptoRng, RngCore};
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
+use snafu::prelude::*;
 use tari_utilities::ByteArray;
-use thiserror::Error;
 
 use crate::{
     hash::blake2::Blake256,
@@ -30,10 +28,11 @@ use crate::{
 hash_domain!(SchnorrSigChallenge, "com.tari.schnorr_signature", 1);
 
 /// An error occurred during construction of a SchnorrSignature
-#[derive(Clone, Debug, Error, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Snafu, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(missing_docs)]
 pub enum SchnorrSignatureError {
-    #[error("An invalid challenge was provided")]
+    #[snafu(display("An invalid challenge was provided"))]
     InvalidChallenge,
 }
 

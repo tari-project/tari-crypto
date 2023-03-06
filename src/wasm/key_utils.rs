@@ -27,7 +27,8 @@ use crate::{
 };
 
 /// Result of calling [check_signature] and [check_comsig_signature] and [check_comandpubsig_signature]
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SignatureVerifyResult {
     /// True if the signature was valid
     pub result: bool,
@@ -36,7 +37,8 @@ pub struct SignatureVerifyResult {
 }
 
 /// Result of calling [sign]
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SignResult {
     /// The public nonce of the signature, if successful
     pub public_nonce: Option<String>,
@@ -47,7 +49,8 @@ pub struct SignResult {
 }
 
 /// Result of calling [sign_comsig]
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ComSignResult {
     /// The public nonce of the signature, if successful
     pub public_nonce: Option<String>,
@@ -60,7 +63,8 @@ pub struct ComSignResult {
 }
 
 /// Result of calling [sign_comandpubsig]
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ComAndPubSignResult {
     /// The ephemeral commitment of the signature, if successful
     pub ephemeral_commitment: Option<String>,

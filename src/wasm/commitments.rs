@@ -5,7 +5,6 @@
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
-
 use tari_utilities::hex::Hex;
 use wasm_bindgen::prelude::*;
 

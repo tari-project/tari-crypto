@@ -39,7 +39,9 @@ impl DalekRangeProofService {
     /// where valid range values are 8, 16, 32 and 64.
     pub fn new(range: usize, base: &PedersenCommitmentFactory) -> Result<DalekRangeProofService, RangeProofError> {
         if range == 0 || (range | MASK != MASK) {
-            return Err(RangeProofError::InitializationError("Range not valid".to_string()));
+            return Err(RangeProofError::InitializationError {
+                reason: "Range not valid".to_string(),
+            });
         }
         let pc_gens = PedersenGens {
             B_blinding: base.G,
@@ -69,7 +71,7 @@ impl RangeProofService for DalekRangeProofService {
         let k = key.0;
         let (proof, _) =
             DalekProof::prove_single_with_rng(&self.bp_gens, &self.pc_gens, &mut pt, value, &k, self.range, rand)
-                .map_err(|e| RangeProofError::ProofConstructionError(e.to_string()))?;
+                .map_err(|e| RangeProofError::ProofConstructionError { reason: e.to_string() })?;
         Ok(proof.to_bytes())
     }
 
@@ -79,7 +81,7 @@ impl RangeProofService for DalekRangeProofService {
         commitment: &PedersenCommitment,
         _rng: &mut R,
     ) -> bool {
-        let rp = DalekProof::from_bytes(proof).map_err(|_| RangeProofError::InvalidProof);
+        let rp = DalekProof::from_bytes(proof).map_err(|_| RangeProofError::InvalidProof {});
         if rp.is_err() {
             return false;
         }
@@ -127,7 +129,7 @@ impl RewindableRangeProofService for DalekRangeProofService {
             &rbk,
             &full_proof_message,
         )
-        .map_err(|e| RangeProofError::ProofConstructionError(e.to_string()))?;
+        .map_err(|e| RangeProofError::ProofConstructionError { reason: e.to_string() })?;
         Ok(proof.to_bytes())
     }
 
@@ -138,7 +140,7 @@ impl RewindableRangeProofService for DalekRangeProofService {
         rewind_public_key: &RistrettoPublicKey,
         rewind_blinding_public_key: &RistrettoPublicKey,
     ) -> Result<RewindResult, RangeProofError> {
-        let rp = DalekProof::from_bytes(proof).map_err(|_| RangeProofError::InvalidProof)?;
+        let rp = DalekProof::from_bytes(proof).map_err(|_| RangeProofError::InvalidProof {})?;
 
         let mut pt = Transcript::new(b"tari");
         let rewind_nonce_1 =
@@ -156,11 +158,11 @@ impl RewindableRangeProofService for DalekRangeProofService {
                 &rewind_nonce_1,
                 &rewind_nonce_2,
             )
-            .map_err(|e| RangeProofError::ProofConstructionError(e.to_string()))?;
+            .map_err(|e| RangeProofError::ProofConstructionError { reason: e.to_string() })?;
         if &proof_message[..REWIND_CHECK_MESSAGE.len()] != REWIND_CHECK_MESSAGE {
-            return Err(RangeProofError::InvalidRewind(
-                "Rewind check message length".to_string(),
-            ));
+            return Err(RangeProofError::InvalidRewind {
+                reason: "Rewind check message length".to_string(),
+            });
         }
         let mut truncated_proof_message: [u8; REWIND_USER_MESSAGE_LENGTH] = [0u8; REWIND_USER_MESSAGE_LENGTH];
         truncated_proof_message.copy_from_slice(&proof_message[REWIND_CHECK_MESSAGE.len()..]);
@@ -174,7 +176,7 @@ impl RewindableRangeProofService for DalekRangeProofService {
         rewind_key: &RistrettoSecretKey,
         rewind_blinding_key: &RistrettoSecretKey,
     ) -> Result<FullRewindResult<RistrettoSecretKey>, RangeProofError> {
-        let rp = DalekProof::from_bytes(proof).map_err(|_| RangeProofError::InvalidProof)?;
+        let rp = DalekProof::from_bytes(proof).map_err(|_| RangeProofError::InvalidProof {})?;
 
         let mut pt = Transcript::new(b"tari");
         let rewind_public_key = RistrettoPublicKey::from_secret_key(rewind_key);
@@ -200,7 +202,7 @@ impl RewindableRangeProofService for DalekRangeProofService {
                 &blinding_nonce_1,
                 &blinding_nonce_2,
             )
-            .map_err(|e| RangeProofError::InvalidRewind(e.to_string()))?;
+            .map_err(|e| RangeProofError::InvalidRewind { reason: e.to_string() })?;
 
         let mut truncated_proof_message: [u8; REWIND_USER_MESSAGE_LENGTH] = [0u8; REWIND_USER_MESSAGE_LENGTH];
         truncated_proof_message.copy_from_slice(&proof_message[REWIND_CHECK_MESSAGE.len()..]);

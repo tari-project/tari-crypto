@@ -36,7 +36,7 @@ pub trait ExtendedRangeProofService {
         proof: &Self::Proof,
         commitment: &HomomorphicCommitment<Self::PK>,
         seed_nonce: &Self::K,
-        rng: &mut R
+        rng: &mut R,
     ) -> Result<Self::K, RangeProofError>;
 
     /// Verify a recovered mask for a simple non-aggregated proof against the commitment.
@@ -73,7 +73,7 @@ pub trait ExtendedRangeProofService {
         &self,
         proofs: Vec<&Self::Proof>,
         statements: Vec<&AggregatedPrivateStatement<Self::PK>>,
-        rng: &mut R
+        rng: &mut R,
     ) -> Result<Vec<Option<ExtendedMask<Self::K>>>, RangeProofError>;
 
     /// Verify the batch of range proofs against the given commitments and minimum value promises. If this
@@ -83,7 +83,7 @@ pub trait ExtendedRangeProofService {
         &self,
         proofs: Vec<&Self::Proof>,
         statements: Vec<&AggregatedPublicStatement<Self::PK>>,
-        rng: &mut R
+        rng: &mut R,
     ) -> Result<(), RangeProofError>;
 
     /// Recover the (unverified) extended mask for a non-aggregated proof using the provided seed-nonce.
@@ -91,7 +91,7 @@ pub trait ExtendedRangeProofService {
         &self,
         proof: &Self::Proof,
         statement: &AggregatedPrivateStatement<Self::PK>,
-        rng: &mut R
+        rng: &mut R,
     ) -> Result<Option<ExtendedMask<Self::K>>, RangeProofError>;
 
     /// Verify a recovered extended mask for a non-aggregated proof against the commitment.
@@ -118,9 +118,9 @@ where K: SecretKey
     /// Construct a new extended mask
     pub fn assign(extension_degree: ExtensionDegree, secrets: Vec<K>) -> Result<ExtendedMask<K>, RangeProofError> {
         if secrets.is_empty() || secrets.len() != extension_degree as usize {
-            Err(RangeProofError::InitializationError(
-                "Extended mask length must correspond to the extension degree".to_string(),
-            ))
+            Err(RangeProofError::InitializationError {
+                reason: "Extended mask length must correspond to the extension degree".to_string(),
+            })
         } else {
             Ok(Self { secrets })
         }
@@ -160,9 +160,9 @@ where PK: PublicKey
     /// - `statements` must be a power of 2 as mandated by the `bulletproofs_plus` implementation
     pub fn init(statements: Vec<Statement<PK>>) -> Result<Self, RangeProofError> {
         if !statements.len().is_power_of_two() {
-            return Err(RangeProofError::InitializationError(
-                "Number of commitments must be a power of two".to_string(),
-            ));
+            return Err(RangeProofError::InitializationError {
+                reason: "Number of commitments must be a power of two".to_string(),
+            });
         }
         Ok(Self { statements })
     }
@@ -188,14 +188,14 @@ where PK: PublicKey
     /// - mask recovery is not supported with an aggregated statement/proof
     pub fn init(statements: Vec<Statement<PK>>, recovery_seed_nonce: Option<PK::K>) -> Result<Self, RangeProofError> {
         if recovery_seed_nonce.is_some() && statements.len() > 1 {
-            return Err(RangeProofError::InitializationError(
-                "Mask recovery is not supported with an aggregated statement".to_string(),
-            ));
+            return Err(RangeProofError::InitializationError {
+                reason: "Mask recovery is not supported with an aggregated statement".to_string(),
+            });
         }
         if !statements.len().is_power_of_two() {
-            return Err(RangeProofError::InitializationError(
-                "Number of commitments must be a power of two".to_string(),
-            ));
+            return Err(RangeProofError::InitializationError {
+                reason: "Number of commitments must be a power of two".to_string(),
+            });
         }
         Ok(Self {
             statements,

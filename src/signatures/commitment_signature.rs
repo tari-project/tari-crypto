@@ -7,9 +7,8 @@ use std::{
     ops::{Add, Mul},
 };
 
-use serde::{Deserialize, Serialize};
+use snafu::prelude::*;
 use tari_utilities::ByteArray;
-use thiserror::Error;
 
 use crate::{
     commitment::{HomomorphicCommitment, HomomorphicCommitmentFactory},
@@ -17,10 +16,11 @@ use crate::{
 };
 
 /// An error when creating a commitment signature
-#[derive(Clone, Debug, Error, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Snafu, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(missing_docs)]
 pub enum CommitmentSignatureError {
-    #[error("An invalid challenge was provided")]
+    #[snafu(display("An invalid challenge was provided"))]
     InvalidChallenge,
 }
 
@@ -46,8 +46,9 @@ pub enum CommitmentSignatureError {
 ///   S =? R + e.C           ... (final verification)
 
 #[allow(non_snake_case)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 #[cfg_attr(feature = "borsh", derive(borsh::BorshDeserialize, borsh::BorshSerialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CommitmentSignature<P, K> {
     public_nonce: HomomorphicCommitment<P>,
     u: K,
