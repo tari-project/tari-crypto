@@ -12,7 +12,7 @@ use std::{
     hash::{Hash, Hasher},
     ops::{Add, Mul, Sub},
 };
-
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use tari_utilities::{ByteArray, ByteArrayError};
 
@@ -32,7 +32,8 @@ use crate::{
 ///   C_2 &= v_2.H + k_2.G \\\\
 ///   \therefore C_1 + C_2 &= (v_1 + v_2)H + (k_1 + k_2)G
 /// \end{aligned} $$
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct HomomorphicCommitment<P>(pub(crate) P);
 
 #[cfg(feature = "borsh")]

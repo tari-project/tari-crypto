@@ -8,6 +8,7 @@
 
 use blake2::Digest;
 use rand::rngs::OsRng;
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use tari_utilities::hex::{from_hex, Hex};
 use wasm_bindgen::prelude::*;

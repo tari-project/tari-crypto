@@ -3,12 +3,14 @@
 
 //! Errors used in the Tari Crypto crate
 
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use tari_utilities::ByteArrayError;
 use thiserror::Error;
 
 /// Errors encountered when creating of verifying range proofs
-#[derive(Debug, Clone, Error, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Error, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum RangeProofError {
     /// Cold not construct a range proof
     #[error("Could not construct range proof: `{0}`")]

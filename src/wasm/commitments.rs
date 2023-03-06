@@ -3,6 +3,7 @@
 
 //! Functions for creating and opening commitments
 
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use tari_utilities::hex::Hex;
 use wasm_bindgen::prelude::*;
@@ -17,7 +18,8 @@ use crate::{
 };
 
 /// Returned from [commit()]
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CommitmentResult {
     /// The commitment, if successful
     pub commitment: Option<String>,

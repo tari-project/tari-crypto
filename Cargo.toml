@@ -16,8 +16,8 @@ tari_utilities = { git = "https://github.com/tari-project/tari_utilities.git", t
 base64 = "0.10.1"
 blake2 = {version="0.10.6", default-features = false}
 borsh = { version = "0.9.3", optional = true }
-bulletproofs = { package = "tari_bulletproofs", git = "https://github.com/swvheerden/bulletproofs", rev = "cb044e72e981d839b61a91ce6e2a3dcf1c0153e2", default-features = false, features = ["yoloproofs"] }
-bulletproofs_plus = { package = "tari_bulletproofs_plus", git = "https://github.com/swvheerden/bulletproofs-plus", rev = "f6025c4dd7ce27cc315cdbc00f38894a32dd192f", default-features = false}
+bulletproofs = { package = "tari_bulletproofs", git = "https://github.com/swvheerden/bulletproofs", rev = "3fdd89a54552dfa957dc37266b15eb571e1b560e", default-features = false, features = ["yoloproofs"] }
+bulletproofs_plus = { package = "tari_bulletproofs_plus", git = "https://github.com/swvheerden/bulletproofs-plus", rev = "137f4a6d133694d318bb4b8d991ec3f10b32e968", default-features = false}
 curve25519-dalek = {git = "https://github.com/swvheerden/curve25519-dalek", rev = "c8120bbb67c0c93da45710edae36db98e8036cbf", default-features = false, features = [ "alloc"] }
 digest = {version ="0.10", default-features = false}
 getrandom = { version = "0.2.3", default-features = false, optional = true }
@@ -52,7 +52,7 @@ default = ["bulletproofs/std","serialize"]
 wasm = ["wasm-bindgen", "getrandom/js", "serde-wasm-bindgen"]
 ffi = []
 musig = []
-serialize = ["serde","serde_json", "curve25519-dalek/serde"]
+serialize = ["serde","serde_json", "curve25519-dalek/serde", "bulletproofs/serialize", "bulletproofs_plus/serialize"]
 no_std = ["bulletproofs_plus/no_std"]
 
 [lib]

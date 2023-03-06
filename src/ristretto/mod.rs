@@ -11,6 +11,7 @@ mod ristretto_com_and_pub_sig;
 mod ristretto_com_sig;
 pub mod ristretto_keys;
 mod ristretto_sig;
+#[cfg(feature = "serde")]
 pub mod serialize;
 pub mod utils;
 

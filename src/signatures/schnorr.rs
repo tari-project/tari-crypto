@@ -14,6 +14,7 @@ use std::{
 
 use digest::Digest;
 use rand_core::{CryptoRng, RngCore};
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use tari_utilities::ByteArray;
 use thiserror::Error;
@@ -43,7 +44,8 @@ pub enum SchnorrSignatureError {
 ///
 /// More details on Schnorr signatures can be found at [TLU](https://tlu.tarilabs.com/cryptography/introduction-schnorr-signatures).
 #[allow(non_snake_case)]
-#[derive(Copy, Debug, Clone, Serialize, Deserialize)]
+#[derive(Copy, Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize, borsh::BorshDeserialize))]
 pub struct SchnorrSignature<P, K, H = SchnorrSigChallenge> {
     public_nonce: P,
