@@ -51,7 +51,7 @@ wasm = ["wasm-bindgen", "getrandom/js", "serde-wasm-bindgen"]
 ffi = []
 musig = []
 serialize = ["serde","serde_json", "curve25519-dalek/serde", "bulletproofs/serialize", "bulletproofs_plus/serialize", "tari_utilities/serialize"]
-no_std = ["bulletproofs_plus/no_std"]
+no_std = ["bulletproofs_plus/no_std","lazy_static/spin_no_std"]
 
 [lib]
 # Disable benchmarks to allow Criterion to take over
