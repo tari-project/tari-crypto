@@ -6,7 +6,7 @@
 //! implementation of ECC curve). The idea being that we can swap out the underlying
 //! implementation without worrying too much about the impact on upstream code.
 
-use std::ops::Add;
+use core::ops::Add;
 
 use rand_core::{CryptoRng, RngCore};
 #[cfg(feature = "serde")]

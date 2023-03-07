@@ -22,7 +22,7 @@
 //!   }
 //! ```
 
-use std::fmt;
+use core::fmt;
 
 use serde::{
     de::{self, Visitor},

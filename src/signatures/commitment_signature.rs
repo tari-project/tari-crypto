@@ -1,7 +1,7 @@
 // Copyright 2021. The Tari Project
 // SPDX-License-Identifier: BSD-3-Clause
 
-use std::{
+use core::{
     cmp::Ordering,
     hash::{Hash, Hasher},
     ops::{Add, Mul},

@@ -3,7 +3,7 @@
 
 //! Bulletproofs+ implementation
 
-use std::convert::TryFrom;
+use core::convert::TryFrom;
 
 pub use bulletproofs_plus::ristretto::RistrettoRangeProof;
 use bulletproofs_plus::{

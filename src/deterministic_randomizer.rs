@@ -4,7 +4,7 @@
 //! A deterministic randomizer with utility functions for operating on numbers and arrays in a reproducible and
 //! platform-indepdent way.
 
-use std::convert::TryFrom;
+use core::convert::TryFrom;
 
 use rand_core::{CryptoRng, RngCore, SeedableRng};
 use zeroize::Zeroize;

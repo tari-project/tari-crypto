@@ -3,7 +3,7 @@
 
 //! Extended commitments are commitments that have more than one blinding factor.
 
-use std::{borrow::Borrow, iter::once};
+use core::{borrow::Borrow, iter::once};
 
 use curve25519_dalek::{
     ristretto::{CompressedRistretto, RistrettoPoint},

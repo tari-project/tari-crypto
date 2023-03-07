@@ -28,7 +28,7 @@
 //!
 //! [hmac]: https://en.wikipedia.org/wiki/HMAC#Design_principles "HMAC: Design principles"
 
-use std::{marker::PhantomData, ops::Deref};
+use core::{marker::PhantomData, ops::Deref};
 
 use blake2::Blake2bVar;
 use digest::{Digest, FixedOutput, Output, OutputSizeUser, Update};

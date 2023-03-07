@@ -6,7 +6,7 @@
 //! envelope and reveal its contents. Also it's a special envelope that can only be opened by a special opener that
 //! you keep safe in your drawer.
 
-use std::{
+use core::{
     cmp::Ordering,
     convert::TryFrom,
     hash::{Hash, Hasher},

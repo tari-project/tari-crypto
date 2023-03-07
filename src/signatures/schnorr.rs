@@ -5,7 +5,7 @@
 //! This module defines generic traits for handling the digital signature operations, agnostic
 //! of the underlying elliptic curve implementation
 
-use std::{
+use core::{
     cmp::Ordering,
     hash::{Hash, Hasher},
     marker::PhantomData,
@@ -49,7 +49,7 @@ pub enum SchnorrSignatureError {
 pub struct SchnorrSignature<P, K, H = SchnorrSigChallenge> {
     public_nonce: P,
     signature: K,
-    #[serde(skip)]
+    #[cfg_attr(feature = "serde", serde(skip))]
     _phantom: PhantomData<H>,
 }
 
