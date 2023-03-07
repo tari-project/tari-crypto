@@ -79,7 +79,7 @@ impl RangeProofService for DalekRangeProofService {
         &self,
         proof: &Self::Proof,
         commitment: &PedersenCommitment,
-        _rng: &mut R,
+        rng: &mut R,
     ) -> bool {
         let rp = DalekProof::from_bytes(proof).map_err(|_| RangeProofError::InvalidProof {});
         if rp.is_err() {
@@ -88,7 +88,7 @@ impl RangeProofService for DalekRangeProofService {
         let rp = rp.unwrap();
         let mut pt = Transcript::new(b"tari");
         let c = &commitment.0;
-        rp.verify_single(&self.bp_gens, &self.pc_gens, &mut pt, c.compressed(), self.range)
+        rp.verify_single_with_rng(&self.bp_gens, &self.pc_gens, &mut pt, c.compressed(), self.range, rng)
             .is_ok()
     }
 
@@ -102,13 +102,14 @@ impl RewindableRangeProofService for DalekRangeProofService {
     type PK = RistrettoPublicKey;
     type Proof = Vec<u8>;
 
-    fn construct_proof_with_rewind_key(
+    fn construct_proof_with_rewind_key<R: RngCore + CryptoRng>(
         &self,
         key: &RistrettoSecretKey,
         value: u64,
         rewind_key: &RistrettoSecretKey,
         rewind_blinding_key: &RistrettoSecretKey,
         proof_message: &[u8; REWIND_USER_MESSAGE_LENGTH],
+        rng: &mut R,
     ) -> Result<Self::Proof, RangeProofError> {
         let mut pt = Transcript::new(b"tari");
         let mut full_proof_message = [0u8; REWIND_PROOF_MESSAGE_LENGTH];
@@ -118,13 +119,14 @@ impl RewindableRangeProofService for DalekRangeProofService {
         let k = key.0;
         let rk = rewind_key.0;
         let rbk = rewind_blinding_key.0;
-        let (proof, _) = DalekProof::prove_single_with_rewind_key(
+        let (proof, _) = DalekProof::prove_single_with_rng_and_rewind_key(
             &self.bp_gens,
             &self.pc_gens,
             &mut pt,
             value,
             &k,
             self.range,
+            rng,
             &rk,
             &rbk,
             &full_proof_message,
