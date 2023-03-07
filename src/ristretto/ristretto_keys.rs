@@ -422,7 +422,7 @@ impl RistrettoPublicKey {
                 let right = hex.len() - (w - left - 3);
                 f.write_str(format!("{}...{}", &hex[..left], &hex[right..]).as_str())
             },
-            _ => std::fmt::Display::fmt(&hex, f),
+            _ => core::fmt::Display::fmt(&hex, f),
         }
     }
 }

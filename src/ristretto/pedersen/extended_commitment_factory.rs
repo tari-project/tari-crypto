@@ -63,11 +63,11 @@ impl ExtendedPedersenCommitmentFactory {
                 reason: "Not enough Ristretto NUMS points to construct the extended commitment factory".to_string(),
             });
         }
-        let g_base_vec = std::iter::once(&RISTRETTO_PEDERSEN_G)
+        let g_base_vec = core::iter::once(&RISTRETTO_PEDERSEN_G)
             .chain(RISTRETTO_NUMS_POINTS[1..extension_degree as usize].iter())
             .copied()
             .collect();
-        let g_base_compressed_vec = std::iter::once(&RISTRETTO_PEDERSEN_G_COMPRESSED)
+        let g_base_compressed_vec = core::iter::once(&RISTRETTO_PEDERSEN_G_COMPRESSED)
             .chain(RISTRETTO_NUMS_POINTS_COMPRESSED[1..extension_degree as usize].iter())
             .copied()
             .collect();
