@@ -25,14 +25,14 @@ merlin = { version = "3", default-features = false }
 once_cell = {version="1.8.0", default-features = false}
 rand = { version = "0.8", default-features = false }
 rand_chacha = { version  = "0.3.1", default-features = false }
-rand_core = "0.6.4"
+rand_core = {version = "0.6", default-features = false}
 serde = { version = "1.0.150", default-features = false, optional = true}
 serde_json = { version = "1.0", default-features = false, optional = true}
 serde-wasm-bindgen = { version = "0.4", optional = true }
 sha3 = {version="0.10.6", default-features = false}
 snafu = {version="0.7.4", default-features =false}
 wasm-bindgen = { version = "^0.2", features = ["serde-serialize"], optional = true }
-zeroize = "1"
+zeroize = {version="1", default-features =false}
 
 [dev-dependencies]
 rand = "0.8.5"
