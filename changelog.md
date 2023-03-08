@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.16.7](https://github.com/tari-project/tari-crypto/compare/v0.16.6...v0.16.7) (2023-03-08)
+
+
+### Features
+
+* add missing methods to Commitment signature ([#167](https://github.com/tari-project/tari-crypto/issues/167)) ([e43fb45](https://github.com/tari-project/tari-crypto/commit/e43fb45d7f291f5fa3bc3215926d511875cba44d))
+* qual of life improvements for pubkey display ([#164](https://github.com/tari-project/tari-crypto/issues/164)) ([1a71aff](https://github.com/tari-project/tari-crypto/commit/1a71affea781fee5bce45818b19a5e3ea796be43)), closes [#68](https://github.com/tari-project/tari-crypto/issues/68)
+
+
+### Bug Fixes
+
+* source coverage workflow ([#165](https://github.com/tari-project/tari-crypto/issues/165)) ([b075db3](https://github.com/tari-project/tari-crypto/commit/b075db359eb7294abc089529ad094430fa60d6b2))
+* typo in docstring ([#166](https://github.com/tari-project/tari-crypto/issues/166)) ([1998432](https://github.com/tari-project/tari-crypto/commit/19984322e5e9736dc48cd83700be62f7f0e3567e))
+
 ### [0.16.6](https://github.com/tari-project/tari-crypto/compare/v0.16.5...v0.16.6) (2023-01-04)
 
 
