@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.16.8](https://github.com/tari-project/tari-crypto/compare/v0.16.7...v0.16.8) (2023-03-09)
+
+
+### Features
+
+* add partialeq and eq trait derivation to domain separated hasher ([#169](https://github.com/tari-project/tari-crypto/issues/169)) ([00f5975](https://github.com/tari-project/tari-crypto/commit/00f59758b10d1e618711252dbeae8d6bf1ce40b1))
+
 ### [0.16.7](https://github.com/tari-project/tari-crypto/compare/v0.16.6...v0.16.7) (2023-03-08)
 
 
