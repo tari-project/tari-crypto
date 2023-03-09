@@ -341,9 +341,7 @@ impl<TInnerDigest: Digest, TDomain: DomainSeparation> Digest for DomainSeparated
     }
 
     fn chain(self, data: impl AsRef<[u8]>) -> Self
-    where
-        Self: Sized,
-    {
+    where Self: Sized {
         self.chain(data)
     }
 
@@ -440,8 +438,7 @@ pub struct Mac<D: Digest> {
 }
 
 impl<D> Mac<D>
-where
-    D: Digest + Update + LengthExtensionAttackResistant,
+where D: Digest + Update + LengthExtensionAttackResistant
 {
     /// Generate a MAC with the given (length extension attack resistant) digest function, shared key, message and
     /// application label.
