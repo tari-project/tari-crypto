@@ -289,6 +289,14 @@ impl<D: Digest, M: DomainSeparation> DomainSeparatedHasher<D, M> {
     }
 }
 
+impl<D: Digest, M: DomainSeparation> PartialEq for DomainSeparatedHasher<D, M> {
+    fn eq(&self, other: &Self) -> bool {
+        self.label == other.label
+    }
+}
+
+impl<D: Digest, M: DomainSeparation> Eq for DomainSeparatedHasher<D, M> {}
+
 /// Convert a finalized hash into a fixed size buffer.
 pub trait AsFixedBytes<const I: usize>: AsRef<[u8]> {
     /// A convenience function to convert a finalized hash into a fixed size buffer.
@@ -333,7 +341,9 @@ impl<TInnerDigest: Digest, TDomain: DomainSeparation> Digest for DomainSeparated
     }
 
     fn chain(self, data: impl AsRef<[u8]>) -> Self
-    where Self: Sized {
+    where
+        Self: Sized,
+    {
         self.chain(data)
     }
 
@@ -430,7 +440,8 @@ pub struct Mac<D: Digest> {
 }
 
 impl<D> Mac<D>
-where D: Digest + Update + LengthExtensionAttackResistant
+where
+    D: Digest + Update + LengthExtensionAttackResistant,
 {
     /// Generate a MAC with the given (length extension attack resistant) digest function, shared key, message and
     /// application label.
