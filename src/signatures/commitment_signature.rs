@@ -8,7 +8,7 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use tari_utilities::ByteArray;
+use tari_utilities::{ByteArray, ByteArrayError};
 use thiserror::Error;
 
 use crate::{
@@ -73,6 +73,9 @@ where
 
     /// Sign the provided challenge with the value commitment's value and blinding factor. The two nonces should be
     /// completely random and never reused - that responsibility lies with the calling function.
+    ///
+    /// WARNING: The provided secret keys and nonces are NOT bound to the challenge. This method assumes that the
+    /// challenge has been constructed such that all commitments are already included in the challenge.
     pub fn sign<C>(
         secret_a: &K,
         secret_x: &K,
@@ -166,6 +169,18 @@ where
         buf.extend_from_slice(self.u().as_bytes());
         buf.extend_from_slice(self.v().as_bytes());
         buf
+    }
+
+    /// From a canonical byte representation, retrieves a commitment signature
+    pub fn from_bytes(buf: &[u8]) -> Result<Self, ByteArrayError> {
+        if buf.len() != P::KEY_LEN + 2 * K::key_length() {
+            return Err(ByteArrayError::IncorrectLength);
+        }
+        let public_nonce = HomomorphicCommitment::from_public_key(&P::from_bytes(&buf[0..P::KEY_LEN])?);
+        let u = K::from_bytes(&buf[P::KEY_LEN..P::KEY_LEN + K::key_length()])?;
+        let v = K::from_bytes(&buf[P::KEY_LEN + K::key_length()..P::KEY_LEN + 2 * K::key_length()])?;
+
+        Ok(Self { public_nonce, u, v })
     }
 }
 
