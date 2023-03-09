@@ -289,6 +289,14 @@ impl<D: Digest, M: DomainSeparation> DomainSeparatedHasher<D, M> {
     }
 }
 
+impl<D: Digest, M: DomainSeparation> PartialEq for DomainSeparatedHasher<D, M> {
+    fn eq(&self, other: &Self) -> bool {
+        self.label == other.label
+    }
+}
+
+impl<D: Digest, M: DomainSeparation> Eq for DomainSeparatedHasher<D, M> {}
+
 /// Convert a finalized hash into a fixed size buffer.
 pub trait AsFixedBytes<const I: usize>: AsRef<[u8]> {
     /// A convenience function to convert a finalized hash into a fixed size buffer.
