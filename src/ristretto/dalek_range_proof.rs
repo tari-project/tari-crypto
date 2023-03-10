@@ -281,22 +281,24 @@ mod test {
         let c = commitment_factory.commit(&k, &v);
         let message = b"testing12345678910111";
         let proof = prover
-            .construct_proof_with_rewind_key(&k, 42, &rewind_k, &rewind_blinding_k, message)
+            .construct_proof_with_rewind_key(&k, 42, &rewind_k, &rewind_blinding_k, message, &mut rng)
             .unwrap();
 
         // test Debug impl
         assert!(!format!("{proof:?}").is_empty());
         assert_eq!(
             prover.rewind_proof_value_only(&proof, &c, &public_random_k, &public_rewind_blinding_k),
-            Err(RangeProofError::InvalidRewind(
+            Err(RangeProofError::InvalidRewind {
+                reason:
                 "Rewind check message length".to_string()
-            ))
+            })
         );
         assert_eq!(
             prover.rewind_proof_value_only(&proof, &c, &public_rewind_k, &public_random_k),
-            Err(RangeProofError::InvalidRewind(
+            Err(RangeProofError::InvalidRewind {
+                reason:
                 "Rewind check message length".to_string()
-            ))
+            })
         );
 
         let rewind_result = prover
@@ -309,15 +311,17 @@ mod test {
 
         assert_eq!(
             prover.rewind_proof_commitment_data(&proof, &c, &random_k, &rewind_blinding_k),
-            Err(RangeProofError::InvalidRewind(
+            Err(RangeProofError::InvalidRewind {
+                reason:
                 "Rewinding the proof failed, invalid commitment extracted".to_string()
-            ))
+            })
         );
         assert_eq!(
             prover.rewind_proof_commitment_data(&proof, &c, &rewind_k, &random_k),
-            Err(RangeProofError::InvalidRewind(
+            Err(RangeProofError::InvalidRewind {
+                reason:
                 "Rewinding the proof failed, invalid commitment extracted".to_string()
-            ))
+            })
         );
 
         let full_rewind_result = prover
@@ -333,7 +337,7 @@ mod test {
     #[test]
     fn non_power_of_two_range() {
         let base = PedersenCommitmentFactory::default();
-        let _error = RangeProofError::InitializationError("Range not valid".to_string());
+        let _error = RangeProofError::InitializationError{reason: "Range not valid".to_string()};
         assert!(matches!(DalekRangeProofService::new(10, &base), Err(_error)));
     }
 

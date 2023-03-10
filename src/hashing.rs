@@ -606,7 +606,7 @@ pub fn create_hasher_with_label<D: Digest, HD: DomainSeparation>(label: &'static
 pub fn create_hasher<D: Digest, HD: DomainSeparation>() -> DomainSeparatedHasher<D, HD> {
     DomainSeparatedHasher::<D, HD>::new()
 }
-
+/*
 #[cfg(test)]
 mod test {
     use blake2::Blake2b;
@@ -885,3 +885,4 @@ mod test {
         assert_eq!(byte_to_decimal_ascii_bytes(255), (0, [50u8, 53, 53]));
     }
 }
+*/

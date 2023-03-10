@@ -113,6 +113,7 @@ mod test {
             RistrettoSecretKey,
         },
     };
+    use digest::Update;
 
     #[test]
     fn default() {

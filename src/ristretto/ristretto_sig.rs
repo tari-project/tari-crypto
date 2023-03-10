@@ -138,6 +138,7 @@ mod test {
         },
         signatures::{SchnorrSigChallenge, SchnorrSignature},
     };
+    use digest::Update;
 
     #[test]
     fn default() {

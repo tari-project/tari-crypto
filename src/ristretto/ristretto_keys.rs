@@ -947,7 +947,7 @@ mod test {
     #[test]
     fn kdf_key_too_short() {
         let err = RistrettoKdf::generate::<Blake256>(b"this_key_is_too_short", b"data", "test").err();
-        assert!(matches!(err, Some(HashingError::InputTooShort)));
+        assert!(matches!(err, Some(HashingError::InputTooShort{})));
     }
 
     #[test]

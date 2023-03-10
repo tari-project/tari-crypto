@@ -133,11 +133,11 @@ mod test {
 
         // Challenge; doesn't use proper Fiat-Shamir, so it's for testing only!
         let challenge = Blake256::new()
-            .chain(commitment.as_bytes())
-            .chain(pubkey.as_bytes())
-            .chain(ephemeral_commitment.as_bytes())
-            .chain(ephemeral_pubkey.as_bytes())
-            .chain(b"Small Gods")
+            .chain_update(commitment.as_bytes())
+            .chain_update(pubkey.as_bytes())
+            .chain_update(ephemeral_commitment.as_bytes())
+            .chain_update(ephemeral_pubkey.as_bytes())
+            .chain_update(b"Small Gods")
             .finalize();
         let e_key = RistrettoSecretKey::from_bytes(&challenge).unwrap();
 
@@ -205,11 +205,11 @@ mod test {
 
         // Challenge; doesn't use proper Fiat-Shamir, so it's for testing only!
         let challenge = Blake256::new()
-            .chain(commitment.as_bytes())
-            .chain(pubkey.as_bytes())
-            .chain(ephemeral_commitment.as_bytes())
-            .chain(ephemeral_pubkey.as_bytes())
-            .chain(b"Small Gods")
+            .chain_update(commitment.as_bytes())
+            .chain_update(pubkey.as_bytes())
+            .chain_update(ephemeral_commitment.as_bytes())
+            .chain_update(ephemeral_pubkey.as_bytes())
+            .chain_update(b"Small Gods")
             .finalize();
 
         let sig_total =
