@@ -11,7 +11,7 @@ version = "0.16.6"
 edition = "2018"
 
 [dependencies]
-tari_utilities = { git = "https://github.com/swvheerden/tari_utilities.git", rev = "0a3e29d38a94a3ada4974badf51d9fdf4494e7d5", default-features = false }
+tari_utilities = { git = "https://github.com/swvheerden/tari_utilities.git", rev = "e15cda9e65708f36b64822b11acaede70eaa7d66", default-features = false }
 blake2 = {version="0.10.6", default-features = false}
 borsh = { version = "0.9.3", optional = true }
 bulletproofs = { package = "tari_bulletproofs", git = "https://github.com/swvheerden/bulletproofs", rev = "0a91de447fcfa0fd582f0f4c124b074dab60968d", default-features = false }
