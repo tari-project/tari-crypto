@@ -55,7 +55,7 @@ use crate::{
 /// ```
 #[derive(Eq, Clone, Default)]
 #[cfg_attr(feature = "zero", derive(Zeroize))]
-#[cfg_attr(feature = "zero", Zeroize(drop))]
+// #[cfg_attr(feature = "zero", Zeroize(drop))]
 pub struct RistrettoSecretKey(pub(crate) Scalar);
 
 #[cfg(feature = "borsh")]
