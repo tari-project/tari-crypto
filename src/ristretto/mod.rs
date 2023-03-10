@@ -5,6 +5,7 @@
 
 pub mod bulletproofs_plus;
 pub mod constants;
+#[cfg(feature = "bulletproofs")]
 mod dalek_range_proof;
 pub mod pedersen;
 mod ristretto_com_and_pub_sig;
@@ -16,6 +17,7 @@ pub mod serialize;
 pub mod utils;
 
 // Re-export
+#[cfg(feature = "bulletproofs")]
 pub use dalek_range_proof::DalekRangeProofService;
 
 pub use self::{
