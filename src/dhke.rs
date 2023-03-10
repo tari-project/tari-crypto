@@ -10,18 +10,17 @@
 //! be using something else.
 
 use core::ops::Mul;
-
+#[cfg(feature = "zero")]
 use zeroize::Zeroize;
 
 use crate::keys::PublicKey;
 
 /// A type to hold a DH secret key.
-pub struct DiffieHellmanSharedSecret<P>(P)
-where P: Zeroize;
+pub struct DiffieHellmanSharedSecret<P>(P);
 
 impl<P> DiffieHellmanSharedSecret<P>
 where
-    P: PublicKey + Zeroize,
+    P: PublicKey,
     for<'a> &'a <P as PublicKey>::K: Mul<&'a P, Output = P>,
 {
     /// Perform a Diffie-Hellman key exchange
@@ -34,9 +33,9 @@ where
         self.0.as_bytes()
     }
 }
-
+#[cfg(feature = "zero")]
 impl<P> Zeroize for DiffieHellmanSharedSecret<P>
-where P: Zeroize
+where P: PublicKey
 {
     /// Zeroize the shared secret's underlying public key
     fn zeroize(&mut self) {
@@ -45,10 +44,11 @@ where P: Zeroize
 }
 
 impl<P> Drop for DiffieHellmanSharedSecret<P>
-where P: Zeroize
 {
     /// Zeroize the shared secret when out of scope or otherwise dropped
     fn drop(&mut self) {
-        self.zeroize();
+        #[cfg(feature = "zero")]{
+            self.zeroize();
+        }
     }
 }

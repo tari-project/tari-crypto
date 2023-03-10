@@ -23,6 +23,7 @@ use digest::{consts::U64, Digest};
 use once_cell::unsync::OnceCell;
 use rand_core::{CryptoRng, RngCore};
 use tari_utilities::{hex::Hex, ByteArray, ByteArrayError, Hashable};
+#[cfg(feature = "zero")]
 use zeroize::Zeroize;
 
 use crate::{
@@ -52,8 +53,9 @@ use crate::{
 /// let _k2 = RistrettoSecretKey::from_hex(&"100000002000000030000000040000000");
 /// let _k3 = RistrettoSecretKey::random(&mut rng);
 /// ```
-#[derive(Eq, Clone, Default, Zeroize)]
-#[zeroize(drop)]
+#[derive(Eq, Clone, Default)]
+#[cfg_attr(feature = "zero", derive(Zeroize))]
+#[cfg_attr(feature = "zero", Zeroize(drop))]
 pub struct RistrettoSecretKey(pub(crate) Scalar);
 
 #[cfg(feature = "borsh")]
@@ -308,7 +310,7 @@ impl RistrettoPublicKey {
         self.compressed.get_or_init(|| self.point.compress())
     }
 }
-
+#[cfg(feature = "zero")]
 impl Zeroize for RistrettoPublicKey {
     /// Zeroizes both the point and (if it exists) the compressed point
     fn zeroize(&mut self) {
@@ -777,6 +779,7 @@ mod test {
         assert_completely_equal(&pk, &RistrettoPublicKey::from_secret_key(&k));
     }
 
+    #[cfg(feature = "zero")]
     #[test]
     fn secret_keys_are_cleared_after_drop() {
         let zero = &vec![0u8; 32][..];
@@ -975,7 +978,7 @@ mod test {
         let visible = format!("{:?}", key.reveal());
         assert!(visible.contains("016c"));
     }
-
+    #[cfg(feature = "zero")]
     #[test]
     fn zeroize_test() {
         let mut rng = rand::thread_rng();

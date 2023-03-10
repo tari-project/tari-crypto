@@ -7,6 +7,7 @@
 use core::convert::TryFrom;
 
 use rand_core::{CryptoRng, RngCore, SeedableRng};
+#[cfg(feature = "zero")]
 use zeroize::Zeroize;
 
 /// Error representing a failed shuffle
@@ -70,7 +71,7 @@ pub struct RandomizerError;
 /// (CSPRNG), it is _not_ suitable for non-deterministic use cases like key or nonce generation. If you aren't
 /// absolutely sure that you need the functionality provided here, you should use a high-entropy non-deterministic
 /// generator instead.
-#[derive(Zeroize)]
+#[cfg_attr(feature = "zero", derive(Zeroize))]
 pub struct DeterministicRandomizer<R>
 where R: SeedableRng
 {
