@@ -656,7 +656,7 @@ mod test {
                 let mut commitment_value_map_private = HashMap::new();
 
                 #[allow(clippy::cast_possible_truncation)]
-                let (value_min, value_max) = (0u64, (1u128 << (bit_length - 1)) as u64);
+                let (value_min, value_max) = (0u64, ((1u128 << bit_length) - 1) as u64);
                 for aggregation_size in AGGREGATION_SIZE {
                     // 1. Prover's service
                     let bulletproofs_plus_service =
@@ -794,7 +794,7 @@ mod test {
                 let mut statements_public = vec![];
 
                 #[allow(clippy::cast_possible_truncation)]
-                let (value_min, value_max) = (0u64, (1u128 << (bit_length - 1)) as u64);
+                let (value_min, value_max) = (0u64, ((1u128 << bit_length) - 1) as u64);
 
                 // 1. Prover's service
                 let bulletproofs_plus_service =
@@ -851,7 +851,7 @@ mod test {
         let mut rng = rand::thread_rng();
         let factory = ExtendedPedersenCommitmentFactory::new_with_extension_degree(extension_degree).unwrap();
         #[allow(clippy::cast_possible_truncation)]
-        let (value_min, value_max) = (0u64, (1u128 << (bit_length - 1)) as u64);
+        let (value_min, value_max) = (0u64, ((1u128 << bit_length) - 1) as u64);
         // 1. Prover's service
         let mut provers_bulletproofs_plus_service =
             BulletproofsPlusService::init(bit_length, aggregation_size, factory.clone()).unwrap();
@@ -958,7 +958,7 @@ mod test {
         let mut rng = rand::thread_rng();
         let factory = ExtendedPedersenCommitmentFactory::new_with_extension_degree(extension_degree).unwrap();
         #[allow(clippy::cast_possible_truncation)]
-        let (value_min, value_max) = (0u64, (1u128 << (bit_length - 1)) as u64);
+        let (value_min, value_max) = (0u64, ((1u128 << bit_length) - 1) as u64);
         // 1. Prover's service
         let mut provers_bulletproofs_plus_service =
             BulletproofsPlusService::init(bit_length, aggregation_size, factory.clone()).unwrap();
