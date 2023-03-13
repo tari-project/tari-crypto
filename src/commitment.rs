@@ -12,6 +12,7 @@ use core::{
     hash::{Hash, Hasher},
     ops::{Add, Mul, Sub},
 };
+use alloc::string::ToString;
 
 use tari_utilities::{ByteArray, ByteArrayError};
 

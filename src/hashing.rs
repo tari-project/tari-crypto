@@ -40,6 +40,8 @@ use crate::{
     hash::blake2::Blake256,
     keys::SecretKey,
 };
+use alloc::string::ToString;
+use alloc::string::String;
 
 /// The `DomainSeparation` trait is used to inject domain separation tags into the [`DomainSeparatedHasher`] in a way
 /// that can be applied consistently, but without hard-coding anything into the hasher itself.

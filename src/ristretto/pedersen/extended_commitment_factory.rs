@@ -5,11 +5,13 @@
 
 use core::{borrow::Borrow, iter::once};
 
+use alloc::string::ToString;
 use curve25519_dalek::{
     ristretto::{CompressedRistretto, RistrettoPoint},
     scalar::Scalar,
     traits::{Identity, MultiscalarMul},
 };
+use alloc::vec::Vec;
 
 use crate::{
     commitment::{
@@ -200,6 +202,7 @@ mod test {
         collections::hash_map::DefaultHasher,
         hash::{Hash, Hasher},
     };
+    use alloc::vec::Vec;
 
     use curve25519_dalek::{ristretto::RistrettoPoint, scalar::Scalar, traits::MultiscalarMul};
     use rand::rngs::ThreadRng;

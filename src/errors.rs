@@ -5,6 +5,7 @@
 
 use snafu::prelude::*;
 
+use alloc::string::String;
 /// Errors encountered when creating of verifying range proofs
 #[derive(Debug, Clone, Snafu, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

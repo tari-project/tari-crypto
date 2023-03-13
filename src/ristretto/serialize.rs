@@ -23,6 +23,7 @@
 //! ```
 
 use core::fmt;
+use alloc::string::String;
 
 use serde::{
     de::{self, Visitor},

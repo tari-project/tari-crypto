@@ -9,8 +9,10 @@ use core::{
     hash::{Hash, Hasher},
     ops::{Add, Mul, Sub},
 };
+use alloc::string::ToString;
 #[cfg(feature = "borsh")]
 use std::{io, io::Write};
+use alloc::vec::Vec;
 
 use blake2::Blake2b;
 use curve25519_dalek::{

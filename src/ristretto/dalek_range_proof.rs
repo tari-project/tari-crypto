@@ -8,8 +8,10 @@ use bulletproofs::{
     PedersenGens,
     RangeProof as DalekProof,
 };
+use alloc::string::ToString;
 use merlin::Transcript;
 use rand_core::{CryptoRng, RngCore};
+use alloc::vec::Vec;
 
 use crate::{
     errors::RangeProofError,
@@ -220,6 +222,7 @@ impl RewindableRangeProofService for DalekRangeProofService {
 mod test {
     use rand::thread_rng;
 
+    use alloc::string::ToString;
     use crate::{
         commitment::HomomorphicCommitmentFactory,
         errors::RangeProofError,

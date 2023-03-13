@@ -6,6 +6,7 @@ use core::{
     hash::{Hash, Hasher},
     ops::{Add, Mul},
 };
+use alloc::vec::Vec;
 
 use snafu::prelude::*;
 use tari_utilities::ByteArray;

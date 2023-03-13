@@ -6,6 +6,7 @@
 use digest::Digest;
 use rand_core::{CryptoRng, RngCore};
 use tari_utilities::ByteArray;
+use alloc::vec::Vec;
 
 use crate::{
     keys::PublicKey,

@@ -9,6 +9,8 @@ use core::convert::TryFrom;
 use rand_core::{CryptoRng, RngCore, SeedableRng};
 #[cfg(feature = "zero")]
 use zeroize::Zeroize;
+use alloc::vec::Vec;
+
 
 /// Error representing a failed shuffle
 #[derive(Debug)]

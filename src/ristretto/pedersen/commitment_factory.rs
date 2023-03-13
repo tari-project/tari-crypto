@@ -88,6 +88,7 @@ mod test {
         convert::From,
         hash::{Hash, Hasher},
     };
+    use alloc::vec::Vec;
 
     use curve25519_dalek::scalar::Scalar;
     use tari_utilities::message_format::MessageFormat;

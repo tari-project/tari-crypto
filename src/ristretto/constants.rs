@@ -77,7 +77,8 @@ mod test {
         ristretto::{CompressedRistretto, RistrettoPoint},
         scalar::Scalar,
         traits::Identity,
-    };
+    };use alloc::vec::Vec;
+
     use sha2::{Digest, Sha512};
 
     use crate::ristretto::constants::{
