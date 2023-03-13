@@ -656,7 +656,7 @@ mod test {
                 let mut commitment_value_map_private = HashMap::new();
 
                 #[allow(clippy::cast_possible_truncation)]
-                let (value_min, value_max) = (0u64, (1u128 << (bit_length - 1)) as u64);
+                let (value_min, value_max) = (0u64, ((1u128 << bit_length) - 1) as u64);
                 for aggregation_size in AGGREGATION_SIZE {
                     // 1. Prover's service
                     let bulletproofs_plus_service =
@@ -778,6 +778,72 @@ mod test {
     }
 
     #[test]
+    fn test_simple_aggregated_extended_proof() {
+        let mut rng = rand::thread_rng();
+        let bit_length = 64;
+
+        for extension_degree in [
+            CommitmentExtensionDegree::DefaultPedersen,
+            CommitmentExtensionDegree::AddOneBasePoint,
+        ] {
+            let factory = ExtendedPedersenCommitmentFactory::new_with_extension_degree(extension_degree).unwrap();
+
+            for aggregation_size in [2, 4] {
+                // 0.  Batch data
+                let mut proofs = vec![];
+                let mut statements_public = vec![];
+
+                #[allow(clippy::cast_possible_truncation)]
+                let (value_min, value_max) = (0u64, ((1u128 << bit_length) - 1) as u64);
+
+                // 1. Prover's service
+                let bulletproofs_plus_service =
+                    BulletproofsPlusService::init(bit_length, aggregation_size, factory.clone()).unwrap();
+
+                // 2. Create witness data
+                let mut statements = vec![];
+                let mut extended_witnesses = vec![];
+                for _m in 0..aggregation_size {
+                    let value = rng.gen_range(value_min, value_max);
+                    let minimum_value_promise = value / 3;
+                    let secrets =
+                        vec![RistrettoSecretKey(Scalar::random_not_zero(&mut rng)); extension_degree as usize];
+                    let extended_mask = RistrettoExtendedMask::assign(extension_degree, secrets.clone()).unwrap();
+                    let commitment = factory.commit_value_extended(&secrets, value).unwrap();
+                    statements.push(RistrettoStatement {
+                        commitment: commitment.clone(),
+                        minimum_value_promise,
+                    });
+                    extended_witnesses.push(RistrettoExtendedWitness {
+                        mask: extended_mask.clone(),
+                        value,
+                        minimum_value_promise,
+                    });
+                }
+
+                // 3. Generate the statement
+                statements_public.push(RistrettoAggregatedPublicStatement::init(statements).unwrap());
+
+                // 4. Create the aggregated proof
+                let seed_nonce = None; // This only has meaning for non-aggregated proofs
+                let proof = bulletproofs_plus_service.construct_extended_proof(extended_witnesses, seed_nonce);
+                proofs.push(proof.unwrap());
+
+                // 5. Verifier's service
+                let bulletproofs_plus_service =
+                    BulletproofsPlusService::init(bit_length, aggregation_size, factory.clone()).unwrap();
+
+                // 7. Verify the aggregated proof as public entity
+                let proofs_ref = proofs.iter().collect::<Vec<_>>();
+                let statements_ref = statements_public.iter().collect::<Vec<_>>();
+                assert!(bulletproofs_plus_service
+                    .verify_batch(proofs_ref, statements_ref)
+                    .is_ok());
+            }
+        }
+    }
+
+    #[test]
     fn test_construct_verify_simple_extended_proof_with_recovery() {
         let bit_length = 64usize;
         let aggregation_size = 1usize;
@@ -785,7 +851,7 @@ mod test {
         let mut rng = rand::thread_rng();
         let factory = ExtendedPedersenCommitmentFactory::new_with_extension_degree(extension_degree).unwrap();
         #[allow(clippy::cast_possible_truncation)]
-        let (value_min, value_max) = (0u64, (1u128 << (bit_length - 1)) as u64);
+        let (value_min, value_max) = (0u64, ((1u128 << bit_length) - 1) as u64);
         // 1. Prover's service
         let mut provers_bulletproofs_plus_service =
             BulletproofsPlusService::init(bit_length, aggregation_size, factory.clone()).unwrap();
@@ -892,7 +958,7 @@ mod test {
         let mut rng = rand::thread_rng();
         let factory = ExtendedPedersenCommitmentFactory::new_with_extension_degree(extension_degree).unwrap();
         #[allow(clippy::cast_possible_truncation)]
-        let (value_min, value_max) = (0u64, (1u128 << (bit_length - 1)) as u64);
+        let (value_min, value_max) = (0u64, ((1u128 << bit_length) - 1) as u64);
         // 1. Prover's service
         let mut provers_bulletproofs_plus_service =
             BulletproofsPlusService::init(bit_length, aggregation_size, factory.clone()).unwrap();
