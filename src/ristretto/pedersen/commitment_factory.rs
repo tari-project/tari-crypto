@@ -53,7 +53,10 @@ impl HomomorphicCommitmentFactory for PedersenCommitmentFactory {
     #[allow(non_snake_case)]
     fn commit(&self, k: &RistrettoSecretKey, v: &RistrettoSecretKey) -> PedersenCommitment {
         // If we're using the default generators, speed it up using pre-computation tables
-        let c = if (self.G, self.H) == (RISTRETTO_PEDERSEN_G, *RISTRETTO_PEDERSEN_H) {
+        let pre_comp = {
+            (self.G, self.H) == (RISTRETTO_PEDERSEN_G, *RISTRETTO_PEDERSEN_H)
+        };
+        let c =  if pre_comp{
             scalar_mul_with_pre_computation_tables(&k.0, &v.0)
         } else {
             RistrettoPoint::multiscalar_mul(&[v.0, k.0], &[self.H, self.G])
