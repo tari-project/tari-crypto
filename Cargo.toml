@@ -8,7 +8,7 @@ homepage = "https://tari.com"
 readme = "README.md"
 license = "BSD-3-Clause"
 version = "0.16.6"
-edition = "2021"
+edition = "2018"
 
 [dependencies]
 tari_utilities = { git = "https://github.com/swvheerden/tari_utilities.git", rev = "3899977281d6f1e8c2f16c26018eba7fb0a31bbe", default-features = false }
@@ -55,10 +55,10 @@ musig = []
 serialize = ["serde","serde_json", "curve25519-dalek/serde", "bulletproofs/serialize", "bulletproofs_plus/serialize", "tari_utilities/serialize"]
 no_std = ["lazy_static/spin_no_std"]
 
-[profile.release]
-opt-level = 's'
-lto = true
-panic = "abort"
+#[profile.release]
+#opt-level = 's'
+#lto = true
+#panic = "abort"
 
 #[lib]
 # Disable benchmarks to allow Criterion to take over
