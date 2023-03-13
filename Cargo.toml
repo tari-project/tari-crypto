@@ -16,7 +16,7 @@ blake2 = {version="0.10.6", default-features = false}
 borsh = { version = "0.9.3", optional = true }
 bulletproofs = { package = "tari_bulletproofs", git = "https://github.com/swvheerden/bulletproofs", rev = "0a91de447fcfa0fd582f0f4c124b074dab60968d", default-features = false, optional = true }
 bulletproofs_plus = { package = "tari_bulletproofs_plus", git = "https://github.com/swvheerden/bulletproofs-plus", rev = "240a840473f9f8d9946e21ebf6d510e8f80450cf", default-features = false}
-curve25519-dalek = {git = "https://github.com/swvheerden/curve25519-dalek", rev = "c8120bbb67c0c93da45710edae36db98e8036cbf", default-features = false,features = [  "alloc", "rand_core"]  }
+curve25519-dalek = {git = "https://github.com/swvheerden/curve25519-dalek", rev = "c8120bbb67c0c93da45710edae36db98e8036cbf", default-features = false,features = [  "alloc", "rand_core", "precomputed-tables"]  }
 digest = {version ="0.10", default-features = false}
 getrandom = { version = "0.2.3", default-features = false, optional = true }
 lazy_static = {git = "https://github.com/rust-lang-nursery/lazy-static.rs.git", rev= "e83d664", default-features = false}
@@ -47,14 +47,14 @@ tari_utilities = { git = "https://github.com/swvheerden/tari_utilities.git", rev
 cbindgen = {version="0.17.0", optional = true}
 
 [features]
-default = ["serialize", "bulletproofs","zero"]
+default = ["serialize", "bulletproofs","zero","precomputed_tables"]
 wasm = ["wasm-bindgen", "getrandom/js", "serde-wasm-bindgen"]
 ffi = ["cbindgen"]
 zero = ["zeroize", "tari_utilities/zero", "bulletproofs_plus/zero"]
 musig = []
 serialize = ["serde","serde_json", "curve25519-dalek/serde", "bulletproofs/serialize", "bulletproofs_plus/serialize", "tari_utilities/serialize"]
 no_std = ["lazy_static/spin_no_std"]
-#precomputed_tables = ["curve25519-dalek/precomputed-tables"]
+precomputed_tables = []
 
 #[profile.release]
 #opt-level = 's'
