@@ -194,8 +194,7 @@ impl BulletproofsPlusService {
                 },
                 Err(e) => {
                     return Err(RangeProofError::InvalidRangeProof(format!(
-                        "Range proof at index '{}' could not be deserialized ({})",
-                        i, e
+                        "Range proof at index '{i}' could not be deserialized ({e})"
                     )));
                 },
             }
@@ -384,8 +383,7 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
             },
             Err(e) => {
                 return Err(RangeProofError::InvalidRangeProof(format!(
-                    "Internal range proof(s) error ({})",
-                    e
+                    "Internal range proof(s) error ({e})"
                 )))
             },
         };
@@ -412,8 +410,7 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
         ) {
             Ok(_) => Ok(()),
             Err(e) => Err(RangeProofError::InvalidRangeProof(format!(
-                "Internal range proof(s) error ({})",
-                e
+                "Internal range proof(s) error ({e})"
             ))),
         }
     }
@@ -458,14 +455,12 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
                         }
                     },
                     Err(e) => Err(RangeProofError::InvalidRangeProof(format!(
-                        "Internal range proof error ({})",
-                        e
+                        "Internal range proof error ({e})"
                     ))),
                 }
             },
             Err(e) => Err(RangeProofError::InvalidRangeProof(format!(
-                "Range proof could not be deserialized ({})",
-                e
+                "Range proof could not be deserialized ({e})"
             ))),
         }
     }
@@ -496,14 +491,12 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
                         }
                     },
                     Err(e) => Err(RangeProofError::InvalidRangeProof(format!(
-                        "Internal range proof error ({})",
-                        e
+                        "Internal range proof error ({e})"
                     ))),
                 }
             },
             Err(e) => Err(RangeProofError::InvalidRangeProof(format!(
-                "Range proof could not be deserialized ({})",
-                e
+                "Range proof could not be deserialized ({e})"
             ))),
         }
     }
