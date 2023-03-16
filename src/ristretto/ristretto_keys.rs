@@ -23,7 +23,7 @@ use digest::Digest;
 use once_cell::sync::OnceCell;
 use rand::{CryptoRng, Rng};
 use tari_utilities::{hex::Hex, ByteArray, ByteArrayError, Hashable};
-use zeroize::Zeroize;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::{
     errors::HashingError,
@@ -52,8 +52,7 @@ use crate::{
 /// let _k2 = RistrettoSecretKey::from_hex(&"100000002000000030000000040000000");
 /// let _k3 = RistrettoSecretKey::random(&mut rng);
 /// ```
-#[derive(Eq, Clone, Default, Zeroize)]
-#[zeroize(drop)]
+#[derive(Eq, Clone, Default, Zeroize, ZeroizeOnDrop)]
 pub struct RistrettoSecretKey(pub(crate) Scalar);
 
 #[cfg(feature = "borsh")]
