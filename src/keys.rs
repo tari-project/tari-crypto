@@ -34,6 +34,8 @@ pub trait SecretKey:
     fn key_length() -> usize;
     /// Generates a random secret key
     fn random<R: Rng + CryptoRng>(rng: &mut R) -> Self;
+    /// Get the multiplicative inverse of a nonzero secret key
+    fn invert(&self) -> Option<Self>;
 }
 
 //----------------------------------------   Public Keys  ----------------------------------------//

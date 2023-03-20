@@ -83,6 +83,16 @@ impl SecretKey for RistrettoSecretKey {
     fn random<R: Rng + CryptoRng>(rng: &mut R) -> Self {
         RistrettoSecretKey(Scalar::random(rng))
     }
+
+    /// Get the inverse of a nonzero secret key
+    /// If zero is passed, returns `None`; annoying, but a useful guardrail
+    fn invert(&self) -> Option<Self> {
+        if self.0 == Scalar::zero() {
+            None
+        } else {
+            Some(RistrettoSecretKey(self.0.invert()))
+        }
+    }
 }
 
 //-------------------------------------  Ristretto Secret Key ByteArray  ---------------------------------------------//
@@ -989,6 +999,29 @@ mod test {
         assert_eq!(p.compressed.get(), None); // no compressed point yet
         assert_eq!(p.as_bytes(), &zeros); // this compresses the point
         assert_eq!(p.compressed.get().unwrap().as_bytes(), &zeros); // check directly for good measure
+    }
+
+    #[test]
+    fn test_inverse() {
+        // 0^{-1} is undefined
+        assert!(RistrettoSecretKey::from(0u64).invert().is_none());
+
+        // 1^{-1} == 1
+        assert_eq!(
+            RistrettoSecretKey::from(1u64).invert(),
+            Some(RistrettoSecretKey::from(1u64))
+        );
+
+        // 2^{-1}*2 == 1
+        assert!(RistrettoSecretKey::from(2u64).invert().is_some());
+        assert_ne!(
+            RistrettoSecretKey::from(2u64).invert(),
+            Some(RistrettoSecretKey::from(2u64))
+        );
+        assert_eq!(
+            RistrettoSecretKey::from(2u64).invert().unwrap() * RistrettoSecretKey::from(2u64),
+            RistrettoSecretKey::from(1u64)
+        );
     }
 
     #[cfg(feature = "borsh")]
