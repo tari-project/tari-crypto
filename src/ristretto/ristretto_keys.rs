@@ -83,16 +83,6 @@ impl SecretKey for RistrettoSecretKey {
     fn random<R: Rng + CryptoRng>(rng: &mut R) -> Self {
         RistrettoSecretKey(Scalar::random(rng))
     }
-
-    /// Get the inverse of a nonzero secret key
-    /// If zero is passed, returns `None`; annoying, but a useful guardrail
-    fn invert(&self) -> Option<Self> {
-        if self.0 == Scalar::zero() {
-            None
-        } else {
-            Some(RistrettoSecretKey(self.0.invert()))
-        }
-    }
 }
 
 //-------------------------------------  Ristretto Secret Key ByteArray  ---------------------------------------------//
@@ -147,6 +137,16 @@ impl RistrettoSecretKey {
     /// Make a secret key printable.
     pub fn reveal(&self) -> RevealedSecretKey<'_> {
         RevealedSecretKey { secret: self }
+    }
+
+    /// Get the multiplicative inverse of a nonzero secret key
+    /// If zero is passed, returns `None`; annoying, but a useful guardrail
+    pub fn invert(&self) -> Option<Self> {
+        if self.0 == Scalar::zero() {
+            None
+        } else {
+            Some(RistrettoSecretKey(self.0.invert()))
+        }
     }
 }
 
