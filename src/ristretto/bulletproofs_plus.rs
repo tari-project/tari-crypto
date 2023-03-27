@@ -3,9 +3,9 @@
 
 //! Bulletproofs+ implementation
 
+use alloc::{string::ToString, vec::Vec};
 use core::convert::TryFrom;
 
-use alloc::string::ToString;
 pub use bulletproofs_plus::ristretto::RistrettoRangeProof;
 use bulletproofs_plus::{
     commitment_opening::CommitmentOpening,
@@ -17,7 +17,6 @@ use bulletproofs_plus::{
     range_witness::RangeWitness,
     PedersenGens,
 };
-use alloc::vec::Vec;
 use curve25519_dalek::{ristretto::RistrettoPoint, scalar::Scalar};
 use log::*;
 use rand_core::{CryptoRng, RngCore};
@@ -569,8 +568,8 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
 
 #[cfg(test)]
 mod test {
-    use std::{borrow::Borrow, collections::HashMap};
     use alloc::vec::Vec;
+    use std::{borrow::Borrow, collections::HashMap};
 
     use bulletproofs_plus::protocols::scalar_protocol::ScalarProtocol;
     use curve25519_dalek::scalar::Scalar;

@@ -72,13 +72,14 @@ lazy_static! {
 
 #[cfg(test)]
 mod test {
+    use alloc::vec::Vec;
+
     use curve25519_dalek::{
         constants::{RISTRETTO_BASEPOINT_COMPRESSED, RISTRETTO_BASEPOINT_POINT},
         ristretto::{CompressedRistretto, RistrettoPoint},
         scalar::Scalar,
         traits::Identity,
-    };use alloc::vec::Vec;
-
+    };
     use sha2::{Digest, Sha512};
 
     use crate::ristretto::constants::{

@@ -10,6 +10,7 @@
 //! be using something else.
 
 use core::ops::Mul;
+
 #[cfg(feature = "zero")]
 use zeroize::Zeroize;
 
@@ -17,8 +18,7 @@ use crate::keys::PublicKey;
 
 /// A type to hold a DH secret key.
 pub struct DiffieHellmanSharedSecret<P>(P)
-where
-P: PublicKey;
+where P: PublicKey;
 
 impl<P> DiffieHellmanSharedSecret<P>
 where
@@ -46,11 +46,12 @@ where P: PublicKey
 }
 
 impl<P> Drop for DiffieHellmanSharedSecret<P>
-    where P: PublicKey
+where P: PublicKey
 {
     /// Zeroize the shared secret when out of scope or otherwise dropped
     fn drop(&mut self) {
-        #[cfg(feature = "zero")]{
+        #[cfg(feature = "zero")]
+        {
             self.zeroize();
         }
     }

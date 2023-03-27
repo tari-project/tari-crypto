@@ -189,8 +189,8 @@ use blake2::{digest::consts::U32, Blake2b};
 pub type Blake256 = Blake2b<U32>;
 #[cfg(test)]
 mod test {
-    use blake2::digest::FixedOutput;
-    use digest::{generic_array::GenericArray, Digest, Update};
+    // use blake2::digest::FixedOutput;
+    use digest::{Digest, Update};
     use tari_utilities::hex;
 
     use crate::hash::blake2::Blake256;

@@ -3,15 +3,14 @@
 
 //! Extended commitments are commitments that have more than one blinding factor.
 
+use alloc::{string::ToString, vec::Vec};
 use core::{borrow::Borrow, iter::once};
 
-use alloc::string::ToString;
 use curve25519_dalek::{
     ristretto::{CompressedRistretto, RistrettoPoint},
     scalar::Scalar,
     traits::{Identity, MultiscalarMul},
 };
-use alloc::vec::Vec;
 
 use crate::{
     commitment::{
@@ -109,7 +108,6 @@ impl ExtendedPedersenCommitmentFactory {
                 let points = once(&self.h_base).chain(g_base_head);
                 Ok(RistrettoPoint::multiscalar_mul(scalars, points))
             }
-
         } else {
             let scalars = once(value).chain(blinding_factors);
             let g_base_head = self.g_base_vec.iter().take(blinding_factors.len());
@@ -209,11 +207,11 @@ impl ExtendedHomomorphicCommitmentFactory for ExtendedPedersenCommitmentFactory 
 
 #[cfg(test)]
 mod test {
+    use alloc::vec::Vec;
     use std::{
         collections::hash_map::DefaultHasher,
         hash::{Hash, Hasher},
     };
-    use alloc::vec::Vec;
 
     use curve25519_dalek::{ristretto::RistrettoPoint, scalar::Scalar, traits::MultiscalarMul};
     use rand::rngs::ThreadRng;

@@ -15,11 +15,10 @@ use tari_utilities::ByteArray;
 #[cfg(feature = "zero")]
 use zeroize::Zeroize;
 
-
 #[cfg(feature = "zero")]
-pub trait SuperSecretKey: ByteArray + Clone + PartialEq + Eq + Add<Output = Self> + Default + Zeroize{}
+pub trait SuperSecretKey: ByteArray + Clone + PartialEq + Eq + Add<Output = Self> + Default + Zeroize {}
 #[cfg(not(feature = "zero"))]
-pub trait SuperSecretKey: ByteArray + Clone + PartialEq + Eq + Add<Output = Self> + Default{}
+pub trait SuperSecretKey: ByteArray + Clone + PartialEq + Eq + Add<Output = Self> + Default {}
 
 /// A trait specifying common behaviour for representing `SecretKey`s. Specific elliptic curve
 /// implementations need to implement this trait for them to be used in Tari.
@@ -41,26 +40,31 @@ pub trait SecretKey: SuperSecretKey {
     /// Generates a random secret key
     fn random<R: RngCore + CryptoRng>(rng: &mut R) -> Self;
 }
- impl<T: SecretKey>  SuperSecretKey for T{}
+impl<T: SecretKey> SuperSecretKey for T {}
 
 //----------------------------------------   Public Keys  ----------------------------------------//
 #[cfg(all(feature = "serde", feature = "zero"))]
-pub trait SuperPublicKey: ByteArray + Add<Output = Self> + Clone + PartialOrd + Ord + Default + Serialize + DeserializeOwned + Zeroize{}
+pub trait SuperPublicKey:
+    ByteArray + Add<Output = Self> + Clone + PartialOrd + Ord + Default + Serialize + DeserializeOwned + Zeroize
+{
+}
 #[cfg(all(feature = "serde", not(feature = "zero")))]
-pub trait SuperPublicKey: ByteArray + Add<Output = Self> + Clone + PartialOrd + Ord + Default + Serialize + DeserializeOwned{}
+pub trait SuperPublicKey:
+    ByteArray + Add<Output = Self> + Clone + PartialOrd + Ord + Default + Serialize + DeserializeOwned
+{
+}
 #[cfg(all(not(feature = "serde"), feature = "zero"))]
-pub trait SuperPublicKey: ByteArray + Add<Output = Self> + Clone + PartialOrd + Ord + Default + Zeroize{}
+pub trait SuperPublicKey: ByteArray + Add<Output = Self> + Clone + PartialOrd + Ord + Default + Zeroize {}
 #[cfg(all(not(feature = "serde"), not(feature = "zero")))]
-pub trait SuperPublicKey: ByteArray + Add<Output = Self> + Clone + PartialOrd + Ord + Default{}
-impl<T: PublicKey> SuperPublicKey for T{}
+pub trait SuperPublicKey: ByteArray + Add<Output = Self> + Clone + PartialOrd + Ord + Default {}
+impl<T: PublicKey> SuperPublicKey for T {}
 
 /// A trait specifying common behaviour for representing `PublicKey`s. Specific elliptic curve
 /// implementations need to implement this trait for them to be used in Tari.
 ///
 /// See [SecretKey](trait.SecretKey.html) for an example.
 
-pub trait PublicKey: SuperPublicKey
-{
+pub trait PublicKey: SuperPublicKey {
     /// The output size len of Public Key
     const KEY_LEN: usize;
 

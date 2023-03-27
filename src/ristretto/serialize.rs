@@ -22,8 +22,8 @@
 //!   }
 //! ```
 
-use core::fmt;
 use alloc::string::String;
+use core::fmt;
 
 use serde::{
     de::{self, Visitor},
@@ -118,7 +118,7 @@ impl Serialize for RistrettoSecretKey {
             {
                 s.zeroize();
             }
-                result
+            result
         } else {
             serializer.serialize_bytes(self.as_bytes())
         }

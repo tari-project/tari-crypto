@@ -3,10 +3,11 @@
 
 //! Handy utility functions for use in tests and demo scripts
 
+use alloc::vec::Vec;
+
 use digest::Digest;
 use rand_core::{CryptoRng, RngCore};
 use tari_utilities::ByteArray;
-use alloc::vec::Vec;
 
 use crate::{
     keys::PublicKey,

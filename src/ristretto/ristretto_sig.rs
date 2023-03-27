@@ -120,7 +120,7 @@ pub type RistrettoSchnorrWithDomain<H> = SchnorrSignature<RistrettoPublicKey, Ri
 
 #[cfg(test)]
 mod test {
-    use digest::Digest;
+    use digest::{Digest, Update};
     use tari_utilities::{
         hex::{from_hex, to_hex, Hex},
         ByteArray,
@@ -138,7 +138,6 @@ mod test {
         },
         signatures::{SchnorrSigChallenge, SchnorrSignature},
     };
-    use digest::Update;
 
     #[test]
     fn default() {

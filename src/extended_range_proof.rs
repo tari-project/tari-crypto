@@ -3,15 +3,15 @@
 
 //! Extended range proofs
 
+use alloc::{string::ToString, vec::Vec};
+
 use rand_core::{CryptoRng, RngCore};
 
-use alloc::vec::Vec;
 use crate::{
     commitment::{ExtensionDegree, HomomorphicCommitment},
     errors::RangeProofError,
     keys::{PublicKey, SecretKey},
 };
-use alloc::string::ToString;
 
 /// A service to generate a proof that value is non-negative, using multiple blinding factors
 pub trait ExtendedRangeProofService {

@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 //! A wrapper around the Dalek library implementation of Bulletproof range proofs.
+use alloc::{string::ToString, vec::Vec};
+
 use bulletproofs::{
     range_proof::{get_rewind_nonce_from_pub_key, get_secret_nonce_from_pvt_key},
     BulletproofGens,
     PedersenGens,
     RangeProof as DalekProof,
 };
-use alloc::string::ToString;
 use merlin::Transcript;
 use rand_core::{CryptoRng, RngCore};
-use alloc::vec::Vec;
 
 use crate::{
     errors::RangeProofError,
@@ -220,9 +220,10 @@ impl RewindableRangeProofService for DalekRangeProofService {
 
 #[cfg(test)]
 mod test {
+    use alloc::string::ToString;
+
     use rand::thread_rng;
 
-    use alloc::string::ToString;
     use crate::{
         commitment::HomomorphicCommitmentFactory,
         errors::RangeProofError,
@@ -292,15 +293,13 @@ mod test {
         assert_eq!(
             prover.rewind_proof_value_only(&proof, &c, &public_random_k, &public_rewind_blinding_k),
             Err(RangeProofError::InvalidRewind {
-                reason:
-                "Rewind check message length".to_string()
+                reason: "Rewind check message length".to_string()
             })
         );
         assert_eq!(
             prover.rewind_proof_value_only(&proof, &c, &public_rewind_k, &public_random_k),
             Err(RangeProofError::InvalidRewind {
-                reason:
-                "Rewind check message length".to_string()
+                reason: "Rewind check message length".to_string()
             })
         );
 
@@ -315,15 +314,13 @@ mod test {
         assert_eq!(
             prover.rewind_proof_commitment_data(&proof, &c, &random_k, &rewind_blinding_k),
             Err(RangeProofError::InvalidRewind {
-                reason:
-                "Rewinding the proof failed, invalid commitment extracted".to_string()
+                reason: "Rewinding the proof failed, invalid commitment extracted".to_string()
             })
         );
         assert_eq!(
             prover.rewind_proof_commitment_data(&proof, &c, &rewind_k, &random_k),
             Err(RangeProofError::InvalidRewind {
-                reason:
-                "Rewinding the proof failed, invalid commitment extracted".to_string()
+                reason: "Rewinding the proof failed, invalid commitment extracted".to_string()
             })
         );
 
@@ -340,7 +337,9 @@ mod test {
     #[test]
     fn non_power_of_two_range() {
         let base = PedersenCommitmentFactory::default();
-        let _error = RangeProofError::InitializationError{reason: "Range not valid".to_string()};
+        let _error = RangeProofError::InitializationError {
+            reason: "Range not valid".to_string(),
+        };
         assert!(matches!(DalekRangeProofService::new(10, &base), Err(_error)));
     }
 

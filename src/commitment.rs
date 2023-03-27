@@ -6,13 +6,13 @@
 //! envelope and reveal its contents. Also it's a special envelope that can only be opened by a special opener that
 //! you keep safe in your drawer.
 
+use alloc::string::ToString;
 use core::{
     cmp::Ordering,
     convert::TryFrom,
     hash::{Hash, Hasher},
     ops::{Add, Mul, Sub},
 };
-use alloc::string::ToString;
 
 use tari_utilities::{ByteArray, ByteArrayError};
 

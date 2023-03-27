@@ -3,13 +3,13 @@
 
 //! Rewindable Range Proofs
 
+use rand_core::{CryptoRng, RngCore};
+
 use crate::{
     commitment::HomomorphicCommitment,
     errors::RangeProofError,
     keys::{PublicKey, SecretKey},
 };
-
-use rand_core::{CryptoRng, RngCore};
 /// The length of the user message included in a range proof
 pub const REWIND_USER_MESSAGE_LENGTH: usize = 21;
 
@@ -32,7 +32,7 @@ pub trait RewindableRangeProofService {
         rewind_key: &Self::K,
         rewind_blinding_key: &Self::K,
         proof_message: &[u8; REWIND_USER_MESSAGE_LENGTH],
-        rng: &mut R
+        rng: &mut R,
     ) -> Result<Self::Proof, RangeProofError>;
 
     /// Rewind a rewindable range proof to reveal the committed value and the 19 byte proof message.

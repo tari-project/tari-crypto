@@ -1,12 +1,12 @@
 // Copyright 2021. The Tari Project
 // SPDX-License-Identifier: BSD-3-Clause
 
+use alloc::{borrow::ToOwned, vec::Vec};
 use core::{
     cmp::Ordering,
     hash::{Hash, Hasher},
     ops::{Add, Mul},
 };
-use alloc::vec::Vec;
 
 use rand_core::{CryptoRng, RngCore};
 use snafu::prelude::*;
@@ -16,7 +16,6 @@ use crate::{
     commitment::{HomomorphicCommitment, HomomorphicCommitmentFactory},
     keys::{PublicKey, SecretKey},
 };
-use alloc::borrow::ToOwned;
 /// An error when creating a commitment signature
 #[derive(Clone, Debug, Snafu, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

@@ -13,7 +13,6 @@ extern crate alloc;
 #[macro_use]
 extern crate std;
 
-
 #[macro_use]
 mod macros;
 pub mod commitment;

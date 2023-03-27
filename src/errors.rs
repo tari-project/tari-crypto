@@ -3,9 +3,9 @@
 
 //! Errors used in the Tari Crypto crate
 
-use snafu::prelude::*;
-
 use alloc::string::String;
+
+use snafu::prelude::*;
 /// Errors encountered when creating of verifying range proofs
 #[derive(Debug, Clone, Snafu, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

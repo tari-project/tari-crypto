@@ -99,7 +99,7 @@ pub type RistrettoComSig = CommitmentSignature<RistrettoPublicKey, RistrettoSecr
 
 #[cfg(test)]
 mod test {
-    use digest::Digest;
+    use digest::{Digest, Update};
     use tari_utilities::{hex::from_hex, ByteArray};
 
     use crate::{
@@ -113,7 +113,6 @@ mod test {
             RistrettoSecretKey,
         },
     };
-    use digest::Update;
 
     #[test]
     fn default() {

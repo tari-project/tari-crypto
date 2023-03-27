@@ -4,13 +4,12 @@
 //! A deterministic randomizer with utility functions for operating on numbers and arrays in a reproducible and
 //! platform-indepdent way.
 
+use alloc::vec::Vec;
 use core::convert::TryFrom;
 
 use rand_core::{CryptoRng, RngCore, SeedableRng};
 #[cfg(feature = "zero")]
 use zeroize::Zeroize;
-use alloc::vec::Vec;
-
 
 /// Error representing a failed shuffle
 #[derive(Debug)]

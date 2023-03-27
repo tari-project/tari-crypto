@@ -60,7 +60,7 @@ impl HomomorphicCommitmentFactory for PedersenCommitmentFactory {
             }
             #[cfg(not(feature = "precomputed_tables"))]
             {
-            RistrettoPoint::multiscalar_mul(&[v.0, k.0], &[self.H, self.G])
+                RistrettoPoint::multiscalar_mul(&[v.0, k.0], &[self.H, self.G])
             }
         } else {
             RistrettoPoint::multiscalar_mul(&[v.0, k.0], &[self.H, self.G])
@@ -90,12 +90,12 @@ impl HomomorphicCommitmentFactory for PedersenCommitmentFactory {
 
 #[cfg(test)]
 mod test {
+    use alloc::vec::Vec;
     use std::{
         collections::hash_map::DefaultHasher,
         convert::From,
         hash::{Hash, Hasher},
     };
-    use alloc::vec::Vec;
 
     use curve25519_dalek::scalar::Scalar;
     use tari_utilities::message_format::MessageFormat;

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 //! The Tari-compatible implementation of Ristretto based on the curve25519-dalek implementation
+use alloc::{string::ToString, vec::Vec};
 use core::{
     borrow::Borrow,
     cmp::Ordering,
@@ -9,10 +10,8 @@ use core::{
     hash::{Hash, Hasher},
     ops::{Add, Mul, Sub},
 };
-use alloc::string::ToString;
 #[cfg(feature = "borsh")]
 use std::{io, io::Write};
-use alloc::vec::Vec;
 
 use blake2::Blake2b;
 use curve25519_dalek::{
@@ -26,7 +25,7 @@ use once_cell::unsync::OnceCell;
 use rand_core::{CryptoRng, RngCore};
 use tari_utilities::{hex::Hex, ByteArray, ByteArrayError, Hashable};
 #[cfg(feature = "zero")]
-use zeroize::Zeroize;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::{
     errors::HashingError,
@@ -56,8 +55,7 @@ use crate::{
 /// let _k3 = RistrettoSecretKey::random(&mut rng);
 /// ```
 #[derive(Eq, Clone, Default)]
-#[cfg_attr(feature = "zero", derive(Zeroize))]
-// #[cfg_attr(feature = "zero", Zeroize(drop))]
+#[cfg_attr(feature = "zero", derive(Zeroize, ZeroizeOnDrop))]
 pub struct RistrettoSecretKey(pub(crate) Scalar);
 
 #[cfg(feature = "borsh")]
@@ -952,7 +950,7 @@ mod test {
     #[test]
     fn kdf_key_too_short() {
         let err = RistrettoKdf::generate::<Blake256>(b"this_key_is_too_short", b"data", "test").err();
-        assert!(matches!(err, Some(HashingError::InputTooShort{})));
+        assert!(matches!(err, Some(HashingError::InputTooShort {})));
     }
 
     #[test]

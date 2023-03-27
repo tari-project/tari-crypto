@@ -1,12 +1,12 @@
 // Copyright 2021. The Tari Project
 // SPDX-License-Identifier: BSD-3-Clause
 
+use alloc::vec::Vec;
 use core::{
     cmp::Ordering,
     hash::{Hash, Hasher},
     ops::{Add, Mul},
 };
-use alloc::vec::Vec;
 
 use snafu::prelude::*;
 use tari_utilities::ByteArray;
