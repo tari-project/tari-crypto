@@ -14,6 +14,8 @@ use core::{
     ops::{Add, Mul, Sub},
 };
 
+#[cfg(feature = "borsh")]
+use borsh::maybestd::{io, io::Write};
 use tari_utilities::{ByteArray, ByteArrayError};
 
 use crate::{
@@ -38,14 +40,14 @@ pub struct HomomorphicCommitment<P>(pub(crate) P);
 
 #[cfg(feature = "borsh")]
 impl<P: borsh::BorshDeserialize> borsh::BorshDeserialize for HomomorphicCommitment<P> {
-    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+    fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
         Ok(Self(P::deserialize(buf)?))
     }
 }
 
 #[cfg(feature = "borsh")]
 impl<P: borsh::BorshSerialize> borsh::BorshSerialize for HomomorphicCommitment<P> {
-    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+    fn serialize<W: io::Write>(&self, writer: &mut W) -> io::Result<()> {
         self.0.serialize(writer)
     }
 }

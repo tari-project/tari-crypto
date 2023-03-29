@@ -10,10 +10,10 @@ use core::{
     hash::{Hash, Hasher},
     ops::{Add, Mul, Sub},
 };
-#[cfg(feature = "borsh")]
-use std::{io, io::Write};
 
 use blake2::Blake2b;
+#[cfg(feature = "borsh")]
+use borsh::maybestd::{io, io::Write};
 use curve25519_dalek::{
     constants::RISTRETTO_BASEPOINT_TABLE,
     ristretto::{CompressedRistretto, RistrettoPoint},
@@ -999,6 +999,8 @@ mod test {
 
     #[cfg(feature = "borsh")]
     mod borsh {
+        use alloc::vec::Vec;
+
         use borsh::{BorshDeserialize, BorshSerialize};
 
         use crate::ristretto::{test_common::get_keypair, RistrettoPublicKey, RistrettoSecretKey};

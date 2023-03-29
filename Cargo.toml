@@ -13,7 +13,7 @@ edition = "2018"
 [dependencies]
 tari_utilities = { git = "https://github.com/swvheerden/tari_utilities.git", rev = "be307079df67a69a8c8e658accaf0ce806a2e48f", default-features = false }
 blake2 = {version="0.10.6", default-features = false}
-borsh = { version = "0.9.3", default-features = false}
+borsh = { version = "0.9.3", default-features = false, optional = true}
 bulletproofs = { package = "tari_bulletproofs", git = "https://github.com/swvheerden/bulletproofs", rev = "0a91de447fcfa0fd582f0f4c124b074dab60968d", default-features = false, optional = true }
 bulletproofs_plus = { package = "tari_bulletproofs_plus", git = "https://github.com/swvheerden/bulletproofs-plus", rev = "f5650b09d72655602ca0aea65819353410850e45", default-features = false}
 curve25519-dalek = {git = "https://github.com/swvheerden/curve25519-dalek", rev = "c8120bbb67c0c93da45710edae36db98e8036cbf", default-features = false,features = [  "alloc", "rand_core", "precomputed-tables"]  }
@@ -55,6 +55,7 @@ musig = []
 serialize = ["serde","serde_json", "curve25519-dalek/serde", "bulletproofs/serialize", "bulletproofs_plus/serialize", "tari_utilities/serialize"]
 no_std = ["lazy_static/spin_no_std"]
 precomputed_tables = []
+borsh = []
 
 #[profile.release]
 #opt-level = 's'
