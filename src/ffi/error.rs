@@ -67,7 +67,7 @@ pub fn get_error_message(code: i32) -> &'static str {
 
 #[cfg(test)]
 mod test {
-    use std::ptr::null_mut;
+    use std::{ptr::null_mut, string::String};
 
     use super::*;
 

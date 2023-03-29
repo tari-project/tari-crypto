@@ -3,12 +3,14 @@
 
 //! Range proof proving and verification functions
 
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
+use std::string::String;
+
+use rand::rngs::OsRng;
 use tari_utilities::hex::Hex;
 use wasm_bindgen::prelude::*;
 
 use crate::{
+    alloc::string::ToString,
     extended_range_proof::ExtendedRangeProofService,
     range_proof::RangeProofService,
     ristretto::{
@@ -75,7 +77,7 @@ impl RangeProofFactory {
                 return serde_wasm_bindgen::to_value(&result).unwrap();
             },
         };
-        match self.range_proof_service.construct_proof(&key, value) {
+        match self.range_proof_service.construct_proof(&key, value, &mut OsRng) {
             Ok(p) => result.proof = p.to_hex(),
             Err(e) => result.error = e.to_string(),
         };
@@ -99,7 +101,7 @@ impl RangeProofFactory {
                 return serde_wasm_bindgen::to_value(&result).unwrap();
             },
         };
-        result.valid = self.range_proof_service.verify(&proof, &commitment);
+        result.valid = self.range_proof_service.verify(&proof, &commitment, &mut OsRng);
         serde_wasm_bindgen::to_value(&result).unwrap()
     }
 }
@@ -135,7 +137,7 @@ impl ExtendedRangeProofFactory {
                 return serde_wasm_bindgen::to_value(&result).unwrap();
             },
         };
-        match self.range_proof_service.construct_proof(&key, value) {
+        match self.range_proof_service.construct_proof(&key, value, &mut OsRng) {
             Ok(p) => result.proof = p.to_hex(),
             Err(e) => result.error = e.to_string(),
         };
@@ -159,7 +161,7 @@ impl ExtendedRangeProofFactory {
                 return serde_wasm_bindgen::to_value(&result).unwrap();
             },
         };
-        result.valid = self.range_proof_service.verify(&proof, &commitment);
+        result.valid = self.range_proof_service.verify(&proof, &commitment, &mut OsRng);
         serde_wasm_bindgen::to_value(&result).unwrap()
     }
 
@@ -182,7 +184,7 @@ impl ExtendedRangeProofFactory {
         };
         match self
             .range_proof_service
-            .construct_proof_with_recovery_seed_nonce(&mask, value, &seed_nonce)
+            .construct_proof_with_recovery_seed_nonce(&mask, value, &seed_nonce, &mut OsRng)
         {
             Ok(p) => result.proof = p.to_hex(),
             Err(e) => result.error = e.to_string(),
@@ -214,7 +216,10 @@ impl ExtendedRangeProofFactory {
                 return serde_wasm_bindgen::to_value(&result).unwrap();
             },
         };
-        match self.range_proof_service.recover_mask(&proof, &commitment, &seed_nonce) {
+        match self
+            .range_proof_service
+            .recover_mask(&proof, &commitment, &seed_nonce, &mut OsRng)
+        {
             Ok(p) => result.mask = p.to_hex(),
             Err(e) => result.error = e.to_string(),
         };
@@ -277,7 +282,7 @@ mod test {
         let commitment = PedersenCommitmentFactory::default().commit_value(&blinding_factor, 123);
         assert!(factory
             .range_proof_service
-            .verify(&from_hex(&result.proof).unwrap(), &commitment));
+            .verify(&from_hex(&result.proof).unwrap(), &commitment, &mut OsRng));
         let result: VerificationResult =
             serde_wasm_bindgen::from_value(factory.verify(&commitment.to_hex(), &result.proof)).unwrap();
         assert!(result.valid);
@@ -314,7 +319,7 @@ mod test {
         .unwrap();
         assert!(factory
             .range_proof_service
-            .verify(&from_hex(&proof_result.proof).unwrap(), &commitment));
+            .verify(&from_hex(&proof_result.proof).unwrap(), &commitment, &mut OsRng));
         // - Recover the blinding factor (mask)
         let recover_result: RecoverResult = serde_wasm_bindgen::from_value(factory.recover_mask(
             &proof_result.proof,

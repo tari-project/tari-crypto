@@ -12,7 +12,7 @@ use core::{
 };
 
 use blake2::Blake2b;
-#[cfg(feature = "borsh")]
+#[cfg(feature = "borsh_ser")]
 use borsh::maybestd::{io, io::Write};
 use curve25519_dalek::{
     constants::RISTRETTO_BASEPOINT_TABLE,
@@ -58,14 +58,14 @@ use crate::{
 #[cfg_attr(feature = "zero", derive(Zeroize, ZeroizeOnDrop))]
 pub struct RistrettoSecretKey(pub(crate) Scalar);
 
-#[cfg(feature = "borsh")]
+#[cfg(feature = "borsh_ser")]
 impl borsh::BorshSerialize for RistrettoSecretKey {
     fn serialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
         borsh::BorshSerialize::serialize(&self.as_bytes(), writer)
     }
 }
 
-#[cfg(feature = "borsh")]
+#[cfg(feature = "borsh_ser")]
 impl borsh::BorshDeserialize for RistrettoSecretKey {
     fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
         let bytes: Vec<u8> = borsh::BorshDeserialize::deserialize(buf)?;
@@ -257,14 +257,14 @@ pub struct RistrettoPublicKey {
     compressed: OnceCell<CompressedRistretto>,
 }
 
-#[cfg(feature = "borsh")]
+#[cfg(feature = "borsh_ser")]
 impl borsh::BorshSerialize for RistrettoPublicKey {
     fn serialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
         borsh::BorshSerialize::serialize(&self.as_bytes(), writer)
     }
 }
 
-#[cfg(feature = "borsh")]
+#[cfg(feature = "borsh_ser")]
 impl borsh::BorshDeserialize for RistrettoPublicKey {
     fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
         let bytes: Vec<u8> = borsh::BorshDeserialize::deserialize(buf)?;
@@ -997,7 +997,7 @@ mod test {
         assert_eq!(p.compressed.get().unwrap().as_bytes(), &zeros); // check directly for good measure
     }
 
-    #[cfg(feature = "borsh")]
+    #[cfg(feature = "borsh_ser")]
     mod borsh {
         use alloc::vec::Vec;
 

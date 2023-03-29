@@ -9,7 +9,7 @@ extern crate lazy_static;
 #[macro_use]
 extern crate alloc;
 
-#[cfg(test)]
+#[cfg(any(feature = "wasm", feature = "ffi"))]
 #[macro_use]
 extern crate std;
 

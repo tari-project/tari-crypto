@@ -6,14 +6,15 @@
 //! using a function from this module. You should use a [crate::wasm::keyring::KeyRing] instead. But sometimes, these
 //! functions are handy.
 
+use std::string::String;
+
 use blake2::Digest;
 use rand::rngs::OsRng;
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
 use tari_utilities::hex::{from_hex, Hex};
 use wasm_bindgen::prelude::*;
 
 use crate::{
+    alloc::string::ToString,
     hash::blake2::Blake256,
     keys::{PublicKey, SecretKey},
     ristretto::{
@@ -746,7 +747,7 @@ mod test {
 
     fn create_signature(msg: &str) -> (RistrettoSchnorr, RistrettoPublicKey, RistrettoSecretKey) {
         let (sk, pk) = random_keypair();
-        let sig = SchnorrSignature::sign_message(&sk, msg.as_bytes()).unwrap();
+        let sig = SchnorrSignature::sign_message(&sk, msg.as_bytes(), &mut OsRng).unwrap();
         (sig, pk, sk)
     }
 

@@ -3,12 +3,13 @@
 
 //! Functions for creating and opening commitments
 
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
+use std::string::String;
+
 use tari_utilities::hex::Hex;
 use wasm_bindgen::prelude::*;
 
 use crate::{
+    alloc::string::ToString,
     commitment::HomomorphicCommitmentFactory,
     ristretto::{
         pedersen::{commitment_factory::PedersenCommitmentFactory, PedersenCommitment},

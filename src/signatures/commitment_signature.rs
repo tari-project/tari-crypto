@@ -48,7 +48,7 @@ pub enum CommitmentSignatureError {
 
 #[allow(non_snake_case)]
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "borsh", derive(borsh::BorshDeserialize, borsh::BorshSerialize))]
+#[cfg_attr(feature = "borsh_ser", derive(borsh::BorshDeserialize, borsh::BorshSerialize))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CommitmentSignature<P, K> {
     public_nonce: HomomorphicCommitment<P>,

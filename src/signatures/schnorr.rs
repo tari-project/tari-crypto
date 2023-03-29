@@ -45,7 +45,7 @@ pub enum SchnorrSignatureError {
 #[allow(non_snake_case)]
 #[derive(Copy, Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize, borsh::BorshDeserialize))]
+#[cfg_attr(feature = "borsh_ser", derive(borsh::BorshSerialize, borsh::BorshDeserialize))]
 pub struct SchnorrSignature<P, K, H = SchnorrSigChallenge> {
     public_nonce: P,
     signature: K,

@@ -3,7 +3,10 @@
 
 //! WASM bindings and functions
 
+use std::string::String;
+
 use wasm_bindgen::prelude::*;
+
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 mod keyring;
