@@ -7,7 +7,6 @@
 use std::convert::TryFrom;
 
 use rand_core::{CryptoRng, RngCore, SeedableRng};
-use zeroize::Zeroize;
 
 /// Error representing a failed shuffle
 #[derive(Debug)]
@@ -70,7 +69,6 @@ pub struct RandomizerError;
 /// (CSPRNG), it is _not_ suitable for non-deterministic use cases like key or nonce generation. If you aren't
 /// absolutely sure that you need the functionality provided here, you should use a high-entropy non-deterministic
 /// generator instead.
-#[derive(Zeroize)]
 pub struct DeterministicRandomizer<R>
 where R: SeedableRng
 {
