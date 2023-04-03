@@ -578,6 +578,7 @@ mod test {
     }
 
     #[test]
+    #[allow(clippy::redundant_clone)]
     fn derived_methods_singular() {
         let factory = ExtendedPedersenCommitmentFactory::default();
         let k = RistrettoSecretKey::from(1024);
