@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.16.9](https://github.com/tari-project/tari-crypto/compare/v0.16.8...v0.16.9) (2023-04-03)
+
+
+### Features
+
+* require secret keys to be zeroized on drop ([#171](https://github.com/tari-project/tari-crypto/issues/171)) ([a8b9479](https://github.com/tari-project/tari-crypto/commit/a8b947986c59b6566a0832a936c1f6573a462384)), closes [#147](https://github.com/tari-project/tari-crypto/issues/147)
+
 ### [0.16.8](https://github.com/tari-project/tari-crypto/compare/v0.16.7...v0.16.8) (2023-03-09)
 
 
