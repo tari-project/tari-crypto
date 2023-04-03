@@ -861,7 +861,7 @@ mod test {
     fn pubkey_display_width_formatting() {
         let hex = "e2f2ae0a6abc4e71a884a961c500515f58e30b6aa582dd8db6a65945e08d2d76";
         let pk = RistrettoPublicKey::from_hex(hex).unwrap();
-        assert_eq!(format!("{:0}", pk), hex);
+        assert_eq!(format!("{pk:0}"), hex);
         assert_eq!(format!("{pk:2}"), "e2");
         assert_eq!(format!("{pk:6}"), "e2f2ae");
         assert_eq!(format!("{pk:7}"), "e2...76");
