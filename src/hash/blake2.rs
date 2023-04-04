@@ -11,6 +11,7 @@ use digest::{
     Reset,
     Update,
 };
+use crate::hashing::LengthExtensionAttackResistant;
 
 use super::error::HashError;
 
@@ -69,6 +70,9 @@ impl Update for Blake256 {
         self.0.update(data);
     }
 }
+
+impl LengthExtensionAttackResistant for Blake256 {}
+
 
 #[cfg(test)]
 mod test {
