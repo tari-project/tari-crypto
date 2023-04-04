@@ -11,9 +11,9 @@ use digest::{
     Reset,
     Update,
 };
-use crate::hashing::LengthExtensionAttackResistant;
 
 use super::error::HashError;
+use crate::hashing::LengthExtensionAttackResistant;
 
 /// A convenience wrapper produce 256 bit hashes from Blake2b
 #[derive(Clone, Debug)]
@@ -72,7 +72,6 @@ impl Update for Blake256 {
 }
 
 impl LengthExtensionAttackResistant for Blake256 {}
-
 
 #[cfg(test)]
 mod test {
