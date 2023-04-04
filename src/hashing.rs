@@ -37,7 +37,6 @@ use tari_utilities::ByteArray;
 
 use crate::{
     errors::{HashingError, SliceError},
-    hash::blake2::Blake256,
     keys::SecretKey,
 };
 
@@ -377,8 +376,6 @@ impl<TInnerDigest: Digest, TDomain: DomainSeparation> Digest for DomainSeparated
 ///
 /// Notably, the SHA-2 family does *not* have this trait.
 pub trait LengthExtensionAttackResistant {}
-
-impl LengthExtensionAttackResistant for Blake256 {}
 
 impl LengthExtensionAttackResistant for VarBlake2b {}
 
