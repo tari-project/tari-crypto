@@ -20,7 +20,7 @@ jobs:
           target: wasm32-unknown-unknown
           override: true
       - name: install wasm-pack
-        run: npm install -g wasm-pack
+        run: npm install -g wasm-pack@0.10.3
       - name: make wasm
         run: make wasm
       - name: make wasm-node
