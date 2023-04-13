@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.16.12](https://github.com/tari-project/tari-crypto/compare/v0.16.11...v0.16.12) (2023-04-13)
+
+
+### Features
+
+* `RistrettoSecretKey` inversion ([#173](https://github.com/tari-project/tari-crypto/issues/173)) ([9b990a3](https://github.com/tari-project/tari-crypto/commit/9b990a32a7195b3410665cc1969d90ca5960dbee))
 
 ### [0.16.9](https://github.com/tari-project/tari-crypto/compare/v0.16.8...v0.16.9) (2023-04-03)
 
