@@ -12,7 +12,7 @@ use bulletproofs_plus::{
     generators::pedersen_gens::ExtensionDegree as BulletproofsExtensionDegree,
     range_parameters::RangeParameters,
     range_proof::{RangeProof, VerifyAction},
-    range_statement::RangeStatement,
+    range_statement::{RangeSeedNonce, RangeStatement},
     range_witness::RangeWitness,
     PedersenGens,
 };
@@ -148,7 +148,6 @@ impl BulletproofsPlusService {
                     .iter()
                     .map(|v| Some(v.minimum_value_promise))
                     .collect(),
-                seed_nonce: None,
             });
         }
         range_statements
@@ -157,7 +156,7 @@ impl BulletproofsPlusService {
     /// Helper function to prepare a batch of private range statements
     pub fn prepare_private_range_statements(
         &self,
-        statements: Vec<&RistrettoAggregatedPrivateStatement>,
+        statements: &Vec<&RistrettoAggregatedPrivateStatement>,
     ) -> Vec<RangeStatement<RistrettoPoint>> {
         let mut range_statements = Vec::with_capacity(statements.len());
         for statement in statements {
@@ -174,7 +173,6 @@ impl BulletproofsPlusService {
                     .iter()
                     .map(|v| Some(v.minimum_value_promise))
                     .collect(),
-                seed_nonce: statement.recovery_seed_nonce.as_ref().map(|n| n.0),
             });
         }
         range_statements
@@ -217,10 +215,10 @@ impl RangeProofService for BulletproofsPlusService {
         let opening = CommitmentOpening::new(value, vec![key.0]);
         let witness =
             RangeWitness::init(vec![opening]).map_err(|e| RangeProofError::ProofConstructionError(e.to_string()))?;
-        let statement = RangeStatement::init(self.generators.clone(), vec![commitment], vec![None], None)
+        let statement = RangeStatement::init(self.generators.clone(), vec![commitment], vec![None])
             .map_err(|e| RangeProofError::ProofConstructionError(e.to_string()))?;
 
-        let proof = RistrettoRangeProof::prove(self.transcript_label, &statement, &witness)
+        let proof = RistrettoRangeProof::prove(self.transcript_label, &statement, &witness, &None)
             .map_err(|e| RangeProofError::ProofConstructionError(e.to_string()))?;
 
         Ok(proof.to_bytes())
@@ -234,11 +232,11 @@ impl RangeProofService for BulletproofsPlusService {
                     commitments: vec![commitment.0.clone().into()],
                     commitments_compressed: vec![*commitment.0.compressed()],
                     minimum_value_promises: vec![None],
-                    seed_nonce: None,
                 };
                 match RistrettoRangeProof::verify_batch(
                     self.transcript_label,
                     &[statement],
+                    &[None],
                     &[rp.clone()],
                     VerifyAction::VerifyOnly,
                 ) {
@@ -283,7 +281,8 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
         &self,
         mask: &Self::K,
         value: u64,
-        seed_nonce: &Self::K,
+        seed_nonce_helper: &[u8],
+        seed_nonce_signer: &[u8],
     ) -> Result<Self::Proof, RangeProofError> {
         let commitment = self
             .generators
@@ -293,15 +292,14 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
         let opening = CommitmentOpening::new(value, vec![mask.0]);
         let witness =
             RangeWitness::init(vec![opening]).map_err(|e| RangeProofError::ProofConstructionError(e.to_string()))?;
-        let statement = RangeStatement::init(
-            self.generators.clone(),
-            vec![commitment],
-            vec![None],
-            Some(seed_nonce.0),
-        )
-        .map_err(|e| RangeProofError::ProofConstructionError(e.to_string()))?;
+        let statement = RangeStatement::init(self.generators.clone(), vec![commitment], vec![None])
+            .map_err(|e| RangeProofError::ProofConstructionError(e.to_string()))?;
+        let seed_nonce_pair = Some(RangeSeedNonce {
+            seed_nonce_helper: seed_nonce_helper.to_vec(),
+            seed_nonce_signer: seed_nonce_signer.to_vec(),
+        });
 
-        let proof = RistrettoRangeProof::prove(self.transcript_label, &statement, &witness)
+        let proof = RistrettoRangeProof::prove(self.transcript_label, &statement, &witness, &seed_nonce_pair)
             .map_err(|e| RangeProofError::ProofConstructionError(e.to_string()))?;
 
         Ok(proof.to_bytes())
@@ -310,7 +308,7 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
     fn construct_extended_proof(
         &self,
         extended_witnesses: Vec<RistrettoExtendedWitness>,
-        seed_nonce: Option<Self::K>,
+        seed_nonce_pair: Option<(Vec<u8>, Vec<u8>)>,
     ) -> Result<Self::Proof, RangeProofError> {
         if extended_witnesses.is_empty() {
             return Err(RangeProofError::ProofConstructionError(
@@ -336,11 +334,14 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
             self.generators.clone(),
             commitments,
             min_value_promises.iter().map(|v| Some(*v)).collect(),
-            seed_nonce.map(|s| s.0),
         )
         .map_err(|e| RangeProofError::ProofConstructionError(e.to_string()))?;
+        let seed_nonce_pair = seed_nonce_pair.map(|p| RangeSeedNonce {
+            seed_nonce_helper: p.0,
+            seed_nonce_signer: p.1,
+        });
 
-        let proof = RistrettoRangeProof::prove(self.transcript_label, &statement, &witness)
+        let proof = RistrettoRangeProof::prove(self.transcript_label, &statement, &witness, &seed_nonce_pair)
             .map_err(|e| RangeProofError::ProofConstructionError(e.to_string()))?;
 
         Ok(proof.to_bytes())
@@ -352,7 +353,18 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
         statements: Vec<&RistrettoAggregatedPrivateStatement>,
     ) -> Result<Vec<Option<RistrettoExtendedMask>>, RangeProofError> {
         // Prepare the range statements
-        let range_statements = self.prepare_private_range_statements(statements);
+        let range_statements = self.prepare_private_range_statements(&statements);
+
+        // Prepare the seed nonce pairs
+        let seed_nonce_pairs = statements
+            .iter()
+            .map(|s| {
+                s.recovery_seed_nonce_pair.clone().map(|p| RangeSeedNonce {
+                    seed_nonce_helper: p.0,
+                    seed_nonce_signer: p.1,
+                })
+            })
+            .collect::<Vec<Option<RangeSeedNonce>>>();
 
         // Deserialize the range proofs
         let range_proofs = self.deserialize_range_proofs(&proofs)?;
@@ -362,6 +374,7 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
         match RistrettoRangeProof::verify_batch(
             self.transcript_label,
             &range_statements,
+            &seed_nonce_pairs,
             &range_proofs,
             VerifyAction::RecoverAndVerify,
         ) {
@@ -405,6 +418,7 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
         match RistrettoRangeProof::verify_batch(
             self.transcript_label,
             &range_statements,
+            vec![None; range_statements.len()].as_slice(),
             &range_proofs,
             VerifyAction::VerifyOnly,
         ) {
@@ -419,22 +433,26 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
         &self,
         proof: &Self::Proof,
         commitment: &HomomorphicCommitment<Self::PK>,
-        seed_nonce: &Self::K,
+        seed_nonce_helper: &[u8],
+        seed_nonce_signer: &[u8],
     ) -> Result<Self::K, RangeProofError> {
         match RistrettoRangeProof::from_bytes(proof).map_err(|e| RangeProofError::InvalidRangeProof(e.to_string())) {
             Ok(rp) => {
+                // Prepare the range statement
                 let statement = RangeStatement {
                     generators: self.generators.clone(),
                     commitments: vec![commitment.0.point()],
                     commitments_compressed: vec![*commitment.0.compressed()],
                     minimum_value_promises: vec![None],
-                    seed_nonce: Some(seed_nonce.0),
                 };
-                // Prepare the range statement
 
                 match RistrettoRangeProof::verify_batch(
                     self.transcript_label,
                     &vec![statement],
+                    &[Some(RangeSeedNonce {
+                        seed_nonce_helper: seed_nonce_helper.to_vec(),
+                        seed_nonce_signer: seed_nonce_signer.to_vec(),
+                    })],
                     &[rp],
                     VerifyAction::RecoverOnly,
                 ) {
@@ -473,11 +491,18 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
         match RistrettoRangeProof::from_bytes(proof).map_err(|e| RangeProofError::InvalidRangeProof(e.to_string())) {
             Ok(rp) => {
                 // Prepare the range statement
-                let range_statements = self.prepare_private_range_statements(vec![statement]);
+                let range_statements = self.prepare_private_range_statements(&vec![statement]);
+
+                // Prepare the seed nonce pair
+                let seed_nonce_pair = statement.recovery_seed_nonce_pair.clone().map(|p| RangeSeedNonce {
+                    seed_nonce_helper: p.0,
+                    seed_nonce_signer: p.1,
+                });
 
                 match RistrettoRangeProof::verify_batch(
                     self.transcript_label,
                     &range_statements,
+                    &[seed_nonce_pair],
                     &[rp],
                     VerifyAction::RecoverOnly,
                 ) {
@@ -687,18 +712,18 @@ mod test {
                     }
 
                     // 3. Generate the statement
-                    let seed_nonce = if aggregation_size == 1 {
-                        Some(RistrettoSecretKey(Scalar::random_not_zero(&mut rng)))
+                    let seed_nonce_pair = if aggregation_size == 1 {
+                        Some((rng.gen::<[u8; 32]>().to_vec(), rng.gen::<[u8; 32]>().to_vec()))
                     } else {
                         None
                     };
                     statements_private.push(
-                        RistrettoAggregatedPrivateStatement::init(statements.clone(), seed_nonce.clone()).unwrap(),
+                        RistrettoAggregatedPrivateStatement::init(statements.clone(), seed_nonce_pair.clone()).unwrap(),
                     );
                     statements_public.push(RistrettoAggregatedPublicStatement::init(statements).unwrap());
 
                     // 4. Create the proof
-                    let proof = bulletproofs_plus_service.construct_extended_proof(extended_witnesses, seed_nonce);
+                    let proof = bulletproofs_plus_service.construct_extended_proof(extended_witnesses, seed_nonce_pair);
                     proofs.push(proof.unwrap());
                 }
 
@@ -864,9 +889,9 @@ mod test {
         let private_mask = Some(extended_mask);
 
         // 4. Create the proof
-        let seed_nonce = Some(RistrettoSecretKey(Scalar::random_not_zero(&mut rng)));
+        let seed_nonce_pair = Some((rng.gen::<[u8; 32]>().to_vec(), rng.gen::<[u8; 32]>().to_vec()));
         let proof = provers_bulletproofs_plus_service
-            .construct_extended_proof(vec![extended_witness.clone()], seed_nonce.clone())
+            .construct_extended_proof(vec![extended_witness.clone()], seed_nonce_pair.clone())
             .unwrap();
 
         // 5. Verifier's service
@@ -880,7 +905,7 @@ mod test {
                 commitment: commitment.clone(),
                 minimum_value_promise,
             }],
-            seed_nonce,
+            seed_nonce_pair,
         )
         .unwrap();
         // --- Only recover the mask (use the wrong transcript label for the service - will fail)
@@ -963,9 +988,10 @@ mod test {
         let commitment = factory.commit_value(&mask, value);
 
         // 4. Create the proof
-        let seed_nonce = RistrettoSecretKey(Scalar::random_not_zero(&mut rng));
+        let seed_nonce_helper = rng.gen::<[u8; 32]>().to_vec();
+        let seed_nonce_signer = rng.gen::<[u8; 32]>().to_vec();
         let proof = provers_bulletproofs_plus_service
-            .construct_proof_with_recovery_seed_nonce(&mask, value, &seed_nonce)
+            .construct_proof_with_recovery_seed_nonce(&mask, value, &seed_nonce_helper, &seed_nonce_signer)
             .unwrap();
 
         // 5. Verifier's service
@@ -975,13 +1001,13 @@ mod test {
         // 6. Mask recovery as the commitment owner, i.e. the prover self
         // --- Recover the mask (use the wrong transcript label for the service - will fail)
         let recovered_mask = verifiers_bulletproofs_plus_service
-            .recover_mask(&proof, &commitment, &seed_nonce)
+            .recover_mask(&proof, &commitment, &seed_nonce_helper, &seed_nonce_signer)
             .unwrap();
         assert_ne!(mask, recovered_mask);
         // --- Recover the mask (use the correct transcript label for the service)
         verifiers_bulletproofs_plus_service.custom_transcript_label("123 range proof");
         let recovered_mask = verifiers_bulletproofs_plus_service
-            .recover_mask(&proof, &commitment, &seed_nonce)
+            .recover_mask(&proof, &commitment, &seed_nonce_helper, &seed_nonce_signer)
             .unwrap();
         assert_eq!(mask, recovered_mask);
         // --- Verify that the mask opens the commitment

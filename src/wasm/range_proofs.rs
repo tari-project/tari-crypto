@@ -160,7 +160,13 @@ impl ExtendedRangeProofFactory {
     }
 
     /// Construct a proof with a recovery seed nonce
-    pub fn construct_proof_with_recovery_seed_nonce(&self, mask: &str, value: u64, seed_nonce: &str) -> JsValue {
+    pub fn construct_proof_with_recovery_seed_nonce(
+        &self,
+        mask: &str,
+        value: u64,
+        seed_nonce_helper: &[u8],
+        seed_nonce_signer: &[u8],
+    ) -> JsValue {
         let mut result = RangeProofResult::default();
         let mask = match RistrettoSecretKey::from_hex(mask) {
             Ok(k) => k,
@@ -169,17 +175,12 @@ impl ExtendedRangeProofFactory {
                 return serde_wasm_bindgen::to_value(&result).unwrap();
             },
         };
-        let seed_nonce = match RistrettoSecretKey::from_hex(seed_nonce) {
-            Ok(k) => k,
-            _ => {
-                result.error = "Invalid seed nonce".to_string();
-                return serde_wasm_bindgen::to_value(&result).unwrap();
-            },
-        };
-        match self
-            .range_proof_service
-            .construct_proof_with_recovery_seed_nonce(&mask, value, &seed_nonce)
-        {
+        match self.range_proof_service.construct_proof_with_recovery_seed_nonce(
+            &mask,
+            value,
+            seed_nonce_helper.to_vec().as_ref(),
+            seed_nonce_signer.to_vec().as_ref(),
+        ) {
             Ok(p) => result.proof = p.to_hex(),
             Err(e) => result.error = e.to_string(),
         };
@@ -187,7 +188,13 @@ impl ExtendedRangeProofFactory {
     }
 
     /// Recover a mask from a proof
-    pub fn recover_mask(&self, proof: &str, commitment: &str, seed_nonce: &str) -> JsValue {
+    pub fn recover_mask(
+        &self,
+        proof: &str,
+        commitment: &str,
+        seed_nonce_helper: &[u8],
+        seed_nonce_signer: &[u8],
+    ) -> JsValue {
         let mut result = RecoverResult::default();
         let proof = match from_hex(proof) {
             Ok(v) => v,
@@ -203,14 +210,12 @@ impl ExtendedRangeProofFactory {
                 return serde_wasm_bindgen::to_value(&result).unwrap();
             },
         };
-        let seed_nonce = match RistrettoSecretKey::from_hex(seed_nonce) {
-            Ok(k) => k,
-            _ => {
-                result.error = "Invalid seed nonce".to_string();
-                return serde_wasm_bindgen::to_value(&result).unwrap();
-            },
-        };
-        match self.range_proof_service.recover_mask(&proof, &commitment, &seed_nonce) {
+        match self.range_proof_service.recover_mask(
+            &proof,
+            &commitment,
+            seed_nonce_helper.to_vec().as_ref(),
+            seed_nonce_signer.to_vec().as_ref(),
+        ) {
             Ok(p) => result.mask = p.to_hex(),
             Err(e) => result.error = e.to_string(),
         };
@@ -250,7 +255,7 @@ impl Default for ExtendedRangeProofFactory {
 
 #[cfg(test)]
 mod test {
-    use rand::rngs::OsRng;
+    use rand::{rngs::OsRng, RngCore};
     use wasm_bindgen_test::*;
 
     use super::*;
@@ -303,11 +308,18 @@ mod test {
 
         // Rewindable range proof
         // - Create
-        let (seed_nonce, _) = RistrettoPublicKey::random_keypair(&mut OsRng);
-        let proof_result: RangeProofResult = serde_wasm_bindgen::from_value(
-            factory.construct_proof_with_recovery_seed_nonce(&blinding_factor.to_hex(), value, &seed_nonce.to_hex()),
-        )
-        .unwrap();
+        let mut seed_nonce_helper = [0u8; 32];
+        let mut seed_nonce_signer = [0u8; 32];
+        OsRng.fill_bytes(&mut seed_nonce_helper);
+        OsRng.fill_bytes(&mut seed_nonce_signer);
+        let proof_result: RangeProofResult =
+            serde_wasm_bindgen::from_value(factory.construct_proof_with_recovery_seed_nonce(
+                &blinding_factor.to_hex(),
+                value,
+                seed_nonce_helper.to_vec().as_ref(),
+                seed_nonce_signer.to_vec().as_ref(),
+            ))
+            .unwrap();
         assert!(factory
             .range_proof_service
             .verify(&from_hex(&proof_result.proof).unwrap(), &commitment));
@@ -315,7 +327,8 @@ mod test {
         let recover_result: RecoverResult = serde_wasm_bindgen::from_value(factory.recover_mask(
             &proof_result.proof,
             &commitment.to_hex(),
-            &seed_nonce.to_hex(),
+            seed_nonce_helper.to_vec().as_ref(),
+            seed_nonce_signer.to_vec().as_ref(),
         ))
         .unwrap();
         let mask_verification_result: VerificationResult =

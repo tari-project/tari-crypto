@@ -19,20 +19,22 @@ pub trait ExtendedRangeProofService {
     type PK: PublicKey<K = Self::K>;
 
     /// Construct a simple non-aggregated range proof with default minimum value promise of `0` and the ability to
-    /// rewind it. Requires a rewind key (seed nonce) to be included in the range proof.
+    /// rewind it. Requires rewind keys (seed nonces) to be included in the range proof.
     fn construct_proof_with_recovery_seed_nonce(
         &self,
         mask: &Self::K,
         value: u64,
-        seed_nonce: &Self::K,
+        seed_nonce_helper: &[u8],
+        seed_nonce_signer: &[u8],
     ) -> Result<Self::Proof, RangeProofError>;
 
-    /// Recover the (unverified) mask for a simple non-aggregated proof using the provided seed-nonce.
+    /// Recover the (unverified) mask for a simple non-aggregated proof using the provided seed nonces.
     fn recover_mask(
         &self,
         proof: &Self::Proof,
         commitment: &HomomorphicCommitment<Self::PK>,
-        seed_nonce: &Self::K,
+        seed_nonce_helper: &[u8],
+        seed_nonce_signer: &[u8],
     ) -> Result<Self::K, RangeProofError>;
 
     /// Verify a recovered mask for a simple non-aggregated proof against the commitment.
@@ -52,7 +54,7 @@ pub trait ExtendedRangeProofService {
     fn construct_extended_proof(
         &self,
         extended_witnesses: Vec<ExtendedWitness<Self::K>>,
-        seed_nonce: Option<Self::K>,
+        seed_nonce_pair: Option<(Vec<u8>, Vec<u8>)>,
     ) -> Result<Self::Proof, RangeProofError>;
 
     /// Verify the batch of range proofs against the given commitments and minimum value promises, and also recover the
@@ -161,15 +163,15 @@ where PK: PublicKey
 }
 
 /// The aggregated private range proof statement contains the (public) range proof statement and an optional seed nonce
-/// for mask recovery
+/// pair for mask recovery
 #[derive(Clone)]
 pub struct AggregatedPrivateStatement<PK>
 where PK: PublicKey
 {
     /// The aggregated commitments and minimum promised values
     pub statements: Vec<Statement<PK>>,
-    /// Optional private seed nonce for mask recovery
-    pub recovery_seed_nonce: Option<PK::K>,
+    /// Optional private seed nonce pair for mask recovery
+    pub recovery_seed_nonce_pair: Option<(Vec<u8>, Vec<u8>)>,
 }
 
 impl<PK> AggregatedPrivateStatement<PK>
@@ -178,8 +180,11 @@ where PK: PublicKey
     /// Initialize a new private 'ExtendedStatement' with sanity checks that supports recovery:
     /// - `statements` must be a power of 2 as mandated by the `bulletproofs_plus` implementation
     /// - mask recovery is not supported with an aggregated statement/proof
-    pub fn init(statements: Vec<Statement<PK>>, recovery_seed_nonce: Option<PK::K>) -> Result<Self, RangeProofError> {
-        if recovery_seed_nonce.is_some() && statements.len() > 1 {
+    pub fn init(
+        statements: Vec<Statement<PK>>,
+        recovery_seed_nonce_pair: Option<(Vec<u8>, Vec<u8>)>,
+    ) -> Result<Self, RangeProofError> {
+        if recovery_seed_nonce_pair.is_some() && statements.len() > 1 {
             return Err(RangeProofError::InitializationError(
                 "Mask recovery is not supported with an aggregated statement".to_string(),
             ));
@@ -191,7 +196,7 @@ where PK: PublicKey
         }
         Ok(Self {
             statements,
-            recovery_seed_nonce,
+            recovery_seed_nonce_pair,
         })
     }
 }
