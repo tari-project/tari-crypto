@@ -156,7 +156,7 @@ impl BulletproofsPlusService {
     /// Helper function to prepare a batch of private range statements
     pub fn prepare_private_range_statements(
         &self,
-        statements: &Vec<&RistrettoAggregatedPrivateStatement>,
+        statements: &[&RistrettoAggregatedPrivateStatement],
     ) -> Vec<RangeStatement<RistrettoPoint>> {
         let mut range_statements = Vec::with_capacity(statements.len());
         for statement in statements {
