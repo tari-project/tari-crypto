@@ -20,7 +20,6 @@ use crate::{
         RistrettoComAndPubSig,
         RistrettoComSig,
         RistrettoPublicKey,
-        RistrettoSchnorr,
         RistrettoSecretKey,
     },
 };
@@ -49,87 +48,6 @@ pub unsafe extern "C" fn random_keypair(priv_key: *mut KeyArray, pub_key: *mut K
         (*pub_key).copy_from_slice(p.as_bytes());
     }
     OK
-}
-
-/// Generate a Schnorr signature (s, R) using the provided private key and message (k, m).
-///
-/// # Safety
-/// The caller MUST ensure that the string is null terminated e.g. "msg\0".
-/// If any args are null then the function returns -1
-///
-/// The public nonce and signature are returned in the provided mutable arrays.
-#[no_mangle]
-pub unsafe extern "C" fn sign(
-    priv_key: *const KeyArray,
-    msg: *const c_char,
-    public_nonce: *mut KeyArray,
-    signature: *mut KeyArray,
-) -> c_int {
-    if public_nonce.is_null() || signature.is_null() || priv_key.is_null() || msg.is_null() {
-        return NULL_POINTER;
-    }
-    let k = match RistrettoSecretKey::from_bytes(&(*priv_key)) {
-        Ok(k) => k,
-        _ => return INVALID_SECRET_KEY_SER,
-    };
-    let pubkey = RistrettoPublicKey::from_secret_key(&k);
-    let r = RistrettoSecretKey::random(&mut OsRng);
-    let pub_r = RistrettoPublicKey::from_secret_key(&r);
-    let msg = match CStr::from_ptr(msg).to_str() {
-        Ok(s) => s,
-        _ => return STR_CONV_ERR,
-    };
-    let e = RistrettoSchnorr::construct_domain_separated_challenge::<_, Blake256>(&pub_r, &pubkey, msg.as_bytes());
-    let sig = match RistrettoSchnorr::sign_raw(&k, r, e.as_ref()) {
-        Ok(sig) => sig,
-        _ => return SIGNING_ERROR,
-    };
-    (*public_nonce).copy_from_slice(sig.get_public_nonce().as_bytes());
-    (*signature).copy_from_slice(sig.get_signature().as_bytes());
-    OK
-}
-
-/// Verify that a Schnorr signature (s, R) is valid for the provided public key and message (P, m).
-///
-/// # Safety
-/// The caller MUST ensure that the string is null terminated e.g. "msg\0".
-/// If any args are null then the function returns false, and sets `err_code` to -1
-#[no_mangle]
-pub unsafe extern "C" fn verify(
-    pub_key: *const KeyArray,
-    msg: *const c_char,
-    pub_nonce: *const KeyArray,
-    signature: *const KeyArray,
-    err_code: *mut c_int,
-) -> bool {
-    if pub_key.is_null() || msg.is_null() || pub_nonce.is_null() || signature.is_null() || err_code.is_null() {
-        if !err_code.is_null() {
-            *err_code = NULL_POINTER;
-        }
-        return false;
-    }
-    let pk = match RistrettoPublicKey::from_bytes(&(*pub_key)) {
-        Ok(k) => k,
-        _ => {
-            *err_code = INVALID_SECRET_KEY_SER;
-            return false;
-        },
-    };
-    let r_pub = match RistrettoPublicKey::from_bytes(&(*pub_nonce)) {
-        Ok(r) => r,
-        _ => return false,
-    };
-    let sig = match RistrettoSecretKey::from_bytes(&(*signature)) {
-        Ok(s) => s,
-        _ => return false,
-    };
-    let msg = match CStr::from_ptr(msg).to_str() {
-        Ok(s) => s,
-        _ => return false,
-    };
-
-    let sig = RistrettoSchnorr::new(r_pub, sig);
-    sig.verify_message(&pk, msg.as_bytes())
 }
 
 /// Generate a Pedersen commitment (C) using the provided value and spending key (a, x).
@@ -441,103 +359,5 @@ mod test {
             RistrettoPublicKey::from_secret_key(&RistrettoSecretKey(Scalar::from_bits(priv_key))).as_bytes(),
             pub_key
         );
-    }
-
-    #[test]
-    pub fn test_sign_invalid_params() {
-        unsafe {
-            let priv_key = [0; KEY_LENGTH];
-            let msg = "msg\0";
-            let mut nonce = [0; KEY_LENGTH];
-            let mut signature = [0; KEY_LENGTH];
-            assert_eq!(
-                sign(null_mut(), msg.as_ptr() as *const c_char, &mut nonce, &mut signature),
-                NULL_POINTER
-            );
-            assert_eq!(sign(&priv_key, null_mut(), &mut nonce, &mut signature), NULL_POINTER);
-            assert_eq!(
-                sign(&priv_key, msg.as_ptr() as *const c_char, null_mut(), &mut signature),
-                NULL_POINTER
-            );
-            assert_eq!(
-                sign(&priv_key, msg.as_ptr() as *const c_char, &mut nonce, null_mut()),
-                NULL_POINTER
-            );
-        }
-    }
-
-    #[test]
-    pub fn test_sign_valid_params() {
-        let priv_key = [1; KEY_LENGTH];
-        let msg = "msg\0";
-        let mut nonce = [0; KEY_LENGTH];
-        let mut signature = [0; KEY_LENGTH];
-        unsafe {
-            assert_eq!(
-                sign(&priv_key, msg.as_ptr() as *const c_char, &mut nonce, &mut signature),
-                OK
-            );
-        }
-    }
-
-    #[test]
-    pub fn test_verify_invalid_params() {
-        let pub_key = [1; KEY_LENGTH];
-        let msg = "msg\0";
-        let pub_nonce = [0; KEY_LENGTH];
-        let signature = [0; KEY_LENGTH];
-        let mut err_code = 0i32;
-        unsafe {
-            assert!(!verify(
-                null_mut(),
-                msg.as_ptr() as *const c_char,
-                &pub_nonce,
-                &signature,
-                &mut err_code
-            ),);
-            assert!(!verify(&pub_key, null_mut(), &pub_nonce, &signature, &mut err_code),);
-            assert!(!verify(
-                &pub_key,
-                msg.as_ptr() as *const c_char,
-                null_mut(),
-                &signature,
-                &mut err_code
-            ),);
-            assert!(!verify(
-                &pub_key,
-                msg.as_ptr() as *const c_char,
-                &pub_nonce,
-                null_mut(),
-                &mut err_code
-            ),);
-            assert!(!verify(
-                &pub_key,
-                msg.as_ptr() as *const c_char,
-                &pub_nonce,
-                &signature,
-                null_mut()
-            ),);
-        }
-    }
-
-    #[test]
-    pub fn test_verify_success() {
-        let mut priv_key: KeyArray = [0; KEY_LENGTH];
-        let mut pub_key: KeyArray = [0; KEY_LENGTH];
-        let mut pub_nonce: KeyArray = [0; KEY_LENGTH];
-        let mut signature: KeyArray = [0; KEY_LENGTH];
-        let msg = "msg\0";
-        let mut err_code = 0i32;
-        unsafe {
-            random_keypair(&mut priv_key, &mut pub_key);
-            sign(&priv_key, msg.as_ptr() as *const c_char, &mut pub_nonce, &mut signature);
-            assert!(verify(
-                &pub_key,
-                msg.as_ptr() as *const c_char,
-                &pub_nonce,
-                &signature,
-                &mut err_code
-            ));
-        }
     }
 }

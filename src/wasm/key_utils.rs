@@ -14,33 +14,27 @@ use wasm_bindgen::prelude::*;
 
 use crate::{
     hash::blake2::Blake256,
+    hash_domain,
     keys::{PublicKey, SecretKey},
     ristretto::{
         pedersen::{commitment_factory::PedersenCommitmentFactory, PedersenCommitment},
         RistrettoComAndPubSig,
         RistrettoComSig,
         RistrettoPublicKey,
-        RistrettoSchnorr,
         RistrettoSecretKey,
     },
 };
+
+// A placeholder hash domain for use in raw signature functions
+// This is only here to satisfy the type system, and plays no role in signatures
+// It should not be used for any other purpose, so it has a scary name
+hash_domain!(UnsafeRawSignatureDomain, "");
 
 /// Result of calling [check_signature] and [check_comsig_signature] and [check_comandpubsig_signature]
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct SignatureVerifyResult {
     /// True if the signature was valid
     pub result: bool,
-    /// Will contain the error if one occurred, otherwise empty
-    pub error: String,
-}
-
-/// Result of calling [sign]
-#[derive(Debug, Serialize, Deserialize, Default)]
-pub struct SignResult {
-    /// The public nonce of the signature, if successful
-    pub public_nonce: Option<String>,
-    /// The signature, if successful
-    pub signature: Option<String>,
     /// Will contain the error if one occurred, otherwise empty
     pub error: String,
 }
@@ -101,131 +95,6 @@ pub fn pubkey_from_secret(k: &str) -> Option<String> {
         Ok(k) => Some(RistrettoPublicKey::from_secret_key(&k).to_hex()),
         _ => None,
     }
-}
-
-/// Generate a Schnorr signature of the message using the given private key
-#[wasm_bindgen]
-pub fn sign(private_key: &str, msg: &str) -> JsValue {
-    let mut result = SignResult::default();
-    let k = match RistrettoSecretKey::from_hex(private_key) {
-        Ok(k) => k,
-        _ => {
-            result.error = "Invalid private key".to_string();
-            return serde_wasm_bindgen::to_value(&result).unwrap();
-        },
-    };
-    sign_message_with_key(&k, msg, None, &mut result);
-    serde_wasm_bindgen::to_value(&result).unwrap()
-}
-
-/// Generate a Schnorr signature of a challenge (that has already been hashed) using the given private
-/// key and a specified private nonce. DO NOT reuse nonces. This method is provide for cases where a
-/// public nonce has been used in the message.
-#[wasm_bindgen]
-pub fn sign_challenge_with_nonce(private_key: &str, private_nonce: &str, challenge_as_hex: &str) -> JsValue {
-    let mut result = SignResult::default();
-    let k = match RistrettoSecretKey::from_hex(private_key) {
-        Ok(k) => k,
-        _ => {
-            result.error = "Invalid private key".to_string();
-            return serde_wasm_bindgen::to_value(&result).unwrap();
-        },
-    };
-    let r = match RistrettoSecretKey::from_hex(private_nonce) {
-        Ok(r) => r,
-        _ => {
-            result.error = "Invalid private nonce".to_string();
-            return serde_wasm_bindgen::to_value(&result).unwrap();
-        },
-    };
-    let pub_r = RistrettoPublicKey::from_secret_key(&r);
-
-    let e = match from_hex(challenge_as_hex) {
-        Ok(e) => e,
-        _ => {
-            result.error = "Challenge was not valid HEX".to_string();
-            return serde_wasm_bindgen::to_value(&result).unwrap();
-        },
-    };
-
-    let sig = match RistrettoSchnorr::sign_raw(&k, r, &e) {
-        Ok(s) => s,
-        Err(e) => {
-            result.error = format!("Could not create signature. {e}");
-            return serde_wasm_bindgen::to_value(&result).unwrap();
-        },
-    };
-    result.public_nonce = Some(pub_r.to_hex());
-    result.signature = Some(sig.get_signature().to_hex());
-    serde_wasm_bindgen::to_value(&result).unwrap()
-}
-
-pub(super) fn sign_message_with_key(
-    k: &RistrettoSecretKey,
-    msg: &str,
-    r: Option<&RistrettoSecretKey>,
-    result: &mut SignResult,
-) {
-    sign_with_key(k, msg.as_bytes(), r, result)
-}
-
-#[allow(non_snake_case)]
-pub(super) fn sign_with_key(
-    k: &RistrettoSecretKey,
-    msg: &[u8],
-    r: Option<&RistrettoSecretKey>,
-    result: &mut SignResult,
-) {
-    let (r, R) = match r {
-        Some(r) => (r.clone(), RistrettoPublicKey::from_secret_key(r)),
-        None => RistrettoPublicKey::random_keypair(&mut OsRng),
-    };
-    let P = RistrettoPublicKey::from_secret_key(k);
-    let e = RistrettoSchnorr::construct_domain_separated_challenge::<_, Blake256>(&R, &P, msg);
-    let sig = match RistrettoSchnorr::sign_raw(k, r, e.as_ref()) {
-        Ok(s) => s,
-        Err(e) => {
-            result.error = format!("Could not create signature. {e}");
-            return;
-        },
-    };
-    result.public_nonce = Some(R.to_hex());
-    result.signature = Some(sig.get_signature().to_hex());
-}
-
-/// Checks the validity of a Schnorr signature. Returns a [JsValue] of a serialized [SignatureVerifyResult]
-#[allow(non_snake_case)]
-#[wasm_bindgen]
-pub fn check_signature(pub_nonce: &str, signature: &str, pub_key: &str, msg: &str) -> JsValue {
-    let mut result = SignatureVerifyResult::default();
-
-    let R = match RistrettoPublicKey::from_hex(pub_nonce) {
-        Ok(n) => n,
-        Err(_) => {
-            result.error = format!("{pub_nonce} is not a valid public nonce");
-            return serde_wasm_bindgen::to_value(&result).unwrap();
-        },
-    };
-
-    let P = match RistrettoPublicKey::from_hex(pub_key) {
-        Ok(p) => p,
-        Err(_) => {
-            result.error = format!("{pub_key} is not a valid public key");
-            return serde_wasm_bindgen::to_value(&result).unwrap();
-        },
-    };
-
-    let s = match RistrettoSecretKey::from_hex(signature) {
-        Ok(s) => s,
-        Err(_) => {
-            result.error = format!("{signature} is not a valid hex representation of a signature");
-            return serde_wasm_bindgen::to_value(&result).unwrap();
-        },
-    };
-
-    let sig = RistrettoSchnorr::new(R, s);
-    result.result = sig.verify_message(&P, msg.as_bytes());
-    serde_wasm_bindgen::to_value(&result).unwrap()
 }
 
 /// Generate a Commitment signature of the message using the given private key
@@ -720,7 +589,7 @@ mod test {
     use super::*;
     use crate::{
         commitment::HomomorphicCommitmentFactory,
-        signatures::{CommitmentAndPublicKeySignature, CommitmentSignature, SchnorrSignature},
+        signatures::{CommitmentAndPublicKeySignature, CommitmentSignature},
         tari_utilities::{hex, ByteArray},
     };
 
@@ -731,18 +600,8 @@ mod test {
         Blake256::digest(preimage.as_ref())
     }
 
-    fn hash_hex<T: AsRef<[u8]>>(preimage: T) -> String {
-        hex::to_hex(&hash(preimage))
-    }
-
     fn random_keypair() -> (RistrettoSecretKey, RistrettoPublicKey) {
         RistrettoPublicKey::random_keypair(&mut OsRng)
-    }
-
-    fn create_signature(msg: &str) -> (RistrettoSchnorr, RistrettoPublicKey, RistrettoSecretKey) {
-        let (sk, pk) = random_keypair();
-        let sig = SchnorrSignature::sign_message(&sk, msg.as_bytes()).unwrap();
-        (sig, pk, sk)
     }
 
     fn create_commsig(msg: &str) -> (RistrettoComSig, PedersenCommitment) {
@@ -784,12 +643,6 @@ mod test {
         (sig, commitment, pubkey)
     }
 
-    fn key_hex() -> (RistrettoSecretKey, String) {
-        let key = RistrettoSecretKey::random(&mut OsRng);
-        let key_hex = key.to_hex();
-        (key, key_hex)
-    }
-
     #[wasm_bindgen_test]
     fn it_generates_a_keypair() {
         let (k, p): (String, String) = serde_wasm_bindgen::from_value(generate_keypair()).unwrap();
@@ -829,153 +682,6 @@ mod test {
             let expected_pk = RistrettoPublicKey::from_secret_key(&key);
             let pk = RistrettoPublicKey::from_hex(&pubkey_from_secret(&key.to_hex()).unwrap()).unwrap();
             assert_eq!(pk, expected_pk);
-        }
-    }
-
-    mod sign {
-        use super::*;
-
-        fn sign(private_key: &str, msg: &str) -> SignResult {
-            serde_wasm_bindgen::from_value(super::sign(private_key, msg)).unwrap()
-        }
-
-        #[wasm_bindgen_test]
-        fn it_returns_error_if_invalid() {
-            assert!(!sign("", SAMPLE_CHALLENGE).error.is_empty());
-            assert!(!sign(&["0"; 32].join(""), SAMPLE_CHALLENGE).error.is_empty());
-        }
-
-        #[wasm_bindgen_test]
-        fn it_returns_a_valid_signature() {
-            let (sk, pk) = random_keypair();
-            let result = sign(&sk.to_hex(), SAMPLE_CHALLENGE);
-            assert!(result.error.is_empty());
-            let p_nonce = RistrettoPublicKey::from_hex(&result.public_nonce.unwrap()).unwrap();
-            let s = RistrettoSecretKey::from_hex(&result.signature.unwrap()).unwrap();
-            assert!(RistrettoSchnorr::new(p_nonce, s).verify_message(&pk, SAMPLE_CHALLENGE));
-        }
-
-        #[wasm_bindgen_test]
-        fn it_does_not_reuse_the_nonce() {
-            let (sk, _) = random_keypair();
-            let result = sign(&sk.to_hex(), SAMPLE_CHALLENGE);
-            let p_nonce1 = RistrettoPublicKey::from_hex(&result.public_nonce.unwrap()).unwrap();
-            let result = sign(&sk.to_hex(), SAMPLE_CHALLENGE);
-            let p_nonce2 = RistrettoPublicKey::from_hex(&result.public_nonce.unwrap()).unwrap();
-            assert_ne!(p_nonce1, p_nonce2);
-        }
-    }
-
-    mod sign_challenge_with_nonce {
-        use super::*;
-
-        fn sign_challenge_with_nonce(private_key: &str, private_nonce: &str, msg: &str) -> SignResult {
-            serde_wasm_bindgen::from_value(super::sign_challenge_with_nonce(private_key, private_nonce, msg)).unwrap()
-        }
-
-        #[wasm_bindgen_test]
-        fn it_returns_error_if_invalid() {
-            let (_, key) = key_hex();
-            assert!(!sign_challenge_with_nonce(&key, "", &hash_hex(SAMPLE_CHALLENGE))
-                .error
-                .is_empty());
-            assert!(
-                !sign_challenge_with_nonce(&["0"; 33].join(""), &key, &hash_hex(SAMPLE_CHALLENGE))
-                    .error
-                    .is_empty()
-            );
-        }
-
-        #[wasm_bindgen_test]
-        fn it_returns_error_if_challenge_not_hashed() {
-            let (_, r) = key_hex();
-            let (_, sk) = key_hex();
-            let result = sign_challenge_with_nonce(&sk, &r, &hex::to_hex(SAMPLE_CHALLENGE.as_bytes()));
-            assert!(result.error.contains("An invalid challenge was provided"));
-        }
-
-        #[wasm_bindgen_test]
-        fn it_returns_a_valid_signature() {
-            let (r, expected_pr) = random_keypair();
-            let (sk, pk) = random_keypair();
-            let e = hash(SAMPLE_CHALLENGE);
-            let result = sign_challenge_with_nonce(&sk.to_hex(), &r.to_hex(), &hex::to_hex(&e));
-            assert_eq!(result.error, "");
-            let p_nonce = RistrettoPublicKey::from_hex(&result.public_nonce.unwrap()).unwrap();
-            assert_eq!(p_nonce, expected_pr);
-            let s = RistrettoSecretKey::from_hex(&result.signature.unwrap()).unwrap();
-            assert!(RistrettoSchnorr::new(p_nonce, s).verify_challenge(&pk, &hash(SAMPLE_CHALLENGE)));
-        }
-    }
-
-    mod check_signature {
-        use super::*;
-
-        fn check_signature(pub_nonce: &str, signature: &str, pub_key: &str, msg: &str) -> SignatureVerifyResult {
-            serde_wasm_bindgen::from_value(super::check_signature(pub_nonce, signature, pub_key, msg)).unwrap()
-        }
-
-        #[wasm_bindgen_test]
-        fn it_errors_given_invalid_data() {
-            fn it_errors(pub_nonce: &str, signature: &str, pub_key: &str, msg: &str) {
-                let result = check_signature(pub_nonce, signature, pub_key, msg);
-                assert!(
-                    !result.error.is_empty(),
-                    "check_signature did not fail with args ({}, {}, {}, {})",
-                    pub_nonce,
-                    signature,
-                    pub_key,
-                    msg
-                );
-                assert!(!result.result);
-            }
-
-            it_errors("", "", "", SAMPLE_CHALLENGE);
-
-            let (sig, pk, _) = create_signature(SAMPLE_CHALLENGE);
-            it_errors(&sig.get_public_nonce().to_hex(), "", &pk.to_hex(), SAMPLE_CHALLENGE);
-        }
-
-        #[wasm_bindgen_test]
-        fn it_fails_if_verification_is_invalid() {
-            fn it_fails(pub_nonce: &str, signature: &str, pub_key: &str, msg: &str) {
-                let result = check_signature(pub_nonce, signature, pub_key, msg);
-                assert!(result.error.is_empty());
-                assert!(!result.result);
-            }
-
-            let (sig, pk, _) = create_signature(SAMPLE_CHALLENGE);
-            it_fails(
-                &RistrettoPublicKey::default().to_hex(),
-                &sig.get_signature().to_hex(),
-                &pk.to_hex(),
-                SAMPLE_CHALLENGE,
-            );
-            it_fails(
-                &sig.get_public_nonce().to_hex(),
-                &sig.get_signature().to_hex(),
-                &pk.to_hex(),
-                "wrong challenge",
-            );
-            it_fails(
-                &sig.get_public_nonce().to_hex(),
-                &sig.get_signature().to_hex(),
-                &RistrettoPublicKey::default().to_hex(),
-                SAMPLE_CHALLENGE,
-            );
-        }
-
-        #[wasm_bindgen_test]
-        fn it_succeeds_given_valid_data() {
-            let (sig, pk, _) = create_signature(SAMPLE_CHALLENGE);
-            let result = check_signature(
-                &sig.get_public_nonce().to_hex(),
-                &sig.get_signature().to_hex(),
-                &pk.to_hex(),
-                SAMPLE_CHALLENGE,
-            );
-            assert!(result.error.is_empty());
-            assert!(result.result);
         }
     }
 

@@ -19,13 +19,9 @@ use thiserror::Error;
 
 use crate::{
     hash::blake2::Blake256,
-    hash_domain,
     hashing::{DomainSeparatedHash, DomainSeparatedHasher, DomainSeparation},
     keys::{PublicKey, SecretKey},
 };
-
-// Define the hashing domain for Schnorr signatures
-hash_domain!(SchnorrSigChallenge, "com.tari.schnorr_signature", 1);
 
 /// An error occurred during construction of a SchnorrSignature
 #[derive(Clone, Debug, Error, PartialEq, Eq, Deserialize, Serialize)]
@@ -44,7 +40,7 @@ pub enum SchnorrSignatureError {
 #[allow(non_snake_case)]
 #[derive(Copy, Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize, borsh::BorshDeserialize))]
-pub struct SchnorrSignature<P, K, H = SchnorrSigChallenge> {
+pub struct SchnorrSignature<P, K, H> {
     public_nonce: P,
     signature: K,
     #[serde(skip)]
@@ -230,7 +226,7 @@ where
     }
 }
 
-impl<'a, 'b, P, K, H> Add<&'b SchnorrSignature<P, K>> for &'a SchnorrSignature<P, K, H>
+impl<'a, 'b, P, K, H> Add<&'b SchnorrSignature<P, K, H>> for &'a SchnorrSignature<P, K, H>
 where
     P: PublicKey<K = K>,
     &'a P: Add<&'b P, Output = P>,
@@ -238,16 +234,16 @@ where
     &'a K: Add<&'b K, Output = K>,
     H: DomainSeparation,
 {
-    type Output = SchnorrSignature<P, K>;
+    type Output = SchnorrSignature<P, K, H>;
 
-    fn add(self, rhs: &'b SchnorrSignature<P, K>) -> SchnorrSignature<P, K> {
+    fn add(self, rhs: &'b SchnorrSignature<P, K, H>) -> SchnorrSignature<P, K, H> {
         let r_sum = self.get_public_nonce() + rhs.get_public_nonce();
         let s_sum = self.get_signature() + rhs.get_signature();
         SchnorrSignature::new(r_sum, s_sum)
     }
 }
 
-impl<'a, P, K, H> Add<SchnorrSignature<P, K>> for &'a SchnorrSignature<P, K, H>
+impl<'a, P, K, H> Add<SchnorrSignature<P, K, H>> for &'a SchnorrSignature<P, K, H>
 where
     P: PublicKey<K = K>,
     for<'b> &'a P: Add<&'b P, Output = P>,
@@ -255,9 +251,9 @@ where
     for<'b> &'a K: Add<&'b K, Output = K>,
     H: DomainSeparation,
 {
-    type Output = SchnorrSignature<P, K>;
+    type Output = SchnorrSignature<P, K, H>;
 
-    fn add(self, rhs: SchnorrSignature<P, K>) -> SchnorrSignature<P, K> {
+    fn add(self, rhs: SchnorrSignature<P, K, H>) -> SchnorrSignature<P, K, H> {
         let r_sum = self.get_public_nonce() + rhs.get_public_nonce();
         let s_sum = self.get_signature() + rhs.get_signature();
         SchnorrSignature::new(r_sum, s_sum)
@@ -328,19 +324,5 @@ where
     fn hash<T: Hasher>(&self, state: &mut T) {
         self.public_nonce.hash(state);
         self.signature.hash(state);
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::{hashing::DomainSeparation, signatures::SchnorrSigChallenge};
-
-    #[test]
-    fn schnorr_hash_domain() {
-        assert_eq!(SchnorrSigChallenge::domain(), "com.tari.schnorr_signature");
-        assert_eq!(
-            SchnorrSigChallenge::domain_separation_tag("test"),
-            "com.tari.schnorr_signature.v1.test"
-        );
     }
 }

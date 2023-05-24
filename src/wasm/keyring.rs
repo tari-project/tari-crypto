@@ -15,10 +15,7 @@ use crate::{
         RistrettoPublicKey,
         RistrettoSecretKey,
     },
-    wasm::{
-        commitments::CommitmentResult,
-        key_utils::{sign_message_with_key, SignResult},
-    },
+    wasm::commitments::CommitmentResult,
 };
 
 /// KeyRing is an in-memory key-value store for secret keys. Each secret key has a user-defined id associated with it.
@@ -69,54 +66,6 @@ impl KeyRing {
         self.keys.get(id).map(|p| p.1.to_hex())
     }
 
-    /// Sign a message using a private key
-    ///
-    /// Use can use a key in the keyring to generate a digital signature. To create the signature, the caller must
-    /// provide the `id` associated with the key, the message to sign, and a `nonce`.
-    ///
-    /// The return type is pretty unRust-like, but is structured to more closely model a JSON object.
-    ///
-    /// `keys::check_signature` is used to verify signatures.
-    pub fn sign(&self, id: &str, msg: &str) -> JsValue {
-        let mut result = SignResult::default();
-        let k = self.keys.get(id);
-        if k.is_none() {
-            result.error = format!("Private key for '{id}' does not exist");
-            return serde_wasm_bindgen::to_value(&result).unwrap();
-        }
-        let k = k.unwrap();
-        sign_message_with_key(&k.0, msg, None, &mut result);
-        serde_wasm_bindgen::to_value(&result).unwrap()
-    }
-
-    /// Sign a message using a private key and a specific nonce
-    ///
-    /// Use can use a key in the keyring to generate a digital signature. To create the signature, the caller must
-    /// provide the `id` associated with the key, the message to sign, and a `nonce_id`. *Do not* reuse nonces.
-    /// This function is provided because in some signature schemes require the public nonce to be
-    /// part of the message.
-    ///
-    /// The return type is pretty unRust-like, but is structured to more closely model a JSON object.
-    ///
-    /// `keys::check_signature` is used to verify signatures.
-    pub fn sign_with_nonce(&self, id: &str, nonce_id: &str, msg: &str) -> JsValue {
-        let mut result = SignResult::default();
-        let k = self.keys.get(id);
-        if k.is_none() {
-            result.error = format!("Private key for '{id}' does not exist");
-            return serde_wasm_bindgen::to_value(&result).unwrap();
-        }
-        let k = k.unwrap();
-        let nonce = self.keys.get(nonce_id);
-        if nonce.is_none() {
-            result.error = format!("Private nonce for `{nonce_id}` does not exist");
-            return serde_wasm_bindgen::to_value(&result).unwrap();
-        }
-        let nonce = nonce.unwrap();
-        sign_message_with_key(&k.0, msg, Some(&nonce.0), &mut result);
-        serde_wasm_bindgen::to_value(&result).unwrap()
-    }
-
     /// Commits a value and private key for the given id using a Pedersen commitment.
     pub fn commit(&self, id: &str, value: u64) -> JsValue {
         let mut result = CommitmentResult::default();
@@ -151,9 +100,7 @@ mod test {
     use wasm_bindgen_test::*;
 
     use super::*;
-    use crate::{keys::SecretKey, ristretto::RistrettoSchnorr};
-
-    const SAMPLE_CHALLENGE: &str = "გამარჯობა";
+    use crate::keys::SecretKey;
 
     fn new_keyring() -> KeyRing {
         let mut kr = KeyRing::new();
@@ -208,34 +155,6 @@ mod test {
 
             let sk_b = kr.expect_private_key("b");
             assert_ne!(sk_a, sk_b);
-        }
-    }
-
-    mod sign {
-        use super::*;
-
-        fn sign(kr: &KeyRing, id: &str) -> Result<RistrettoSchnorr, String> {
-            let result: SignResult = serde_wasm_bindgen::from_value(kr.sign(id, SAMPLE_CHALLENGE)).unwrap();
-            if !result.error.is_empty() {
-                return Err(result.error);
-            }
-            let p_r = RistrettoPublicKey::from_hex(&result.public_nonce.unwrap()).unwrap();
-            let s = RistrettoSecretKey::from_hex(&result.signature.unwrap()).unwrap();
-            Ok(RistrettoSchnorr::new(p_r, s))
-        }
-
-        #[wasm_bindgen_test]
-        fn it_fails_if_key_doesnt_exist() {
-            let kr = new_keyring();
-            sign(&kr, "doesn-exist").unwrap_err();
-        }
-
-        #[wasm_bindgen_test]
-        fn it_produces_a_valid_signature() {
-            let kr = new_keyring();
-            let sig = sign(&kr, "a").unwrap();
-            let pk = kr.expect_public_key("a");
-            assert!(sig.verify_message(pk, SAMPLE_CHALLENGE));
         }
     }
 

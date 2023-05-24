@@ -6,9 +6,12 @@ use std::time::Duration;
 use criterion::{criterion_group, BatchSize, Criterion};
 use rand::{thread_rng, RngCore};
 use tari_crypto::{
+    hash_domain,
     keys::{PublicKey, SecretKey},
     ristretto::{RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
 };
+
+hash_domain!(BenchDomain, "com.example.bench");
 
 fn generate_secret_key(c: &mut Criterion) {
     c.bench_function("Generate secret key", |b| {
@@ -45,7 +48,7 @@ fn sign_message(c: &mut Criterion) {
         b.iter_batched(
             gen_keypair,
             |d| {
-                let _sig = RistrettoSchnorr::sign_message(&d.k, d.m).unwrap();
+                let _sig: RistrettoSchnorr<BenchDomain> = RistrettoSchnorr::sign_message(&d.k, d.m).unwrap();
             },
             BatchSize::SmallInput,
         );
@@ -59,7 +62,7 @@ fn verify_message(c: &mut Criterion) {
         b.iter_batched(
             || {
                 let d = gen_keypair();
-                let s = RistrettoSchnorr::sign_message(&d.k, d.m).unwrap();
+                let s: RistrettoSchnorr<BenchDomain> = RistrettoSchnorr::sign_message(&d.k, d.m).unwrap();
                 (d, s)
             },
             |(d, s)| assert!(s.verify_message(&d.p, d.m)),
