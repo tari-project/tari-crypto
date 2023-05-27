@@ -27,9 +27,6 @@ use crate::{
 /// # use tari_crypto::hash_domain;
 /// # use tari_crypto::ristretto::*;
 /// # use tari_crypto::keys::*;
-/// # use tari_crypto::signatures::SchnorrSignature;
-/// # use tari_crypto::hash::blake2::Blake256;
-/// # use digest::Digest;
 ///
 /// hash_domain!(ExampleDomain, "com.example");
 ///
@@ -43,7 +40,7 @@ use crate::{
 /// # #[allow(non_snake_case)]
 /// let (k, P) = get_keypair();
 /// let msg = "Small Gods";
-/// let sig: RistrettoSchnorr<ExampleDomain> = RistrettoSchnorr::sign_message(&k, &msg).unwrap();
+/// let sig = RistrettoSchnorr::<ExampleDomain>::sign_message(&k, &msg).unwrap();
 /// ```
 ///
 /// ## Verifying signatures
@@ -72,7 +69,7 @@ use crate::{
 /// # #[allow(non_snake_case)]
 /// let (k, P) = get_keypair();
 /// let msg = "Small Gods";
-/// let sig: RistrettoSchnorr<ExampleDomain> = SchnorrSignature::sign_message(&k, msg).unwrap();
+/// let sig = RistrettoSchnorr::<ExampleDomain>::sign_message(&k, msg).unwrap();
 ///
 /// assert!(sig.verify_message(&P, msg));
 /// ```
@@ -95,7 +92,7 @@ mod test {
     /// Test defaults
     #[test]
     fn default() {
-        let sig: RistrettoSchnorr<TestDomain> = RistrettoSchnorr::default();
+        let sig = RistrettoSchnorr::<TestDomain>::default();
         assert_eq!(sig.get_signature(), &RistrettoSecretKey::default());
         assert_eq!(sig.get_public_nonce(), &RistrettoPublicKey::default());
     }
@@ -117,7 +114,7 @@ mod test {
             .finalize();
         let e_key = RistrettoSecretKey::from_bytes(&e).unwrap();
         let s = &r + &e_key * &k;
-        let sig: RistrettoSchnorr<TestDomain> = RistrettoSchnorr::sign_raw(&k, r, &e).unwrap();
+        let sig = RistrettoSchnorr::<TestDomain>::sign_raw(&k, r, &e).unwrap();
 
         // Examine the signature components
         let R_calc = sig.get_public_nonce();
@@ -155,8 +152,8 @@ mod test {
             .finalize();
 
         // Calculate summand signatures using each component
-        let s1: RistrettoSchnorr<TestDomain> = RistrettoSchnorr::sign_raw(&k1, r1, &e).unwrap();
-        let s2: RistrettoSchnorr<TestDomain> = RistrettoSchnorr::sign_raw(&k2, r2, &e).unwrap();
+        let s1 = RistrettoSchnorr::<TestDomain>::sign_raw(&k1, r1, &e).unwrap();
+        let s2 = RistrettoSchnorr::<TestDomain>::sign_raw(&k2, r2, &e).unwrap();
 
         // Confirm linearity holds against the nonce sum
         assert!((&s1 + &s2).verify_challenge(&(P1 + P2), &e));
@@ -201,7 +198,7 @@ mod test {
         let evil_msg = "Qs are things that happen to other people";
 
         // Sign a message
-        let sig: RistrettoSchnorr<TestDomain> = RistrettoSchnorr::sign_message(&k, msg).unwrap();
+        let sig = RistrettoSchnorr::<TestDomain>::sign_message(&k, msg).unwrap();
 
         // Test successful and failed verification
         assert!(sig.verify_message(&P, msg));
