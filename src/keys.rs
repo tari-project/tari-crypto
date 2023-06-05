@@ -30,10 +30,10 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 pub trait SecretKey:
     ByteArray + Clone + PartialEq + Eq + Add<Output = Self> + Default + Zeroize + ZeroizeOnDrop
 {
-    /// The encoded length of the key, in bytes
+    /// The length of the byte encoding of a key, in bytes
     const KEY_LEN: usize;
 
-    /// The encoded length of the key, in bytes
+    /// The length of the byte encoding of a key, in bytes
     fn key_length() -> usize {
         Self::KEY_LEN
     }
@@ -51,7 +51,7 @@ pub trait SecretKey:
 pub trait PublicKey:
     ByteArray + Add<Output = Self> + Clone + PartialOrd + Ord + Default + Serialize + DeserializeOwned + Zeroize
 {
-    /// The output size len of Public Key
+    /// The length of the byte encoding of a key, in bytes
     const KEY_LEN: usize;
 
     /// The related [SecretKey](trait.SecretKey.html) type
@@ -61,7 +61,7 @@ pub trait PublicKey:
     /// failure does occur (implementation error?), the function will panic.
     fn from_secret_key(k: &Self::K) -> Self;
 
-    /// The length of the public key when converted to bytes
+    /// The length of the byte encoding of a key, in bytes
     fn key_length() -> usize {
         Self::KEY_LEN
     }
