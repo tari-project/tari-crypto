@@ -30,8 +30,14 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 pub trait SecretKey:
     ByteArray + Clone + PartialEq + Eq + Add<Output = Self> + Default + Zeroize + ZeroizeOnDrop
 {
-    /// The length of the key, in bytes
-    fn key_length() -> usize;
+    /// The encoded length of the key, in bytes
+    const KEY_LEN: usize;
+
+    /// The encoded length of the key, in bytes
+    fn key_length() -> usize {
+        Self::KEY_LEN
+    }
+
     /// Generates a random secret key
     fn random<R: Rng + CryptoRng>(rng: &mut R) -> Self;
 }

@@ -70,14 +70,9 @@ impl borsh::BorshDeserialize for RistrettoSecretKey {
     }
 }
 
-const SCALAR_LENGTH: usize = 32;
-const PUBLIC_KEY_LENGTH: usize = 32;
-
 //-----------------------------------------   Ristretto Secret Key    ------------------------------------------------//
 impl SecretKey for RistrettoSecretKey {
-    fn key_length() -> usize {
-        SCALAR_LENGTH
-    }
+    const KEY_LEN: usize = 32;
 
     /// Return a random secret key on the `ristretto255` curve using the supplied CSPRNG.
     fn random<R: Rng + CryptoRng>(rng: &mut R) -> Self {
@@ -364,7 +359,7 @@ impl DomainSeparation for RistrettoGeneratorPoint {
 impl PublicKey for RistrettoPublicKey {
     type K = RistrettoSecretKey;
 
-    const KEY_LEN: usize = PUBLIC_KEY_LENGTH;
+    const KEY_LEN: usize = 32;
 
     /// Generates a new Public key from the given secret key
     fn from_secret_key(k: &Self::K) -> RistrettoPublicKey {
