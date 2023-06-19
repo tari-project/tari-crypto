@@ -15,7 +15,7 @@ tari_utilities = { version = "0.4.10" }
 
 base64 = "0.10.1"
 blake2 = "0.9.1"
-borsh = { version = "0.9.3", optional = true }
+borsh = { version = "0.10.3", optional = true }
 bulletproofs = { package = "tari_bulletproofs", version= "4.4.1" }
 bulletproofs_plus = { package = "tari_bulletproofs_plus", version="0.2.3"  }
 curve25519-dalek = {package="tari-curve25519-dalek", version = "4.0.2", default-features = false, features = ["serde", "alloc"] }
@@ -38,13 +38,13 @@ zeroize = "1"
 
 [dev-dependencies]
 bincode = "1.1.4"
-criterion = "0.3.4"
+criterion = "0.5.1"
 rand_chacha = "0.3.1"
 sha2 = "0.9.5"
 wasm-bindgen-test = "0.3.24"
 
 [build-dependencies]
-cbindgen = "0.17.0"
+cbindgen = { version = "0.24.5", default-features = false }
 
 [features]
 default = ["u64_backend"]
