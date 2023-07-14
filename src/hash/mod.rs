@@ -3,4 +3,3 @@
 
 //! Convenience wrappers for hash functions
 pub mod blake2;
-// pub mod error;

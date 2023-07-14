@@ -21,6 +21,8 @@ libraries. The default implementation for Tari ECC is the [Ristretto255 curve](h
 
 ### General
 
+Due to the hardware wallet support, general building requires the `--all-features` flag.
+
 To run cargo check:
 
     $ cargo check --all-targets --all-features
@@ -36,6 +38,10 @@ To run cargo lints clippy:
 To build the library:
 
     $ cargo build --release --all-features
+
+To test the library:
+
+    $ cargo test --release --all-features
 
 ### Compiling to WebAssembly
 
