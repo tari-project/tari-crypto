@@ -51,7 +51,7 @@ cbindgen = {version = "0.17", optional = true }
 default = ["serialize", "bulletproofs", "bulletproofs_plus", "zero", "precomputed_tables", "borsh_ser", "borsh/std"]
 wasm = ["wasm-bindgen", "getrandom/js", "serde-wasm-bindgen", "rand"]
 ffi = ["cbindgen", "rand"]
-zero = ["zeroize", "tari_utilities/zero"]
+zero = ["zeroize", "tari_utilities/zero", "curve25519-dalek/zeroize"]
 musig = []
 serialize = ["serde", "serde_json", "curve25519-dalek/serde", "tari_utilities/serialize"]
 no_std = ["lazy_static/spin_no_std"]
