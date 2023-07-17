@@ -6,11 +6,9 @@
 use criterion::criterion_main;
 
 pub mod commitment;
-pub mod range_proof;
 pub mod signatures;
 
 use commitment::commitment;
-use range_proof::range_proofs;
 use signatures::signatures;
 
-criterion_main!(commitment, signatures, range_proofs);
+criterion_main!(commitment, signatures);
