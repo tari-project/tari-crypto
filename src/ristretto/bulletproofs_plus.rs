@@ -639,7 +639,7 @@ mod test {
             let factory = ExtendedPedersenCommitmentFactory::new_with_extension_degree(extension_degree).unwrap();
             // bit length and aggregation size are chosen so that 'BulletProofsPlusService::init' will always succeed
             for bit_length in BIT_LENGTH {
-                // 0.  Batch data
+                // 0. Batch data
                 let mut private_masks: Vec<Option<RistrettoExtendedMask>> = vec![];
                 let mut public_masks: Vec<Option<RistrettoExtendedMask>> = vec![];
                 let mut proofs = vec![];
@@ -782,7 +782,7 @@ mod test {
             let factory = ExtendedPedersenCommitmentFactory::new_with_extension_degree(extension_degree).unwrap();
 
             for aggregation_size in [2, 4] {
-                // 0.  Batch data
+                // 0. Batch data
                 let mut proofs = vec![];
                 let mut statements_public = vec![];
 

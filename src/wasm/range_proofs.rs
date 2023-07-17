@@ -12,12 +12,7 @@ use crate::{
     range_proof::RangeProofService,
     ristretto::{
         bulletproofs_plus::BulletproofsPlusService,
-        pedersen::{
-            commitment_factory::PedersenCommitmentFactory,
-            extended_commitment_factory::ExtendedPedersenCommitmentFactory,
-            PedersenCommitment,
-        },
-        DalekRangeProofService,
+        pedersen::{extended_commitment_factory::ExtendedPedersenCommitmentFactory, PedersenCommitment},
         RistrettoSecretKey,
     },
     tari_utilities::hex::from_hex,
@@ -42,68 +37,6 @@ pub struct VerificationResult {
 pub struct RecoverResult {
     mask: String,
     error: String,
-}
-
-/// A factory to prove and verify range proofs
-#[wasm_bindgen]
-pub struct RangeProofFactory {
-    range_proof_service: DalekRangeProofService,
-    //    factory: PedersenCommitmentFactory,
-}
-
-#[wasm_bindgen]
-impl RangeProofFactory {
-    /// Create a new `RangeProofFactory`
-    pub fn new() -> Self {
-        let factory = PedersenCommitmentFactory::default();
-        let range_proof_service = DalekRangeProofService::new(64, &factory).unwrap();
-        RangeProofFactory { range_proof_service }
-    }
-
-    /// Creates a new range proof for the given key-value pair. Returns a [JsValue] of a serialized
-    /// [RangeProofResult]
-    pub fn create_proof(&self, key: &str, value: u64) -> JsValue {
-        let mut result = RangeProofResult::default();
-        let key = match RistrettoSecretKey::from_hex(key) {
-            Ok(k) => k,
-            _ => {
-                result.error = "Invalid private key".to_string();
-                return serde_wasm_bindgen::to_value(&result).unwrap();
-            },
-        };
-        match self.range_proof_service.construct_proof(&key, value) {
-            Ok(p) => result.proof = p.to_hex(),
-            Err(e) => result.error = e.to_string(),
-        };
-        serde_wasm_bindgen::to_value(&result).unwrap()
-    }
-
-    /// Verifies the given range proof and commitment. Returns a [JsValue] of a serialized [VerificationResult]
-    pub fn verify(&self, commitment: &str, proof: &str) -> JsValue {
-        let mut result = VerificationResult::default();
-        let commitment = match PedersenCommitment::from_hex(commitment) {
-            Ok(commitment) => commitment,
-            _ => {
-                result.error = "Invalid private key".to_string();
-                return serde_wasm_bindgen::to_value(&result).unwrap();
-            },
-        };
-        let proof = match from_hex(proof) {
-            Ok(v) => v,
-            Err(e) => {
-                result.error = format!("Range proof is invalid. {e}");
-                return serde_wasm_bindgen::to_value(&result).unwrap();
-            },
-        };
-        result.valid = self.range_proof_service.verify(&proof, &commitment);
-        serde_wasm_bindgen::to_value(&result).unwrap()
-    }
-}
-
-impl Default for RangeProofFactory {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 /// A factory to prove and verify extended range proofs
@@ -255,29 +188,6 @@ mod test {
 
     use super::*;
     use crate::{commitment::HomomorphicCommitmentFactory, keys::PublicKey, ristretto::RistrettoPublicKey};
-
-    #[wasm_bindgen_test]
-    fn dalek_range_proof_fails_with_invalid_hex_input() {
-        let factory = RangeProofFactory::new();
-        let result: RangeProofResult = serde_wasm_bindgen::from_value(factory.create_proof("", 123)).unwrap();
-        assert!(!result.error.is_empty());
-        assert!(result.proof.is_empty());
-    }
-
-    #[wasm_bindgen_test]
-    fn dalek_range_proof_creates_a_valid_proof() {
-        let factory = RangeProofFactory::new();
-        let (blinding_factor, _) = RistrettoPublicKey::random_keypair(&mut OsRng);
-        let result: RangeProofResult =
-            serde_wasm_bindgen::from_value(factory.create_proof(&blinding_factor.to_hex(), 123)).unwrap();
-        let commitment = PedersenCommitmentFactory::default().commit_value(&blinding_factor, 123);
-        assert!(factory
-            .range_proof_service
-            .verify(&from_hex(&result.proof).unwrap(), &commitment));
-        let result: VerificationResult =
-            serde_wasm_bindgen::from_value(factory.verify(&commitment.to_hex(), &result.proof)).unwrap();
-        assert!(result.valid);
-    }
 
     #[wasm_bindgen_test]
     fn bulletproof_plus_fails_with_invalid_hex_input() {
