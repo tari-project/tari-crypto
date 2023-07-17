@@ -12,10 +12,7 @@ use crate::{
     range_proof::RangeProofService,
     ristretto::{
         bulletproofs_plus::BulletproofsPlusService,
-        pedersen::{
-            extended_commitment_factory::ExtendedPedersenCommitmentFactory,
-            PedersenCommitment,
-        },
+        pedersen::{extended_commitment_factory::ExtendedPedersenCommitmentFactory, PedersenCommitment},
         RistrettoSecretKey,
     },
     tari_utilities::hex::from_hex,
@@ -191,7 +188,6 @@ mod test {
 
     use super::*;
     use crate::{commitment::HomomorphicCommitmentFactory, keys::PublicKey, ristretto::RistrettoPublicKey};
-
 
     #[wasm_bindgen_test]
     fn bulletproof_plus_fails_with_invalid_hex_input() {
