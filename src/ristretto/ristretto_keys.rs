@@ -19,7 +19,10 @@ use curve25519_dalek::{
     scalar::Scalar,
     traits::MultiscalarMul,
 };
-use digest::Digest;
+use digest::{
+    consts::{U32, U64},
+    Digest,
+};
 use once_cell::sync::OnceCell;
 use rand::{CryptoRng, Rng};
 use tari_utilities::{hex::Hex, ByteArray, ByteArrayError, Hashable};
@@ -64,8 +67,9 @@ impl borsh::BorshSerialize for RistrettoSecretKey {
 
 #[cfg(feature = "borsh")]
 impl borsh::BorshDeserialize for RistrettoSecretKey {
-    fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
-        let bytes: Vec<u8> = borsh::BorshDeserialize::deserialize(buf)?;
+    fn deserialize_reader<R>(reader: &mut R) -> Result<Self, io::Error>
+    where R: io::Read {
+        let bytes: Vec<u8> = borsh::BorshDeserialize::deserialize_reader(reader)?;
         Self::from_bytes(bytes.as_slice()).map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e.to_string()))
     }
 }
@@ -89,7 +93,7 @@ impl ByteArray for RistrettoSecretKey {
     fn from_bytes(bytes: &[u8]) -> Result<RistrettoSecretKey, ByteArrayError>
     where Self: Sized {
         if bytes.len() != 32 {
-            return Err(ByteArrayError::IncorrectLength);
+            return Err(ByteArrayError::IncorrectLength {});
         }
         let mut a = [0u8; 32];
         a.copy_from_slice(bytes);
@@ -137,7 +141,7 @@ impl RistrettoSecretKey {
     /// Get the multiplicative inverse of a nonzero secret key
     /// If zero is passed, returns `None`; annoying, but a useful guardrail
     pub fn invert(&self) -> Option<Self> {
-        if self.0 == Scalar::zero() {
+        if self.0 == Scalar::ZERO {
             None
         } else {
             Some(RistrettoSecretKey(self.0.invert()))
@@ -268,8 +272,9 @@ impl borsh::BorshSerialize for RistrettoPublicKey {
 
 #[cfg(feature = "borsh")]
 impl borsh::BorshDeserialize for RistrettoPublicKey {
-    fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
-        let bytes: Vec<u8> = borsh::BorshDeserialize::deserialize(buf)?;
+    fn deserialize_reader<R>(reader: &mut R) -> Result<Self, io::Error>
+    where R: io::Read {
+        let bytes: Vec<u8> = borsh::BorshDeserialize::deserialize_reader(reader)?;
         Self::from_bytes(bytes.as_slice()).map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e.to_string()))
     }
 }
@@ -293,7 +298,7 @@ impl RistrettoPublicKey {
     /// A verifiable group generator using a domain separated hasher
     pub fn new_generator(label: &'static str) -> Result<RistrettoPublicKey, HashingError> {
         // This function requires 512 bytes of data, so let's be opinionated here and use blake2b
-        let hash = DomainSeparatedHasher::<Blake2b, RistrettoGeneratorPoint>::new_with_label(label).finalize();
+        let hash = DomainSeparatedHasher::<Blake2b<U32>, RistrettoGeneratorPoint>::new_with_label(label).finalize();
         if hash.as_ref().len() < 64 {
             return Err(HashingError::DigestTooShort(64));
         }
@@ -363,7 +368,7 @@ impl PublicKey for RistrettoPublicKey {
 
     /// Generates a new Public key from the given secret key
     fn from_secret_key(k: &Self::K) -> RistrettoPublicKey {
-        let pk = &k.0 * &RISTRETTO_BASEPOINT_TABLE;
+        let pk = &k.0 * RISTRETTO_BASEPOINT_TABLE;
         RistrettoPublicKey::new_from_pk(pk)
     }
 
@@ -378,7 +383,7 @@ impl PublicKey for RistrettoPublicKey {
 // Requires custom Hashable implementation for RistrettoPublicKey as CompressedRistretto doesnt implement this trait
 impl Hashable for RistrettoPublicKey {
     fn hash(&self) -> Vec<u8> {
-        Blake2b::digest(self.as_bytes()).to_vec()
+        Blake2b::<U64>::digest(self.as_bytes()).to_vec()
     }
 }
 
@@ -484,14 +489,16 @@ impl ByteArray for RistrettoPublicKey {
     where Self: Sized {
         // Check the length here, because The Ristretto constructor panics rather than returning an error
         if bytes.len() != 32 {
-            return Err(ByteArrayError::IncorrectLength);
+            return Err(ByteArrayError::IncorrectLength {});
         }
-        let compressed = CompressedRistretto::from_slice(bytes);
+        let compressed = CompressedRistretto::from_slice(bytes).map_err(|_| ByteArrayError::ConversionError {
+            reason: "Invalid Public key".to_string(),
+        })?;
         match RistrettoPublicKey::new_from_compressed(compressed) {
             Some(p) => Ok(p),
-            None => Err(ByteArrayError::ConversionError(
-                "Invalid compressed Ristretto point".to_string(),
-            )),
+            None => Err(ByteArrayError::ConversionError {
+                reason: "Invalid compressed Ristretto point".to_string(),
+            }),
         }
     }
 
@@ -595,7 +602,7 @@ mod test {
     use tari_utilities::{message_format::MessageFormat, ByteArray};
 
     use super::*;
-    use crate::{hash::blake2::Blake256, keys::PublicKey, ristretto::test_common::get_keypair};
+    use crate::{keys::PublicKey, ristretto::test_common::get_keypair};
 
     fn assert_completely_equal(k1: &RistrettoPublicKey, k2: &RistrettoPublicKey) {
         assert_eq!(k1, k2);
@@ -948,7 +955,7 @@ mod test {
 
     #[test]
     fn kdf_key_too_short() {
-        let err = RistrettoKdf::generate::<Blake256>(b"this_key_is_too_short", b"data", "test").err();
+        let err = RistrettoKdf::generate::<Blake2b<U32>>(b"this_key_is_too_short", b"data", "test").err();
         assert!(matches!(err, Some(HashingError::InputTooShort)));
     }
 
@@ -956,8 +963,8 @@ mod test {
     fn kdf_test() {
         let key =
             RistrettoSecretKey::from_hex("b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c").unwrap();
-        let derived1 = RistrettoKdf::generate::<Blake256>(key.as_bytes(), b"derived1", "test").unwrap();
-        let derived2 = RistrettoKdf::generate::<Blake256>(key.as_bytes(), b"derived2", "test").unwrap();
+        let derived1 = RistrettoKdf::generate::<Blake2b<U32>>(key.as_bytes(), b"derived1", "test").unwrap();
+        let derived2 = RistrettoKdf::generate::<Blake2b<U32>>(key.as_bytes(), b"derived2", "test").unwrap();
         assert_eq!(
             derived1.to_hex(),
             "e8df6fa40344c1fde721e9a35d46daadb48dc66f7901a9795ebb0374474ea601"

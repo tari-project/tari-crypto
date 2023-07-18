@@ -109,7 +109,7 @@ mod test {
     #[test]
     /// Verify that the identity point is equal to a commitment to zero with a zero blinding factor on the base point
     fn check_zero() {
-        let c = RistrettoPoint::multiscalar_mul(&[Scalar::zero(), Scalar::zero()], &[
+        let c = RistrettoPoint::multiscalar_mul(&[Scalar::ZERO, Scalar::ZERO], &[
             RISTRETTO_PEDERSEN_G,
             *RISTRETTO_PEDERSEN_H,
         ]);

@@ -11,7 +11,6 @@ mod macros;
 pub mod commitment;
 pub mod deterministic_randomizer;
 pub mod dhke;
-pub mod hash;
 pub mod hashing;
 pub mod keys;
 pub mod range_proof;

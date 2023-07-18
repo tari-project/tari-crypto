@@ -37,19 +37,20 @@ use crate::{
 /// ```rust
 /// # use tari_crypto::ristretto::*;
 /// # use tari_crypto::keys::*;
-/// # use tari_crypto::hash::blake2::Blake256;
 /// # use digest::Digest;
 /// # use tari_crypto::commitment::HomomorphicCommitmentFactory;
 /// # use tari_crypto::ristretto::pedersen::*;
 /// use tari_crypto::ristretto::pedersen::commitment_factory::PedersenCommitmentFactory;
 /// use tari_utilities::hex::Hex;
+/// use blake2::Blake2b;
+/// use digest::consts::U32;
 ///
 /// let mut rng = rand::thread_rng();
 /// let a_val = RistrettoSecretKey::random(&mut rng);
 /// let x_val = RistrettoSecretKey::random(&mut rng);
 /// let a_nonce = RistrettoSecretKey::random(&mut rng);
 /// let x_nonce = RistrettoSecretKey::random(&mut rng);
-/// let e = Blake256::digest(b"Maskerade");
+/// let e = Blake2b::<U32>::digest(b"Maskerade");
 /// let factory = PedersenCommitmentFactory::default();
 /// let commitment = factory.commit(&x_val, &a_val);
 /// // println!("commitment: {:?}", commitment.to_hex());
@@ -68,10 +69,11 @@ use crate::{
 /// # use tari_crypto::keys::*;
 /// # use tari_crypto::commitment::HomomorphicCommitment;
 /// # use tari_crypto::ristretto::pedersen::*;
-/// # use tari_crypto::hash::blake2::Blake256;
 /// # use tari_utilities::hex::*;
 /// # use tari_utilities::ByteArray;
 /// # use digest::Digest;
+/// use blake2::Blake2b;
+/// use digest::consts::U32;
 /// use tari_crypto::ristretto::pedersen::commitment_factory::PedersenCommitmentFactory;
 ///
 /// let commitment = HomomorphicCommitment::from_hex(
@@ -91,7 +93,7 @@ use crate::{
 /// )
 /// .unwrap();
 /// let sig = RistrettoComSig::new(r_nonce, u, v);
-/// let e = Blake256::digest(b"Maskerade");
+/// let e = Blake2b::<U32>::digest(b"Maskerade");
 /// let factory = PedersenCommitmentFactory::default();
 /// assert!(sig.verify_challenge(&commitment, &e, &factory));
 /// ```
@@ -99,12 +101,12 @@ pub type RistrettoComSig = CommitmentSignature<RistrettoPublicKey, RistrettoSecr
 
 #[cfg(test)]
 mod test {
-    use digest::Digest;
+    use blake2::Blake2b;
+    use digest::{consts::U32, Digest};
     use tari_utilities::{hex::from_hex, ByteArray};
 
     use crate::{
         commitment::HomomorphicCommitmentFactory,
-        hash::blake2::Blake256,
         keys::{PublicKey, SecretKey},
         ristretto::{
             pedersen::{commitment_factory::PedersenCommitmentFactory, PedersenCommitment},
@@ -140,10 +142,10 @@ mod test {
         let k_2 = RistrettoSecretKey::random(&mut rng);
         let nonce_commitment = factory.commit(&k_1, &k_2);
 
-        let challenge = Blake256::new()
-            .chain(commitment.as_bytes())
-            .chain(nonce_commitment.as_bytes())
-            .chain(b"Small Gods")
+        let challenge = Blake2b::<U32>::new()
+            .chain_update(commitment.as_bytes())
+            .chain_update(nonce_commitment.as_bytes())
+            .chain_update(b"Small Gods")
             .finalize();
         let e_key = RistrettoSecretKey::from_bytes(&challenge).unwrap();
         let u_value = &k_1 + e_key.clone() * &x_value;
@@ -157,7 +159,7 @@ mod test {
         // Doesn't work for invalid credentials
         assert!(!sig.verify_challenge(&nonce_commitment, &challenge, &factory));
         // Doesn't work for different challenge
-        let wrong_challenge = Blake256::digest(b"Guards! Guards!");
+        let wrong_challenge = Blake2b::<U32>::digest(b"Guards! Guards!");
         assert!(!sig.verify_challenge(&commitment, &wrong_challenge, &factory));
     }
 
@@ -183,12 +185,12 @@ mod test {
         let k_2_bob = RistrettoSecretKey::random(&mut rng);
         let nonce_commitment_bob = factory.commit(&k_1_bob, &k_2_bob);
         // Each of them creates the Challenge committing to both commitments of both parties
-        let challenge = Blake256::new()
-            .chain(commitment_alice.as_bytes())
-            .chain(commitment_bob.as_bytes())
-            .chain(nonce_commitment_alice.as_bytes())
-            .chain(nonce_commitment_bob.as_bytes())
-            .chain(b"Moving Pictures")
+        let challenge = Blake2b::<U32>::new()
+            .chain_update(commitment_alice.as_bytes())
+            .chain_update(commitment_bob.as_bytes())
+            .chain_update(nonce_commitment_alice.as_bytes())
+            .chain_update(nonce_commitment_bob.as_bytes())
+            .chain_update(b"Moving Pictures")
             .finalize();
         // Calculate Alice's signature
         let sig_alice = RistrettoComSig::sign(

@@ -264,7 +264,7 @@ mod test {
     /// points
     fn check_zero_both_traits() {
         for extension_degree in EXTENSION_DEGREE {
-            let zero_values = vec![Scalar::zero(); extension_degree as usize + 1];
+            let zero_values = vec![Scalar::ZERO; extension_degree as usize + 1];
             let mut points = Vec::with_capacity(extension_degree as usize + 1);
             let factory = ExtendedPedersenCommitmentFactory::new_with_extension_degree(extension_degree).unwrap();
             points.push(factory.h_base);
@@ -407,7 +407,7 @@ mod test {
     fn scalar_random_not_zero(rng: &mut ThreadRng) -> Scalar {
         loop {
             let value = Scalar::random(rng);
-            if value != Scalar::zero() {
+            if value != Scalar::ZERO {
                 return value;
             }
         }

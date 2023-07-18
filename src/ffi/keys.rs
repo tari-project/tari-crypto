@@ -6,14 +6,14 @@ use std::{
     os::raw::{c_char, c_int},
 };
 
-use digest::Digest;
+use blake2::Blake2b;
+use digest::{consts::U32, Digest};
 use rand::rngs::OsRng;
 use tari_utilities::ByteArray;
 
 use crate::{
     commitment::{HomomorphicCommitment, HomomorphicCommitmentFactory},
     ffi::error::{INVALID_SECRET_KEY_SER, NULL_POINTER, OK, SIGNING_ERROR, STR_CONV_ERR},
-    hash::blake2::Blake256,
     keys::{PublicKey, SecretKey},
     ristretto::{
         pedersen::commitment_factory::PedersenCommitmentFactory,
@@ -79,7 +79,7 @@ pub unsafe extern "C" fn sign(
         Ok(s) => s,
         _ => return STR_CONV_ERR,
     };
-    let e = RistrettoSchnorr::construct_domain_separated_challenge::<_, Blake256>(&pub_r, &pubkey, msg.as_bytes());
+    let e = RistrettoSchnorr::construct_domain_separated_challenge::<_, Blake2b<U32>>(&pub_r, &pubkey, msg.as_bytes());
     let sig = match RistrettoSchnorr::sign_raw(&k, r, e.as_ref()) {
         Ok(sig) => sig,
         _ => return SIGNING_ERROR,
@@ -200,7 +200,7 @@ pub unsafe extern "C" fn sign_comsig(
         Ok(s) => s,
         _ => return STR_CONV_ERR,
     };
-    let challenge = Blake256::digest(msg.as_bytes()).to_vec();
+    let challenge = Blake2b::<U32>::digest(msg.as_bytes()).to_vec();
     let factory = PedersenCommitmentFactory::default();
     let sig = match RistrettoComSig::sign(&secret_a, &secret_x, &nonce_a, &nonce_x, &challenge, &factory) {
         Ok(sig) => sig,
@@ -254,7 +254,7 @@ pub unsafe extern "C" fn verify_comsig(
         _ => return false,
     };
     let sig = RistrettoComSig::new(r_pub, u, v);
-    let challenge = Blake256::digest(msg.as_bytes());
+    let challenge = Blake2b::<U32>::digest(msg.as_bytes());
     let challenge = match RistrettoSecretKey::from_bytes(challenge.as_slice()) {
         Ok(e) => e,
         _ => return false,
@@ -314,7 +314,7 @@ pub unsafe extern "C" fn sign_comandpubsig(
         Ok(s) => s,
         _ => return STR_CONV_ERR,
     };
-    let challenge = Blake256::digest(msg.as_bytes()).to_vec();
+    let challenge = Blake2b::<U32>::digest(msg.as_bytes()).to_vec();
     let factory = PedersenCommitmentFactory::default();
     let sig = match RistrettoComAndPubSig::sign(&a, &x, &y, &r_a, &r_x, &r_y, &challenge, &factory) {
         Ok(sig) => sig,
@@ -394,7 +394,7 @@ pub unsafe extern "C" fn verify_comandpubsig(
         _ => return false,
     };
     let sig = RistrettoComAndPubSig::new(ephemeral_commitment, ephemeral_pubkey, u_a, u_x, u_y);
-    let challenge = Blake256::digest(msg.as_bytes());
+    let challenge = Blake2b::<U32>::digest(msg.as_bytes());
     let challenge = match RistrettoSecretKey::from_bytes(challenge.as_slice()) {
         Ok(e) => e,
         _ => return false,
@@ -438,7 +438,7 @@ mod test {
         }
         assert_ne!(priv_key, priv_key_before);
         assert_eq!(
-            RistrettoPublicKey::from_secret_key(&RistrettoSecretKey(Scalar::from_bits(priv_key))).as_bytes(),
+            RistrettoPublicKey::from_secret_key(&RistrettoSecretKey(Scalar::from_bytes_mod_order(priv_key))).as_bytes(),
             pub_key
         );
     }

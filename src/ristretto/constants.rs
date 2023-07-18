@@ -133,7 +133,7 @@ mod test {
     #[test]
     pub fn check_tables() {
         // Perform test multiplications
-        assert_eq!(&*RISTRETTO_NUMS_TABLE_0 * &Scalar::zero(), RistrettoPoint::identity());
+        assert_eq!(&*RISTRETTO_NUMS_TABLE_0 * &Scalar::ZERO, RistrettoPoint::identity());
 
         for j in 0..15u8 {
             assert_eq!(

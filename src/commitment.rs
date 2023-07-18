@@ -37,8 +37,9 @@ pub struct HomomorphicCommitment<P>(pub(crate) P);
 
 #[cfg(feature = "borsh")]
 impl<P: borsh::BorshDeserialize> borsh::BorshDeserialize for HomomorphicCommitment<P> {
-    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
-        Ok(Self(P::deserialize(buf)?))
+    fn deserialize_reader<R>(reader: &mut R) -> Result<Self, std::io::Error>
+    where R: std::io::Read {
+        Ok(Self(P::deserialize_reader(reader)?))
     }
 }
 

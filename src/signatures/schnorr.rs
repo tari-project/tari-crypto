@@ -12,13 +12,13 @@ use std::{
     ops::{Add, Mul},
 };
 
-use digest::Digest;
+use blake2::Blake2b;
+use digest::{consts::U32, Digest};
 use serde::{Deserialize, Serialize};
 use tari_utilities::ByteArray;
 use thiserror::Error;
 
 use crate::{
-    hash::blake2::Blake256,
     hash_domain,
     hashing::{DomainSeparatedHash, DomainSeparatedHasher, DomainSeparation},
     keys::{PublicKey, SecretKey},
@@ -151,7 +151,8 @@ where
     {
         let public_nonce = P::from_secret_key(&nonce);
         let public_key = P::from_secret_key(secret);
-        let challenge = Self::construct_domain_separated_challenge::<_, Blake256>(&public_nonce, &public_key, message);
+        let challenge =
+            Self::construct_domain_separated_challenge::<_, Blake2b<U32>>(&public_nonce, &public_key, message);
         Self::sign_raw(secret, nonce, challenge.as_ref())
     }
 
@@ -189,7 +190,7 @@ where
         B: AsRef<[u8]>,
     {
         let challenge =
-            Self::construct_domain_separated_challenge::<_, Blake256>(&self.public_nonce, public_key, message);
+            Self::construct_domain_separated_challenge::<_, Blake2b<U32>>(&self.public_nonce, public_key, message);
         self.verify_challenge(public_key, challenge.as_ref())
     }
 

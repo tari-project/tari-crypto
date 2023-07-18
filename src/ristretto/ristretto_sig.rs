@@ -41,7 +41,6 @@ use crate::{
 /// # use tari_crypto::ristretto::*;
 /// # use tari_crypto::keys::*;
 /// # use tari_crypto::signatures::SchnorrSignature;
-/// # use tari_crypto::hash::blake2::Blake256;
 /// # use digest::Digest;
 ///
 /// fn get_keypair() -> (RistrettoSecretKey, RistrettoPublicKey) {
@@ -66,7 +65,6 @@ use crate::{
 /// # use tari_crypto::ristretto::*;
 /// # use tari_crypto::keys::*;
 /// # use tari_crypto::signatures::SchnorrSignature;
-/// # use tari_crypto::hash::blake2::Blake256;
 /// # use tari_utilities::hex::*;
 /// # use tari_utilities::ByteArray;
 /// # use digest::Digest;
@@ -95,7 +93,6 @@ pub type RistrettoSchnorr = SchnorrSignature<RistrettoPublicKey, RistrettoSecret
 /// # use tari_crypto::keys::*;
 /// # use tari_crypto::hash_domain;
 /// # use tari_crypto::signatures::SchnorrSignature;
-/// # use tari_crypto::hash::blake2::Blake256;
 /// # use tari_utilities::hex::*;
 /// # use tari_utilities::ByteArray;
 /// # use digest::Digest;
@@ -117,14 +114,14 @@ pub type RistrettoSchnorrWithDomain<H> = SchnorrSignature<RistrettoPublicKey, Ri
 
 #[cfg(test)]
 mod test {
-    use digest::Digest;
+    use blake2::Blake2b;
+    use digest::{consts::U32, Digest};
     use tari_utilities::{
         hex::{from_hex, to_hex, Hex},
         ByteArray,
     };
 
     use crate::{
-        hash::blake2::Blake256,
         hash_domain,
         keys::{PublicKey, SecretKey},
         ristretto::{
@@ -151,10 +148,10 @@ mod test {
         let (k, P) = RistrettoPublicKey::random_keypair(&mut rng);
         let (r, R) = RistrettoPublicKey::random_keypair(&mut rng);
         // Use sign raw, and bind the nonce and public key manually
-        let e = Blake256::new()
-            .chain(P.as_bytes())
-            .chain(R.as_bytes())
-            .chain(b"Small Gods")
+        let e = Blake2b::<U32>::new()
+            .chain_update(P.as_bytes())
+            .chain_update(R.as_bytes())
+            .chain_update(b"Small Gods")
             .finalize();
         let e_key = RistrettoSecretKey::from_bytes(&e).unwrap();
         let s = &r + &e_key * &k;
@@ -166,7 +163,7 @@ mod test {
         // Doesn't work for invalid credentials
         assert!(!sig.verify_challenge(&R, &e));
         // Doesn't work for different challenge
-        let wrong_challenge = Blake256::digest(b"Guards! Guards!");
+        let wrong_challenge = Blake2b::<U32>::digest(b"Guards! Guards!");
         assert!(!sig.verify_challenge(&P, &wrong_challenge));
     }
 
@@ -182,12 +179,12 @@ mod test {
         let (k2, P2) = RistrettoPublicKey::random_keypair(&mut rng);
         let (r2, R2) = RistrettoPublicKey::random_keypair(&mut rng);
         // Each of them creates the Challenge = H(R1 || R2 || P1 || P2 || m)
-        let e = Blake256::new()
-            .chain(R1.as_bytes())
-            .chain(R2.as_bytes())
-            .chain(P1.as_bytes())
-            .chain(P2.as_bytes())
-            .chain(b"Moving Pictures")
+        let e = Blake2b::<U32>::new()
+            .chain_update(R1.as_bytes())
+            .chain_update(R2.as_bytes())
+            .chain_update(P1.as_bytes())
+            .chain_update(P2.as_bytes())
+            .chain_update(b"Moving Pictures")
             .finalize();
         // Calculate Alice's signature
         let s1 = RistrettoSchnorr::sign_raw(&k1, r1, &e).unwrap();
@@ -219,13 +216,13 @@ mod test {
         let R =
             RistrettoPublicKey::from_hex("fa14cb581ce5717248444721242e6b195a482d503a853dea4acb513074d8d803").unwrap();
         let msg = "Moving Pictures";
-        let hash = SchnorrSignature::<_, _, SchnorrSigChallenge>::construct_domain_separated_challenge::<_, Blake256>(
+        let hash = SchnorrSignature::<_, _, SchnorrSigChallenge>::construct_domain_separated_challenge::<_, Blake2b<U32>>(
             &R, &P, msg,
         );
-        let naiive = Blake256::new()
-            .chain(R.as_bytes())
-            .chain(P.as_bytes())
-            .chain(msg)
+        let naiive = Blake2b::<U32>::new()
+            .chain_update(R.as_bytes())
+            .chain_update(P.as_bytes())
+            .chain_update(msg)
             .finalize()
             .to_vec();
         assert_ne!(hash.as_ref(), naiive.as_bytes());
