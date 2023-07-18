@@ -468,7 +468,7 @@ impl Eq for RistrettoPublicKey {}
 
 impl PartialOrd for RistrettoPublicKey {
     fn partial_cmp(&self, other: &RistrettoPublicKey) -> Option<Ordering> {
-        self.compressed().as_bytes().partial_cmp(other.compressed().as_bytes())
+        Some(self.cmp(other))
     }
 }
 
