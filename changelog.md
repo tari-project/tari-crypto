@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.18.0](https://github.com/tari-project/tari-crypto/compare/v0.17.0...v0.18.0) (2023-07-18)
+
+
+### Features
+
+* remove unused dalek rangeproof ([#184](https://github.com/tari-project/tari-crypto/issues/184)) ([d21cd37](https://github.com/tari-project/tari-crypto/commit/d21cd377616776743b6e33552000cfc9fc06c0bd))
+* update dependancies ([#185](https://github.com/tari-project/tari-crypto/issues/185)) ([4c2424f](https://github.com/tari-project/tari-crypto/commit/4c2424f2f0426f9ad4a55a9ed35ecd29fe87e0c7))
+
 ## [0.17.0](https://github.com/tari-project/tari-crypto/compare/v0.16.12...v0.17.0) (2023-06-13)
 
 
