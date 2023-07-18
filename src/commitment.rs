@@ -81,7 +81,7 @@ impl<P> PartialOrd for HomomorphicCommitment<P>
 where P: PublicKey
 {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(&other))
+        Some(self.cmp(other))
     }
 }
 
