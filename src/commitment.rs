@@ -37,8 +37,9 @@ pub struct HomomorphicCommitment<P>(pub(crate) P);
 
 #[cfg(feature = "borsh")]
 impl<P: borsh::BorshDeserialize> borsh::BorshDeserialize for HomomorphicCommitment<P> {
-    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
-        Ok(Self(P::deserialize(buf)?))
+    fn deserialize_reader<R>(reader: &mut R) -> Result<Self, std::io::Error>
+    where R: std::io::Read {
+        Ok(Self(P::deserialize_reader(reader)?))
     }
 }
 
@@ -80,7 +81,7 @@ impl<P> PartialOrd for HomomorphicCommitment<P>
 where P: PublicKey
 {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.0.cmp(&other.0))
+        Some(self.cmp(other))
     }
 }
 

@@ -6,14 +6,14 @@
 //! using a function from this module. You should use a [crate::wasm::keyring::KeyRing] instead. But sometimes, these
 //! functions are handy.
 
-use blake2::Digest;
+use blake2::{Blake2b, Digest};
+use digest::consts::U32;
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use tari_utilities::hex::{from_hex, Hex};
 use wasm_bindgen::prelude::*;
 
 use crate::{
-    hash::blake2::Blake256,
     keys::{PublicKey, SecretKey},
     ristretto::{
         pedersen::{commitment_factory::PedersenCommitmentFactory, PedersenCommitment},
@@ -181,7 +181,7 @@ pub(super) fn sign_with_key(
         None => RistrettoPublicKey::random_keypair(&mut OsRng),
     };
     let P = RistrettoPublicKey::from_secret_key(k);
-    let e = RistrettoSchnorr::construct_domain_separated_challenge::<_, Blake256>(&R, &P, msg);
+    let e = RistrettoSchnorr::construct_domain_separated_challenge::<_, Blake2b<U32>>(&R, &P, msg);
     let sig = match RistrettoSchnorr::sign_raw(k, r, e.as_ref()) {
         Ok(s) => s,
         Err(e) => {
@@ -318,7 +318,7 @@ pub(crate) fn sign_comsig_message_with_key(
     nonce_2: Option<&RistrettoSecretKey>,
     result: &mut ComSignResult,
 ) {
-    let e = Blake256::digest(msg.as_bytes());
+    let e = Blake2b::<U32>::digest(msg.as_bytes());
     sign_comsig_with_key(private_key_a, private_key_x, e.as_slice(), nonce_1, nonce_2, result);
 }
 
@@ -399,7 +399,7 @@ pub fn check_comsig_signature(
     };
 
     let sig = RistrettoComSig::new(R, u, v);
-    let msg = Blake256::digest(msg.as_bytes());
+    let msg = Blake2b::<U32>::digest(msg.as_bytes());
     result.result = sig.verify_challenge(&public_commitment, msg.as_slice(), &factory);
     serde_wasm_bindgen::to_value(&result).unwrap()
 }
@@ -511,7 +511,7 @@ pub(crate) fn sign_comandpubsig_message_with_key(
     nonce_y: Option<&RistrettoSecretKey>,
     result: &mut ComAndPubSignResult,
 ) {
-    let e = Blake256::digest(msg.as_bytes());
+    let e = Blake2b::<U32>::digest(msg.as_bytes());
     sign_comandpubsig_with_key(
         private_key_a,
         private_key_x,
@@ -643,7 +643,7 @@ pub fn check_comandpubsig_signature(
     };
 
     let sig = RistrettoComAndPubSig::new(ephemeral_commitment, ephemeral_pubkey, u_a, u_x, u_y);
-    let msg = Blake256::digest(msg.as_bytes());
+    let msg = Blake2b::<U32>::digest(msg.as_bytes());
     result.result = sig.verify_challenge(&commitment, &pubkey, msg.as_slice(), &factory, &mut OsRng);
     serde_wasm_bindgen::to_value(&result).unwrap()
 }
@@ -727,8 +727,8 @@ mod test {
     const SAMPLE_CHALLENGE: &str =
         "Cormac was completely aware that he was being manipulated, but how he could not see.";
 
-    fn hash<T: AsRef<[u8]>>(preimage: T) -> Output<Blake256> {
-        Blake256::digest(preimage.as_ref())
+    fn hash<T: AsRef<[u8]>>(preimage: T) -> Output<Blake2b<U32>> {
+        Blake2b::<U32>::digest(preimage.as_ref())
     }
 
     fn hash_hex<T: AsRef<[u8]>>(preimage: T) -> String {

@@ -174,7 +174,7 @@ where
     /// From a canonical byte representation, retrieves a commitment signature
     pub fn from_bytes(buf: &[u8]) -> Result<Self, ByteArrayError> {
         if buf.len() != P::KEY_LEN + 2 * K::key_length() {
-            return Err(ByteArrayError::IncorrectLength);
+            return Err(ByteArrayError::IncorrectLength {});
         }
         let public_nonce = HomomorphicCommitment::from_public_key(&P::from_bytes(&buf[0..P::KEY_LEN])?);
         let u = K::from_bytes(&buf[P::KEY_LEN..P::KEY_LEN + K::key_length()])?;

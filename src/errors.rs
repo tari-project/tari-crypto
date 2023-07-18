@@ -45,11 +45,17 @@ pub enum HashingError {
     #[error("The input to the hashing function is too short.")]
     InputTooShort,
     /// Converting a byte string into a secret key failed
-    #[error("Converting a byte string into a secret key failed. {0}")]
-    ConversionFromBytes(#[from] ByteArrayError),
+    #[error("Converting a byte string into a secret key failed: {0}")]
+    ConversionFromBytes(String),
     /// The digest does not produce enough output
     #[error("The digest does produce enough output. {0} bytes are required.")]
     DigestTooShort(usize),
+}
+
+impl From<ByteArrayError> for HashingError {
+    fn from(byte_error: ByteArrayError) -> Self {
+        HashingError::ConversionFromBytes(byte_error.to_string())
+    }
 }
 
 /// Errors encountered when copying to a buffer

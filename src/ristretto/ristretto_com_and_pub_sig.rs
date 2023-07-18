@@ -42,12 +42,13 @@ use crate::{
 /// ```rust
 /// # use tari_crypto::ristretto::*;
 /// # use tari_crypto::keys::*;
-/// # use tari_crypto::hash::blake2::Blake256;
+/// # use blake2::Blake2b;
 /// # use digest::Digest;
 /// # use tari_crypto::commitment::HomomorphicCommitmentFactory;
 /// # use tari_crypto::ristretto::pedersen::*;
 /// use tari_crypto::ristretto::pedersen::commitment_factory::PedersenCommitmentFactory;
 /// use tari_utilities::hex::Hex;
+/// use digest::consts::U32;
 ///
 /// let mut rng = rand::thread_rng();
 /// let a_val = RistrettoSecretKey::random(&mut rng);
@@ -56,7 +57,7 @@ use crate::{
 /// let a_nonce = RistrettoSecretKey::random(&mut rng);
 /// let x_nonce = RistrettoSecretKey::random(&mut rng);
 /// let y_nonce = RistrettoSecretKey::random(&mut rng);
-/// let e = Blake256::digest(b"Maskerade"); // In real life, this should be strong Fiat-Shamir!
+/// let e = Blake2b::<U32>::digest(b"Maskerade"); // In real life, this should be strong Fiat-Shamir!
 /// let factory = PedersenCommitmentFactory::default();
 /// let commitment = factory.commit(&x_val, &a_val);
 /// let pubkey = RistrettoPublicKey::from_secret_key(&y_val);
@@ -70,12 +71,12 @@ pub type RistrettoComAndPubSig = CommitmentAndPublicKeySignature<RistrettoPublic
 
 #[cfg(test)]
 mod test {
-    use digest::Digest;
+    use blake2::Blake2b;
+    use digest::{consts::U32, Digest};
     use tari_utilities::{hex::from_hex, ByteArray};
 
     use crate::{
         commitment::HomomorphicCommitmentFactory,
-        hash::blake2::Blake256,
         keys::{PublicKey, SecretKey},
         ristretto::{
             pedersen::{commitment_factory::PedersenCommitmentFactory, PedersenCommitment},
@@ -132,12 +133,12 @@ mod test {
         let ephemeral_pubkey = RistrettoPublicKey::from_secret_key(&r_y);
 
         // Challenge; doesn't use proper Fiat-Shamir, so it's for testing only!
-        let challenge = Blake256::new()
-            .chain(commitment.as_bytes())
-            .chain(pubkey.as_bytes())
-            .chain(ephemeral_commitment.as_bytes())
-            .chain(ephemeral_pubkey.as_bytes())
-            .chain(b"Small Gods")
+        let challenge = Blake2b::<U32>::new()
+            .chain_update(commitment.as_bytes())
+            .chain_update(pubkey.as_bytes())
+            .chain_update(ephemeral_commitment.as_bytes())
+            .chain_update(ephemeral_pubkey.as_bytes())
+            .chain_update(b"Small Gods")
             .finalize();
         let e_key = RistrettoSecretKey::from_bytes(&challenge).unwrap();
 
@@ -177,7 +178,7 @@ mod test {
         assert!(!sig.verify_challenge(&commitment, &evil_pubkey, &challenge, &factory, &mut rng));
 
         // A different challenge should fail
-        let evil_challenge = Blake256::digest(b"Guards! Guards!");
+        let evil_challenge = Blake2b::<U32>::digest(b"Guards! Guards!");
         assert!(!sig.verify_challenge(&commitment, &pubkey, &evil_challenge, &factory, &mut rng));
     }
 
@@ -204,12 +205,12 @@ mod test {
         let ephemeral_pubkey = RistrettoPublicKey::from_secret_key(&r_y);
 
         // Challenge; doesn't use proper Fiat-Shamir, so it's for testing only!
-        let challenge = Blake256::new()
-            .chain(commitment.as_bytes())
-            .chain(pubkey.as_bytes())
-            .chain(ephemeral_commitment.as_bytes())
-            .chain(ephemeral_pubkey.as_bytes())
-            .chain(b"Small Gods")
+        let challenge = Blake2b::<U32>::new()
+            .chain_update(commitment.as_bytes())
+            .chain_update(pubkey.as_bytes())
+            .chain_update(ephemeral_commitment.as_bytes())
+            .chain_update(ephemeral_pubkey.as_bytes())
+            .chain_update(b"Small Gods")
             .finalize();
 
         let sig_total =
@@ -291,7 +292,7 @@ mod test {
         let ephemeral_pubkey_bob = RistrettoPublicKey::from_secret_key(&r_y_bob);
 
         // The challenge is common to Alice and Bob; here we use an arbitrary hash
-        let challenge = Blake256::digest(b"Test challenge");
+        let challenge = Blake2b::<U32>::digest(b"Test challenge");
 
         // Alice's signature
         let sig_alice = RistrettoComAndPubSig::sign(

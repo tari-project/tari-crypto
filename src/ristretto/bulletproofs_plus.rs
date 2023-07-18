@@ -659,7 +659,7 @@ mod test {
                     let mut statements = vec![];
                     let mut extended_witnesses = vec![];
                     for m in 0..aggregation_size {
-                        let value = rng.gen_range(value_min, value_max);
+                        let value = rng.gen_range(value_min..value_max);
                         let minimum_value_promise = if m == 0 { value / 3 } else { 0 };
                         let secrets =
                             vec![RistrettoSecretKey(Scalar::random_not_zero(&mut rng)); extension_degree as usize];
@@ -797,7 +797,7 @@ mod test {
                 let mut statements = vec![];
                 let mut extended_witnesses = vec![];
                 for _m in 0..aggregation_size {
-                    let value = rng.gen_range(value_min, value_max);
+                    let value = rng.gen_range(value_min..value_max);
                     let minimum_value_promise = value / 3;
                     let secrets =
                         vec![RistrettoSecretKey(Scalar::random_not_zero(&mut rng)); extension_degree as usize];
@@ -851,7 +851,7 @@ mod test {
         provers_bulletproofs_plus_service.custom_transcript_label("123 range proof");
 
         // 2. Create witness data
-        let value = rng.gen_range(value_min, value_max);
+        let value = rng.gen_range(value_min..value_max);
         let minimum_value_promise = value / 3;
         let secrets = vec![RistrettoSecretKey(Scalar::random_not_zero(&mut rng)); extension_degree as usize];
         let extended_mask = RistrettoExtendedMask::assign(extension_degree, secrets.clone()).unwrap();
@@ -958,7 +958,7 @@ mod test {
         provers_bulletproofs_plus_service.custom_transcript_label("123 range proof");
 
         // 2. Create witness data
-        let value = rng.gen_range(value_min, value_max);
+        let value = rng.gen_range(value_min..value_max);
         let mask = RistrettoSecretKey(Scalar::random_not_zero(&mut rng));
         let commitment = factory.commit_value(&mask, value);
 
