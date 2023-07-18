@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file. See [standa
 
 ## [0.18.0](https://github.com/tari-project/tari-crypto/compare/v0.17.0...v0.18.0) (2023-07-18)
 
+### ⚠ BREAKING CHANGES
+
+* Update of dependancies to mayor new versions (#185)
 
 ### Features
 
