@@ -26,7 +26,7 @@ use digest::{
 use once_cell::sync::OnceCell;
 use rand::{CryptoRng, Rng};
 use tari_utilities::{hex::Hex, ByteArray, ByteArrayError, Hashable};
-use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::{
     errors::HashingError,
