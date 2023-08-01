@@ -538,7 +538,7 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
 
 #[cfg(test)]
 mod test {
-    use std::{borrow::Borrow, collections::HashMap};
+    use std::collections::HashMap;
 
     use bulletproofs_plus::protocols::scalar_protocol::ScalarProtocol;
     use curve25519_dalek::scalar::Scalar;
@@ -615,8 +615,9 @@ mod test {
                             value >> (bit_length - 1) <= 1
                         {
                             assert!(proof.is_ok());
-                            assert!(bulletproofs_plus_service
-                                .verify(&proof.unwrap(), factory.commit_value(&key, value).borrow()));
+                            assert!(
+                                bulletproofs_plus_service.verify(&proof.unwrap(), &factory.commit_value(&key, value))
+                            );
                         } else {
                             assert!(proof.is_err());
                         }
