@@ -3,7 +3,7 @@
 
 //! This module contains implementations using the Ristretto curve.
 
-#[cfg(feature = "std")]
+#[cfg(feature = "bulletproofs_plus")]
 pub mod bulletproofs_plus;
 pub mod constants;
 pub mod pedersen;

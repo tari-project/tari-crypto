@@ -36,8 +36,7 @@ rand = { version = "0.8" }
 
 
 [features]
-default = ["std", "serde", "precomputed_tables"]
-std = ["bulletproofs_plus"]
+default = ["bulletproofs_plus", "serde", "precomputed_tables"]
 precomputed_tables = []
 
 [lib]

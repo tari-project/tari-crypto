@@ -12,8 +12,6 @@ use core::{
 };
 
 use blake2::Blake2b;
-#[cfg(feature = "borsh")]
-use borsh::maybestd::{io, io::Write};
 use curve25519_dalek::{
     constants::RISTRETTO_BASEPOINT_TABLE,
     ristretto::{CompressedRistretto, RistrettoPoint},
@@ -58,17 +56,18 @@ pub struct RistrettoSecretKey(pub(crate) Scalar);
 
 #[cfg(feature = "borsh")]
 impl borsh::BorshSerialize for RistrettoSecretKey {
-    fn serialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
+    fn serialize<W: borsh::maybestd::io::Write>(&self, writer: &mut W) -> borsh::maybestd::io::Result<()> {
         borsh::BorshSerialize::serialize(&self.as_bytes(), writer)
     }
 }
 
 #[cfg(feature = "borsh")]
 impl borsh::BorshDeserialize for RistrettoSecretKey {
-    fn deserialize_reader<R>(reader: &mut R) -> Result<Self, io::Error>
-    where R: io::Read {
+    fn deserialize_reader<R>(reader: &mut R) -> Result<Self, borsh::maybestd::io::Error>
+    where R: borsh::maybestd::io::Read {
         let bytes: Vec<u8> = borsh::BorshDeserialize::deserialize_reader(reader)?;
-        Self::from_bytes(bytes.as_slice()).map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e.to_string()))
+        Self::from_bytes(bytes.as_slice())
+            .map_err(|e| borsh::maybestd::io::Error::new(borsh::maybestd::io::ErrorKind::InvalidInput, e.to_string()))
     }
 }
 
@@ -264,17 +263,18 @@ pub struct RistrettoPublicKey {
 
 #[cfg(feature = "borsh")]
 impl borsh::BorshSerialize for RistrettoPublicKey {
-    fn serialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
+    fn serialize<W: borsh::maybestd::io::Write>(&self, writer: &mut W) -> borsh::maybestd::io::Result<()> {
         borsh::BorshSerialize::serialize(&self.as_bytes(), writer)
     }
 }
 
 #[cfg(feature = "borsh")]
 impl borsh::BorshDeserialize for RistrettoPublicKey {
-    fn deserialize_reader<R>(reader: &mut R) -> Result<Self, io::Error>
-    where R: io::Read {
+    fn deserialize_reader<R>(reader: &mut R) -> Result<Self, borsh::maybestd::io::Error>
+    where R: borsh::maybestd::io::Read {
         let bytes: Vec<u8> = borsh::BorshDeserialize::deserialize_reader(reader)?;
-        Self::from_bytes(bytes.as_slice()).map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e.to_string()))
+        Self::from_bytes(bytes.as_slice())
+            .map_err(|e| borsh::maybestd::io::Error::new(borsh::maybestd::io::ErrorKind::InvalidInput, e.to_string()))
     }
 }
 

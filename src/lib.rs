@@ -8,7 +8,7 @@
 #[macro_use]
 extern crate alloc;
 
-#[cfg(any(feature = "wasm", feature = "ffi", feature = "std", test))]
+#[cfg(any(feature = "wasm", feature = "ffi", feature = "bulletproofs_plus", test))]
 #[macro_use]
 extern crate std;
 
@@ -19,9 +19,9 @@ pub mod deterministic_randomizer;
 pub mod dhke;
 pub mod hashing;
 pub mod keys;
-#[cfg(feature = "std")]
+#[cfg(feature = "bulletproofs_plus")]
 pub mod range_proof;
-#[cfg(feature = "std")]
+#[cfg(feature = "bulletproofs_plus")]
 pub mod rewindable_range_proof;
 pub mod signatures;
 
@@ -30,7 +30,7 @@ pub mod signatures;
 pub mod ristretto;
 
 pub mod errors;
-#[cfg(feature = "std")]
+#[cfg(feature = "bulletproofs_plus")]
 pub mod extended_range_proof;
 
 // Re-export tari_utils
