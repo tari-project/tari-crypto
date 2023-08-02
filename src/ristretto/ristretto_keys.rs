@@ -19,7 +19,7 @@ use curve25519_dalek::{
     traits::MultiscalarMul,
 };
 use digest::{consts::U64, Digest};
-use once_cell::unsync::OnceCell;
+use once_cell::sync::OnceCell;
 use rand_core::{CryptoRng, RngCore};
 use tari_utilities::{hex::Hex, ByteArray, ByteArrayError, Hashable};
 use zeroize::{Zeroize, ZeroizeOnDrop};
