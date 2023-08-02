@@ -8,15 +8,12 @@ use curve25519_dalek::{
     traits::{Identity, MultiscalarMul},
 };
 
+#[cfg(feature = "precomputed_tables")]
+use crate::ristretto::pedersen::scalar_mul_with_pre_computation_tables;
 use crate::{
     commitment::{HomomorphicCommitment, HomomorphicCommitmentFactory},
     ristretto::{
-        pedersen::{
-            scalar_mul_with_pre_computation_tables,
-            PedersenCommitment,
-            RISTRETTO_PEDERSEN_G,
-            RISTRETTO_PEDERSEN_H,
-        },
+        pedersen::{ristretto_pedersen_h, PedersenCommitment, RISTRETTO_PEDERSEN_G},
         RistrettoPublicKey,
         RistrettoSecretKey,
     },
@@ -43,7 +40,7 @@ impl PedersenCommitmentFactory {
 impl Default for PedersenCommitmentFactory {
     /// The default Ristretto Commitment factory uses the Base point for x25519 and its first Blake256 hash.
     fn default() -> Self {
-        PedersenCommitmentFactory::new(RISTRETTO_PEDERSEN_G, *RISTRETTO_PEDERSEN_H)
+        PedersenCommitmentFactory::new(RISTRETTO_PEDERSEN_G, *ristretto_pedersen_h())
     }
 }
 
@@ -53,8 +50,15 @@ impl HomomorphicCommitmentFactory for PedersenCommitmentFactory {
     #[allow(non_snake_case)]
     fn commit(&self, k: &RistrettoSecretKey, v: &RistrettoSecretKey) -> PedersenCommitment {
         // If we're using the default generators, speed it up using pre-computation tables
-        let c = if (self.G, self.H) == (RISTRETTO_PEDERSEN_G, *RISTRETTO_PEDERSEN_H) {
-            scalar_mul_with_pre_computation_tables(&k.0, &v.0)
+        let c = if (self.G, self.H) == (RISTRETTO_PEDERSEN_G, *ristretto_pedersen_h()) {
+            #[cfg(feature = "precomputed_tables")]
+            {
+                scalar_mul_with_pre_computation_tables(&k.0, &v.0)
+            }
+            #[cfg(not(feature = "precomputed_tables"))]
+            {
+                RistrettoPoint::multiscalar_mul(&[v.0, k.0], &[self.H, self.G])
+            }
         } else {
             RistrettoPoint::multiscalar_mul(&[v.0, k.0], &[self.H, self.G])
         };
@@ -83,6 +87,7 @@ impl HomomorphicCommitmentFactory for PedersenCommitmentFactory {
 
 #[cfg(test)]
 mod test {
+    use alloc::vec::Vec;
     use std::{
         collections::hash_map::DefaultHasher,
         convert::From,
@@ -90,7 +95,6 @@ mod test {
     };
 
     use curve25519_dalek::scalar::Scalar;
-    use tari_utilities::message_format::MessageFormat;
 
     use super::*;
     use crate::{
@@ -103,7 +107,7 @@ mod test {
     fn check_default_base() {
         let base = PedersenCommitmentFactory::default();
         assert_eq!(base.G, RISTRETTO_PEDERSEN_G);
-        assert_eq!(base.H, *RISTRETTO_PEDERSEN_H)
+        assert_eq!(base.H, *ristretto_pedersen_h())
     }
 
     #[test]
@@ -111,7 +115,7 @@ mod test {
     fn check_zero() {
         let c = RistrettoPoint::multiscalar_mul(&[Scalar::ZERO, Scalar::ZERO], &[
             RISTRETTO_PEDERSEN_G,
-            *RISTRETTO_PEDERSEN_H,
+            *ristretto_pedersen_h(),
         ]);
         let factory = PedersenCommitmentFactory::default();
         assert_eq!(
@@ -126,7 +130,7 @@ mod test {
     #[allow(non_snake_case)]
     fn check_open() {
         let factory = PedersenCommitmentFactory::default();
-        let H = *RISTRETTO_PEDERSEN_H;
+        let H = *ristretto_pedersen_h();
         let mut rng = rand::thread_rng();
         for _ in 0..100 {
             let v = RistrettoSecretKey::random(&mut rng);
@@ -220,9 +224,10 @@ mod test {
         assert!(commitment_factory.open(&k_sum, &v_sum, &c_sum));
         assert_eq!(c_sum, commitments.iter().sum());
     }
-
+    #[cfg(feature = "serde")]
     #[test]
     fn serialize_deserialize() {
+        use tari_utilities::message_format::MessageFormat;
         let mut rng = rand::thread_rng();
         let factory = PedersenCommitmentFactory::default();
         let k = RistrettoSecretKey::random(&mut rng);

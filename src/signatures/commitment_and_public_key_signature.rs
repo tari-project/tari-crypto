@@ -1,27 +1,29 @@
 // Copyright 2021. The Tari Project
 // SPDX-License-Identifier: BSD-3-Clause
 
-use std::{
+use alloc::vec::Vec;
+use core::{
     cmp::Ordering,
     hash::{Hash, Hasher},
     ops::{Add, Mul},
 };
 
-use rand::{CryptoRng, RngCore};
-use serde::{Deserialize, Serialize};
+use rand_core::{CryptoRng, RngCore};
+use snafu::prelude::*;
 use tari_utilities::ByteArray;
-use thiserror::Error;
 
 use crate::{
+    alloc::borrow::ToOwned,
     commitment::{HomomorphicCommitment, HomomorphicCommitmentFactory},
     keys::{PublicKey, SecretKey},
 };
 
 /// An error when creating a commitment signature
-#[derive(Clone, Debug, Error, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Snafu, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[allow(missing_docs)]
 pub enum CommitmentAndPublicKeySignatureError {
-    #[error("An invalid challenge was provided")]
+    #[snafu(display("An invalid challenge was provided"))]
     InvalidChallenge,
 }
 
@@ -53,8 +55,9 @@ pub enum CommitmentAndPublicKeySignatureError {
 /// The use of efficient multiscalar multiplication algorithms may also be useful for efficiency.
 /// The use of precomputation tables for `G` and `H` may also be useful for efficiency.
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 #[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize, borsh::BorshDeserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CommitmentAndPublicKeySignature<P, K> {
     ephemeral_commitment: HomomorphicCommitment<P>,
     ephemeral_pubkey: P,

@@ -3,6 +3,8 @@
 
 //! Extended range proofs
 
+use std::{string::ToString, vec::Vec};
+
 use crate::{
     commitment::{ExtensionDegree, HomomorphicCommitment},
     errors::RangeProofError,
@@ -110,9 +112,9 @@ where K: SecretKey
     /// Construct a new extended mask
     pub fn assign(extension_degree: ExtensionDegree, secrets: Vec<K>) -> Result<ExtendedMask<K>, RangeProofError> {
         if secrets.is_empty() || secrets.len() != extension_degree as usize {
-            Err(RangeProofError::InitializationError(
-                "Extended mask length must correspond to the extension degree".to_string(),
-            ))
+            Err(RangeProofError::InitializationError {
+                reason: "Extended mask length must correspond to the extension degree".to_string(),
+            })
         } else {
             Ok(Self { secrets })
         }
@@ -152,9 +154,9 @@ where PK: PublicKey
     /// - `statements` must be a power of 2 as mandated by the `bulletproofs_plus` implementation
     pub fn init(statements: Vec<Statement<PK>>) -> Result<Self, RangeProofError> {
         if !statements.len().is_power_of_two() {
-            return Err(RangeProofError::InitializationError(
-                "Number of commitments must be a power of two".to_string(),
-            ));
+            return Err(RangeProofError::InitializationError {
+                reason: "Number of commitments must be a power of two".to_string(),
+            });
         }
         Ok(Self { statements })
     }
@@ -180,14 +182,14 @@ where PK: PublicKey
     /// - mask recovery is not supported with an aggregated statement/proof
     pub fn init(statements: Vec<Statement<PK>>, recovery_seed_nonce: Option<PK::K>) -> Result<Self, RangeProofError> {
         if recovery_seed_nonce.is_some() && statements.len() > 1 {
-            return Err(RangeProofError::InitializationError(
-                "Mask recovery is not supported with an aggregated statement".to_string(),
-            ));
+            return Err(RangeProofError::InitializationError {
+                reason: "Mask recovery is not supported with an aggregated statement".to_string(),
+            });
         }
         if !statements.len().is_power_of_two() {
-            return Err(RangeProofError::InitializationError(
-                "Number of commitments must be a power of two".to_string(),
-            ));
+            return Err(RangeProofError::InitializationError {
+                reason: "Number of commitments must be a power of two".to_string(),
+            });
         }
         Ok(Self {
             statements,

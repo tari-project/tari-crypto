@@ -3,18 +3,22 @@
 
 //! Pederson commitments utilities
 
-use std::{borrow::Borrow, iter::Sum};
+use core::{borrow::Borrow, iter::Sum};
 
+#[cfg(feature = "precomputed_tables")]
+use curve25519_dalek::{constants::RISTRETTO_BASEPOINT_TABLE, scalar::Scalar};
 use curve25519_dalek::{
-    constants::{RISTRETTO_BASEPOINT_COMPRESSED, RISTRETTO_BASEPOINT_POINT, RISTRETTO_BASEPOINT_TABLE},
+    constants::{RISTRETTO_BASEPOINT_COMPRESSED, RISTRETTO_BASEPOINT_POINT},
     ristretto::{CompressedRistretto, RistrettoPoint},
-    scalar::Scalar,
 };
+use once_cell::sync::OnceCell;
 
+#[cfg(feature = "precomputed_tables")]
+use crate::ristretto::constants::ristretto_nums_table_0;
 use crate::{
     commitment::HomomorphicCommitment,
     ristretto::{
-        constants::{RISTRETTO_NUMS_POINTS, RISTRETTO_NUMS_POINTS_COMPRESSED, RISTRETTO_NUMS_TABLE_0},
+        constants::{ristretto_nums_points, RISTRETTO_NUMS_POINTS_COMPRESSED},
         RistrettoPublicKey,
     },
 };
@@ -26,11 +30,15 @@ pub mod extended_commitment_factory;
 pub const RISTRETTO_PEDERSEN_G: RistrettoPoint = RISTRETTO_BASEPOINT_POINT;
 /// The default generator on a Pedersen commitment used for the blinding factor in a compressed form
 pub const RISTRETTO_PEDERSEN_G_COMPRESSED: CompressedRistretto = RISTRETTO_BASEPOINT_COMPRESSED;
-lazy_static! {
-    /// The default generator on a Pedersen commitment used for the value
-    pub static ref RISTRETTO_PEDERSEN_H: RistrettoPoint = RISTRETTO_NUMS_POINTS[0];
-    /// The default generator on a Pedersen commitment used for the value in a compressed form
-    pub static ref RISTRETTO_PEDERSEN_H_COMPRESSED: CompressedRistretto = RISTRETTO_NUMS_POINTS_COMPRESSED[0];
+/// The default generator on a Pedersen commitment used for the value
+pub fn ristretto_pedersen_h() -> &'static RistrettoPoint {
+    static INSTANCE: OnceCell<RistrettoPoint> = OnceCell::new();
+    INSTANCE.get_or_init(|| ristretto_nums_points()[0])
+}
+/// The default generator on a Pedersen commitment used for the value in a compressed form
+pub fn ristretto_pedersen_h_compressed() -> &'static CompressedRistretto {
+    static INSTANCE: OnceCell<CompressedRistretto> = OnceCell::new();
+    INSTANCE.get_or_init(|| RISTRETTO_NUMS_POINTS_COMPRESSED[0])
 }
 
 /// The Pedersen commitment
@@ -51,8 +59,9 @@ where T: Borrow<PedersenCommitment>
     }
 }
 
+#[cfg(feature = "precomputed_tables")]
 pub(crate) fn scalar_mul_with_pre_computation_tables(k: &Scalar, v: &Scalar) -> RistrettoPoint {
-    RISTRETTO_BASEPOINT_TABLE * k + &*RISTRETTO_NUMS_TABLE_0 * v
+    RISTRETTO_BASEPOINT_TABLE * k + &*ristretto_nums_table_0() * v
 }
 
 #[cfg(test)]
@@ -66,9 +75,9 @@ mod test {
             pedersen::{
                 commitment_factory::PedersenCommitmentFactory,
                 extended_commitment_factory::ExtendedPedersenCommitmentFactory,
+                ristretto_pedersen_h,
                 PedersenCommitment,
                 RISTRETTO_PEDERSEN_G,
-                RISTRETTO_PEDERSEN_H,
             },
             RistrettoPublicKey,
             RistrettoSecretKey,
@@ -99,7 +108,7 @@ mod test {
 
     #[test]
     fn check_g_ne_h() {
-        assert_ne!(RISTRETTO_PEDERSEN_G, *RISTRETTO_PEDERSEN_H);
+        assert_ne!(RISTRETTO_PEDERSEN_G, *ristretto_pedersen_h());
     }
 
     #[test]

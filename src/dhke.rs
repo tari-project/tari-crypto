@@ -9,7 +9,7 @@
 //! clone the byte array without a very good reason. If you need the underlying public key itself, you probably should
 //! be using something else.
 
-use std::ops::Mul;
+use core::ops::Mul;
 
 use zeroize::Zeroize;
 

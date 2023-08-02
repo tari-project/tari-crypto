@@ -3,7 +3,8 @@
 
 //! Extended commitments are commitments that have more than one blinding factor.
 
-use std::{borrow::Borrow, iter::once};
+use alloc::vec::Vec;
+use core::{borrow::Borrow, iter::once};
 
 use curve25519_dalek::{
     ristretto::{CompressedRistretto, RistrettoPoint},
@@ -11,7 +12,10 @@ use curve25519_dalek::{
     traits::{Identity, MultiscalarMul},
 };
 
+#[cfg(feature = "precomputed_tables")]
+use crate::ristretto::pedersen::scalar_mul_with_pre_computation_tables;
 use crate::{
+    alloc::string::ToString,
     commitment::{
         ExtendedHomomorphicCommitmentFactory,
         ExtensionDegree,
@@ -20,14 +24,13 @@ use crate::{
     },
     errors::CommitmentError,
     ristretto::{
-        constants::{RISTRETTO_NUMS_POINTS, RISTRETTO_NUMS_POINTS_COMPRESSED},
+        constants::{ristretto_nums_points, RISTRETTO_NUMS_POINTS_COMPRESSED},
         pedersen::{
-            scalar_mul_with_pre_computation_tables,
+            ristretto_pedersen_h,
+            ristretto_pedersen_h_compressed,
             PedersenCommitment,
             RISTRETTO_PEDERSEN_G,
             RISTRETTO_PEDERSEN_G_COMPRESSED,
-            RISTRETTO_PEDERSEN_H,
-            RISTRETTO_PEDERSEN_H_COMPRESSED,
         },
         RistrettoPublicKey,
         RistrettoSecretKey,
@@ -56,24 +59,24 @@ impl ExtendedPedersenCommitmentFactory {
     /// Create a new Extended Pedersen Ristretto Commitment factory for the required extension degree using
     /// pre-calculated compressed constants - we only hold references to the static generator points.
     pub fn new_with_extension_degree(extension_degree: ExtensionDegree) -> Result<Self, CommitmentError> {
-        if extension_degree as usize > RISTRETTO_NUMS_POINTS.len() ||
+        if extension_degree as usize > ristretto_nums_points().len() ||
             extension_degree as usize > RISTRETTO_NUMS_POINTS_COMPRESSED.len()
         {
-            return Err(CommitmentError::ExtensionDegree(
-                "Not enough Ristretto NUMS points to construct the extended commitment factory".to_string(),
-            ));
+            return Err(CommitmentError::CommitmentExtensionDegree {
+                reason: "Not enough Ristretto NUMS points to construct the extended commitment factory".to_string(),
+            });
         }
-        let g_base_vec = std::iter::once(&RISTRETTO_PEDERSEN_G)
-            .chain(RISTRETTO_NUMS_POINTS[1..extension_degree as usize].iter())
+        let g_base_vec = once(&RISTRETTO_PEDERSEN_G)
+            .chain(ristretto_nums_points()[1..extension_degree as usize].iter())
             .copied()
             .collect();
-        let g_base_compressed_vec = std::iter::once(&RISTRETTO_PEDERSEN_G_COMPRESSED)
+        let g_base_compressed_vec = once(&RISTRETTO_PEDERSEN_G_COMPRESSED)
             .chain(RISTRETTO_NUMS_POINTS_COMPRESSED[1..extension_degree as usize].iter())
             .copied()
             .collect();
         Ok(Self {
-            h_base: *RISTRETTO_PEDERSEN_H,
-            h_base_compressed: *RISTRETTO_PEDERSEN_H_COMPRESSED,
+            h_base: *ristretto_pedersen_h(),
+            h_base_compressed: *ristretto_pedersen_h_compressed(),
             g_base_vec,
             g_base_compressed_vec,
             extension_degree,
@@ -90,11 +93,23 @@ impl ExtendedPedersenCommitmentFactory {
         for<'a> &'a Scalar: Borrow<Scalar>,
     {
         if blinding_factors.is_empty() || blinding_factors.len() > self.extension_degree as usize {
-            Err(CommitmentError::ExtensionDegree("blinding vector".to_string()))
+            Err(CommitmentError::CommitmentExtensionDegree {
+                reason: "blinding vector".to_string(),
+            })
         } else if blinding_factors.len() == 1 &&
-            (self.g_base_vec[0], self.h_base) == (RISTRETTO_PEDERSEN_G, *RISTRETTO_PEDERSEN_H)
+            (self.g_base_vec[0], self.h_base) == (RISTRETTO_PEDERSEN_G, *ristretto_pedersen_h())
         {
-            Ok(scalar_mul_with_pre_computation_tables(&blinding_factors[0], value))
+            #[cfg(feature = "precomputed_tables")]
+            {
+                Ok(scalar_mul_with_pre_computation_tables(&blinding_factors[0], value))
+            }
+            #[cfg(not(feature = "precomputed_tables"))]
+            {
+                let scalars = once(value).chain(blinding_factors);
+                let g_base_head = self.g_base_vec.iter().take(blinding_factors.len());
+                let points = once(&self.h_base).chain(g_base_head);
+                Ok(RistrettoPoint::multiscalar_mul(scalars, points))
+            }
         } else {
             let scalars = once(value).chain(blinding_factors);
             let g_base_head = self.g_base_vec.iter().take(blinding_factors.len());
@@ -168,7 +183,7 @@ impl ExtendedHomomorphicCommitmentFactory for ExtendedPedersenCommitmentFactory 
     ) -> Result<bool, CommitmentError> {
         let c_test = self
             .commit_extended(k_vec, v)
-            .map_err(|e| CommitmentError::ExtensionDegree(e.to_string()))?;
+            .map_err(|e| CommitmentError::CommitmentExtensionDegree { reason: e.to_string() })?;
         Ok(commitment == &c_test)
     }
 
@@ -194,6 +209,7 @@ impl ExtendedHomomorphicCommitmentFactory for ExtendedPedersenCommitmentFactory 
 
 #[cfg(test)]
 mod test {
+    use alloc::vec::Vec;
     use std::{
         collections::hash_map::DefaultHasher,
         hash::{Hash, Hasher},
@@ -201,7 +217,6 @@ mod test {
 
     use curve25519_dalek::{ristretto::RistrettoPoint, scalar::Scalar, traits::MultiscalarMul};
     use rand::rngs::ThreadRng;
-    use tari_utilities::message_format::MessageFormat;
 
     use crate::{
         commitment::{
@@ -212,13 +227,12 @@ mod test {
         },
         keys::{PublicKey, SecretKey},
         ristretto::{
-            constants::RISTRETTO_NUMS_POINTS,
+            constants::ristretto_nums_points,
             pedersen::{
                 commitment_factory::PedersenCommitmentFactory,
                 extended_commitment_factory::ExtendedPedersenCommitmentFactory,
-                PedersenCommitment,
+                ristretto_pedersen_h,
                 RISTRETTO_PEDERSEN_G,
-                RISTRETTO_PEDERSEN_H,
             },
             RistrettoPublicKey,
             RistrettoSecretKey,
@@ -238,7 +252,7 @@ mod test {
     fn check_default_base() {
         let factory = ExtendedPedersenCommitmentFactory::default();
         assert_eq!(factory.g_base_vec[0], RISTRETTO_PEDERSEN_G);
-        assert_eq!(factory.h_base, *RISTRETTO_PEDERSEN_H);
+        assert_eq!(factory.h_base, *ristretto_pedersen_h());
         assert_eq!(
             factory,
             ExtendedPedersenCommitmentFactory::new_with_extension_degree(ExtensionDegree::DefaultPedersen).unwrap()
@@ -291,7 +305,7 @@ mod test {
     #[test]
     #[allow(non_snake_case)]
     fn check_open_both_traits() {
-        let H = *RISTRETTO_PEDERSEN_H;
+        let H = *ristretto_pedersen_h();
         let mut rng = rand::thread_rng();
         for extension_degree in EXTENSION_DEGREE {
             let factory = ExtendedPedersenCommitmentFactory::new_with_extension_degree(extension_degree).unwrap();
@@ -301,7 +315,7 @@ mod test {
                 let c_extended = factory.commit_extended(&k_vec, &v).unwrap();
                 let mut c_calc: RistrettoPoint = v.0 * H + k_vec[0].0 * RISTRETTO_PEDERSEN_G;
                 for i in 1..(extension_degree as usize) {
-                    c_calc += k_vec[i].0 * RISTRETTO_NUMS_POINTS[i];
+                    c_calc += k_vec[i].0 * ristretto_nums_points()[i];
                 }
                 assert_eq!(RistrettoPoint::from(c_extended.as_public_key()), c_calc);
 
@@ -539,41 +553,48 @@ mod test {
         }
     }
 
-    #[test]
-    fn serialize_deserialize_singular() {
-        let mut rng = rand::thread_rng();
-        let factory = ExtendedPedersenCommitmentFactory::default();
-        let k = RistrettoSecretKey::random(&mut rng);
-        let c = factory.commit_value(&k, 420);
-        // Base64
-        let ser_c = c.to_base64().unwrap();
-        let c2 = PedersenCommitment::from_base64(&ser_c).unwrap();
-        assert!(factory.open_value(&k, 420, &c2));
-        // MessagePack
-        let ser_c = c.to_binary().unwrap();
-        let c2 = PedersenCommitment::from_binary(&ser_c).unwrap();
-        assert!(factory.open_value(&k, 420, &c2));
-        // Invalid Base64
-        assert!(PedersenCommitment::from_base64("bad@ser$").is_err());
-    }
+    #[cfg(feature = "serde")]
+    mod test_serialize {
+        use tari_utilities::message_format::MessageFormat;
 
-    #[test]
-    fn serialize_deserialize_extended() {
-        let mut rng = rand::thread_rng();
-        for extension_degree in EXTENSION_DEGREE {
-            let factory = ExtendedPedersenCommitmentFactory::new_with_extension_degree(extension_degree).unwrap();
-            let k_vec = vec![RistrettoSecretKey::random(&mut rng); extension_degree as usize];
-            let c = factory.commit_value_extended(&k_vec, 420).unwrap();
+        use super::*;
+        use crate::ristretto::pedersen::PedersenCommitment;
+        #[test]
+        fn serialize_deserialize_singular() {
+            let mut rng = rand::thread_rng();
+            let factory = ExtendedPedersenCommitmentFactory::default();
+            let k = RistrettoSecretKey::random(&mut rng);
+            let c = factory.commit_value(&k, 420);
             // Base64
             let ser_c = c.to_base64().unwrap();
             let c2 = PedersenCommitment::from_base64(&ser_c).unwrap();
-            assert!(factory.open_value_extended(&k_vec, 420, &c2).unwrap());
+            assert!(factory.open_value(&k, 420, &c2));
             // MessagePack
             let ser_c = c.to_binary().unwrap();
             let c2 = PedersenCommitment::from_binary(&ser_c).unwrap();
-            assert!(factory.open_value_extended(&k_vec, 420, &c2).unwrap());
+            assert!(factory.open_value(&k, 420, &c2));
             // Invalid Base64
             assert!(PedersenCommitment::from_base64("bad@ser$").is_err());
+        }
+
+        #[test]
+        fn serialize_deserialize_extended() {
+            let mut rng = rand::thread_rng();
+            for extension_degree in EXTENSION_DEGREE {
+                let factory = ExtendedPedersenCommitmentFactory::new_with_extension_degree(extension_degree).unwrap();
+                let k_vec = vec![RistrettoSecretKey::random(&mut rng); extension_degree as usize];
+                let c = factory.commit_value_extended(&k_vec, 420).unwrap();
+                // Base64
+                let ser_c = c.to_base64().unwrap();
+                let c2 = PedersenCommitment::from_base64(&ser_c).unwrap();
+                assert!(factory.open_value_extended(&k_vec, 420, &c2).unwrap());
+                // MessagePack
+                let ser_c = c.to_binary().unwrap();
+                let c2 = PedersenCommitment::from_binary(&ser_c).unwrap();
+                assert!(factory.open_value_extended(&k_vec, 420, &c2).unwrap());
+                // Invalid Base64
+                assert!(PedersenCommitment::from_base64("bad@ser$").is_err());
+            }
         }
     }
 
