@@ -98,6 +98,7 @@ impl ByteArray for RistrettoSecretKey {
         let mut a = [0u8; 32];
         a.copy_from_slice(bytes);
         let k = Scalar::from_bytes_mod_order(a);
+        a.zeroize();
         Ok(RistrettoSecretKey(k))
     }
 
