@@ -19,10 +19,7 @@ use curve25519_dalek::{
     scalar::Scalar,
     traits::MultiscalarMul,
 };
-use digest::{
-    consts::{U32, U64},
-    Digest,
-};
+use digest::{consts::U64, Digest};
 use once_cell::sync::OnceCell;
 use rand::{CryptoRng, Rng};
 use tari_utilities::{hex::Hex, ByteArray, ByteArrayError, Hashable};
@@ -299,7 +296,7 @@ impl RistrettoPublicKey {
     /// A verifiable group generator using a domain separated hasher
     pub fn new_generator(label: &'static str) -> Result<RistrettoPublicKey, HashingError> {
         // This function requires 512 bytes of data, so let's be opinionated here and use blake2b
-        let hash = DomainSeparatedHasher::<Blake2b<U32>, RistrettoGeneratorPoint>::new_with_label(label).finalize();
+        let hash = DomainSeparatedHasher::<Blake2b<U64>, RistrettoGeneratorPoint>::new_with_label(label).finalize();
         if hash.as_ref().len() < 64 {
             return Err(HashingError::DigestTooShort(64));
         }
@@ -600,6 +597,7 @@ impl From<RistrettoPublicKey> for CompressedRistretto {
 
 #[cfg(test)]
 mod test {
+    use digest::consts::U32;
     use tari_utilities::{message_format::MessageFormat, ByteArray};
 
     use super::*;
@@ -609,6 +607,15 @@ mod test {
         assert_eq!(k1, k2);
         assert_eq!(k1.point, k2.point);
         assert_eq!(k1.compressed, k2.compressed);
+    }
+
+    #[test]
+    fn test_new_generator() {
+        let pk = RistrettoPublicKey::new_generator("test");
+        assert_eq!(
+            pk.unwrap().to_hex(),
+            "c23db69dabfbd30f3a6c8f0dcea712e01382b998f5aa232183cf833287921371".to_string()
+        );
     }
 
     #[test]
