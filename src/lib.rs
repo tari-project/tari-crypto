@@ -21,13 +21,9 @@ pub mod signatures;
 #[allow(clippy::op_ref)]
 pub mod ristretto;
 
-#[cfg(feature = "wasm")]
-pub mod wasm;
-
 pub mod errors;
 pub mod extended_range_proof;
-#[cfg(feature = "ffi")]
-pub mod ffi;
+
 
 // Re-export tari_utils
 pub use tari_utilities;
