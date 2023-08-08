@@ -13,6 +13,13 @@ jobs:
           components: clippy, rustfmt
           toolchain: nightly
           override: true
+      - name: Toolchain thumbv8m.main-none-eabi
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          target: thumbv8m.main-none-eabi
+          override: true
       - name: Check formatting
         uses: actions-rs/cargo@v1
         with:
