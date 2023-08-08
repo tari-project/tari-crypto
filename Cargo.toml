@@ -11,7 +11,7 @@ version = "0.17.0"
 edition = "2018"
 
 [dependencies]
-tari_utilities = { package = "tari_utilities", version = "0.5.1", features = ["zero", "std"] }
+tari_utilities = { version = "0.5.1", features = ["zero", "std"] }
 blake2 = { version = "0.10" }
 borsh = { version = "0.10" , optional = true }
 bulletproofs_plus = { package = "tari_bulletproofs_plus", version = "0.3.2" }
