@@ -8,7 +8,7 @@
 #[macro_use]
 extern crate alloc;
 
-#[cfg(any(feature = "wasm", feature = "ffi", feature = "bulletproofs_plus", test))]
+#[cfg(any(feature = "bulletproofs_plus", test))]
 #[macro_use]
 extern crate std;
 

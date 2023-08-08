@@ -35,3 +35,16 @@ jobs:
         with:
           command: check
           args: --release --all-targets
+      - name: Cargo check no default
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --release --no-default-features
+      # This check here is to ensure that it builds for no-std rust targets
+      - name: Cargo check for no-std
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          toolchain: nightly
+          args: --no-default-features --target=thumbv8m.main-none-eabi -Zavoid-dev-deps
+
