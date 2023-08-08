@@ -11,7 +11,7 @@ version = "0.17.0"
 edition = "2018"
 
 [dependencies]
-tari_utilities = { version = "0.5", features = ["zero"] }
+tari_utilities = { version = "0.5", default-features = false, features = ["zero"] }
 blake2 = { version = "0.10", default-features = false  }
 borsh = { version = "0.10" , optional = true , default-features = false}
 bulletproofs_plus = { package = "tari_bulletproofs_plus", version = "0.3", optional = true }
