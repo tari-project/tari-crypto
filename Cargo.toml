@@ -11,10 +11,10 @@ version = "0.17.0"
 edition = "2018"
 
 [dependencies]
-tari_utilities = { version = "0.5", features = ["zero", "std"] }
+tari_utilities = { version = "0.5.1", features = ["zero", "std"] }
 blake2 = { version = "0.10" }
 borsh = { version = "0.10" , optional = true }
-bulletproofs_plus = { package = "tari_bulletproofs_plus", version = "0.3.1" }
+bulletproofs_plus = { package = "tari_bulletproofs_plus", version = "0.3.2" }
 curve25519-dalek = { package = "tari-curve25519-dalek",  version = "4.0.3", default-features = false, features = ["serde", "alloc", "rand_core", "precomputed-tables"] }
 digest = { version = "0.10" }
 getrandom = { version = "0.2" }
