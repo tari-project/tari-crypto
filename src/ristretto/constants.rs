@@ -118,6 +118,7 @@ mod test {
     pub fn check_nums_points() {
         let n = RISTRETTO_NUMS_POINTS_COMPRESSED.len();
         let calculated_nums_points = nums_ristretto(n);
+        #[allow(clippy::needless_range_loop)]
         for i in 0..n {
             // Should be equal to the NUMS constants
             assert_eq!(calculated_nums_points.0[i], ristretto_nums_points()[i]);
@@ -129,6 +130,7 @@ mod test {
             assert_ne!(RISTRETTO_BASEPOINT_POINT, ristretto_nums_points()[i]);
             assert_ne!(RISTRETTO_BASEPOINT_COMPRESSED, RISTRETTO_NUMS_POINTS_COMPRESSED[i]);
             // Should all be unique
+            #[allow(clippy::needless_range_loop)]
             for j in i + 1..n {
                 assert_ne!(ristretto_nums_points()[i], ristretto_nums_points()[j]);
                 assert_ne!(RISTRETTO_NUMS_POINTS_COMPRESSED[i], RISTRETTO_NUMS_POINTS_COMPRESSED[j]);
@@ -140,11 +142,11 @@ mod test {
     #[test]
     pub fn check_tables() {
         // Perform test multiplications
-        assert_eq!(&*ristretto_nums_table_0() * &Scalar::ZERO, RistrettoPoint::identity());
+        assert_eq!(ristretto_nums_table_0() * &Scalar::ZERO, RistrettoPoint::identity());
 
         for j in 0..15u8 {
             assert_eq!(
-                &*ristretto_nums_table_0() * &Scalar::from(j),
+                ristretto_nums_table_0() * &Scalar::from(j),
                 ristretto_nums_points()[0] * Scalar::from(j)
             );
         }

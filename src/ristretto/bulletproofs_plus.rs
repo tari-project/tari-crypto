@@ -547,7 +547,7 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
 
 #[cfg(test)]
 mod test {
-    use std::{borrow::Borrow, collections::HashMap, vec::Vec};
+    use std::{collections::HashMap, vec::Vec};
 
     use bulletproofs_plus::protocols::scalar_protocol::ScalarProtocol;
     use curve25519_dalek::scalar::Scalar;

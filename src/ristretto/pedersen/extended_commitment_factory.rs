@@ -314,6 +314,7 @@ mod test {
                 let k_vec = vec![RistrettoSecretKey::random(&mut rng); extension_degree as usize];
                 let c_extended = factory.commit_extended(&k_vec, &v).unwrap();
                 let mut c_calc: RistrettoPoint = v.0 * H + k_vec[0].0 * RISTRETTO_PEDERSEN_G;
+                #[allow(clippy::needless_range_loop)]
                 for i in 1..(extension_degree as usize) {
                     c_calc += k_vec[i].0 * ristretto_nums_points()[i];
                 }

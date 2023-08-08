@@ -42,9 +42,12 @@ pub trait SecretKey:
 }
 
 //----------------------------------------   Public Keys  ----------------------------------------//
+
 #[cfg(not(feature = "serde"))]
+/// Supertraits for publickey trait. We use this so that we can make serde optional
 pub trait SuperPublicKey: ByteArray + Add<Output = Self> + Clone + PartialOrd + Ord + Default + Zeroize {}
 #[cfg(feature = "serde")]
+/// Supertraits for publickey trait. We use this so that we can make serde optional
 pub trait SuperPublicKey:
     ByteArray
     + Add<Output = Self>
