@@ -45,6 +45,3 @@ crate-type = ["lib", "cdylib", "staticlib"]
 name = "benches"
 path = "benches/mod.rs"
 harness = false
-
-[package.metadata.wasm-pack.profile.release]
-wasm-opt = ["-Oz"]

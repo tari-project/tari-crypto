@@ -1,5 +1,0 @@
-language = "C"
-include_version = true
-
-[parse]
-parse_deps = false

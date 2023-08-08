@@ -24,6 +24,5 @@ pub mod ristretto;
 pub mod errors;
 pub mod extended_range_proof;
 
-
 // Re-export tari_utils
 pub use tari_utilities;
