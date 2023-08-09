@@ -13,7 +13,7 @@ use crate::{
 ///
 /// ## Examples
 ///
-/// You can create a `RistrettoComSig` from it's component parts:
+/// You can create a `RistrettoComSig` from its component parts:
 ///
 /// ```edition2018
 /// # use tari_crypto::ristretto::*;
@@ -26,8 +26,14 @@ use crate::{
 ///     "8063d85e151abee630e643e2b3dc47bfaeb8aa859c9d10d60847985f286aad19",
 /// )
 /// .unwrap();
-/// let u = RistrettoSecretKey::from_bytes(b"10000000000000000000000010000000").unwrap();
-/// let v = RistrettoSecretKey::from_bytes(b"a00000000000000000000000a0000000").unwrap();
+/// let u = RistrettoSecretKey::from_hex(
+///     "a8fb609c5ab7cc07548b076b6c25cc3237c4526fb7a6dcb83b26f457b172c20a",
+/// )
+/// .unwrap();
+/// let v = RistrettoSecretKey::from_hex(
+///     "0e689df8ad4ad9d2fd5aaf8cb0a66d85cb0d4b7a380405514d453625813b0b0f",
+/// )
+/// .unwrap();
 /// let sig = RistrettoComSig::new(r_pub, u, v);
 /// ```
 ///
@@ -40,22 +46,20 @@ use crate::{
 /// # use digest::Digest;
 /// # use tari_crypto::commitment::HomomorphicCommitmentFactory;
 /// # use tari_crypto::ristretto::pedersen::*;
+/// use blake2::Blake2b;
+/// use digest::consts::U64;
 /// use tari_crypto::ristretto::pedersen::commitment_factory::PedersenCommitmentFactory;
 /// use tari_utilities::hex::Hex;
-/// use blake2::Blake2b;
-/// use digest::consts::U32;
 ///
 /// let mut rng = rand::thread_rng();
 /// let a_val = RistrettoSecretKey::random(&mut rng);
 /// let x_val = RistrettoSecretKey::random(&mut rng);
 /// let a_nonce = RistrettoSecretKey::random(&mut rng);
 /// let x_nonce = RistrettoSecretKey::random(&mut rng);
-/// let e = Blake2b::<U32>::digest(b"Maskerade");
+/// let e = Blake2b::<U64>::digest(b"Maskerade");
 /// let factory = PedersenCommitmentFactory::default();
 /// let commitment = factory.commit(&x_val, &a_val);
-/// // println!("commitment: {:?}", commitment.to_hex());
 /// let sig = RistrettoComSig::sign(&a_val, &x_val, &a_nonce, &x_nonce, &e, &factory).unwrap();
-/// // println!("sig: R {:?} u {:?} v {:?}", sig.public_nonce().to_hex(), sig.u().to_hex(), sig.v().to_hex());
 /// assert!(sig.verify_challenge(&commitment, &e, &factory));
 /// ```
 ///
@@ -73,27 +77,27 @@ use crate::{
 /// # use tari_utilities::ByteArray;
 /// # use digest::Digest;
 /// use blake2::Blake2b;
-/// use digest::consts::U32;
+/// use digest::consts::U64;
 /// use tari_crypto::ristretto::pedersen::commitment_factory::PedersenCommitmentFactory;
 ///
 /// let commitment = HomomorphicCommitment::from_hex(
-///     "167c6df11bf8106e89328c297e57423dc2a9be53df1ee63f6e50b4610104ab4a",
+///     "869b83416643258f1e03d028b5d0c652dc5b09decdae4a645fc5a43d87bd0a3e",
 /// )
 /// .unwrap();
 /// let r_nonce = HomomorphicCommitment::from_hex(
-///     "4033e00996e61df2ea1abd1494b751b946663e21a20e2729c6592712beb15356",
+///     "665400676bdf8b07679629f703ea86e9cfc7e145f0768d2fdde4bd257009260d",
 /// )
 /// .unwrap();
 /// let u = RistrettoSecretKey::from_hex(
-///     "f44bbc3374b172f77ffa8b904ddf0ad9f879b3e6183f9e440c57e7f01e851300",
+///     "f62fccf7734099d32937f7f767757abcb6eca70f43b3a7fb6500b2cb9ea12b02",
 /// )
 /// .unwrap();
 /// let v = RistrettoSecretKey::from_hex(
-///     "fd54afb2d8008c8a3af10272b24161247b2b7ae11687813fe9fb03e34dd7f009",
+///     "cb9e34a7745cabaec0f9b2c3e217bf18fbe7ee8f4c83c1a523cead32ec9b4700",
 /// )
 /// .unwrap();
 /// let sig = RistrettoComSig::new(r_nonce, u, v);
-/// let e = Blake2b::<U32>::digest(b"Maskerade");
+/// let e = Blake2b::<U64>::digest(b"Maskerade");
 /// let factory = PedersenCommitmentFactory::default();
 /// assert!(sig.verify_challenge(&commitment, &e, &factory));
 /// ```
@@ -102,8 +106,8 @@ pub type RistrettoComSig = CommitmentSignature<RistrettoPublicKey, RistrettoSecr
 #[cfg(test)]
 mod test {
     use blake2::Blake2b;
-    use digest::{consts::U32, Digest};
-    use tari_utilities::{hex::from_hex, ByteArray};
+    use digest::{consts::U64, Digest};
+    use tari_utilities::ByteArray;
 
     use crate::{
         commitment::HomomorphicCommitmentFactory,
@@ -142,12 +146,12 @@ mod test {
         let k_2 = RistrettoSecretKey::random(&mut rng);
         let nonce_commitment = factory.commit(&k_1, &k_2);
 
-        let challenge = Blake2b::<U32>::new()
+        let challenge = Blake2b::<U64>::new()
             .chain_update(commitment.as_bytes())
             .chain_update(nonce_commitment.as_bytes())
             .chain_update(b"Small Gods")
             .finalize();
-        let e_key = RistrettoSecretKey::from_bytes(&challenge).unwrap();
+        let e_key = RistrettoSecretKey::from_uniform_bytes(&challenge).unwrap();
         let u_value = &k_1 + e_key.clone() * &x_value;
         let v_value = &k_2 + e_key * &a_value;
         let sig = RistrettoComSig::sign(&a_value, &x_value, &k_2, &k_1, &challenge, &factory).unwrap();
@@ -159,7 +163,7 @@ mod test {
         // Doesn't work for invalid credentials
         assert!(!sig.verify_challenge(&nonce_commitment, &challenge, &factory));
         // Doesn't work for different challenge
-        let wrong_challenge = Blake2b::<U32>::digest(b"Guards! Guards!");
+        let wrong_challenge = Blake2b::<U64>::digest(b"Guards! Guards!");
         assert!(!sig.verify_challenge(&commitment, &wrong_challenge, &factory));
     }
 
@@ -185,7 +189,7 @@ mod test {
         let k_2_bob = RistrettoSecretKey::random(&mut rng);
         let nonce_commitment_bob = factory.commit(&k_1_bob, &k_2_bob);
         // Each of them creates the Challenge committing to both commitments of both parties
-        let challenge = Blake2b::<U32>::new()
+        let challenge = Blake2b::<U64>::new()
             .chain_update(commitment_alice.as_bytes())
             .chain_update(commitment_bob.as_bytes())
             .chain_update(nonce_commitment_alice.as_bytes())
@@ -210,20 +214,6 @@ mod test {
         // Check that the multi-sig verifies
         let combined_commitment = &commitment_alice + &commitment_bob;
         assert!(s_agg.verify_challenge(&combined_commitment, &challenge, &factory));
-    }
-
-    /// Ristretto scalars have a max value 2^255. This test checks that hashed messages above this value can still be
-    /// signed as a result of applying modulo arithmetic on the challenge value
-    #[test]
-    fn challenge_from_invalid_scalar() {
-        let mut rng = rand::thread_rng();
-        let factory = PedersenCommitmentFactory::default();
-        let a_value = RistrettoSecretKey::random(&mut rng);
-        let x_value = RistrettoSecretKey::random(&mut rng);
-        let message = from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap();
-        let k_1 = RistrettoSecretKey::random(&mut rng);
-        let k_2 = RistrettoSecretKey::random(&mut rng);
-        assert!(RistrettoComSig::sign(&a_value, &x_value, &k_2, &k_1, &message, &factory).is_ok());
     }
 
     #[test]

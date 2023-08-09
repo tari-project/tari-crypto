@@ -32,9 +32,16 @@ use alloc::string::String;
 use core::{marker::PhantomData, ops::Deref};
 
 use blake2::{Blake2b, Blake2bVar};
-use digest::{consts::U32, Digest, FixedOutput, FixedOutputReset, Output, OutputSizeUser, Update};
+use digest::{
+    consts::{U32, U64},
+    Digest,
+    FixedOutput,
+    FixedOutputReset,
+    Output,
+    OutputSizeUser,
+    Update,
+};
 use sha3::Sha3_256;
-use tari_utilities::ByteArray;
 
 use crate::{
     alloc::string::ToString,
@@ -209,10 +216,10 @@ impl<D: Digest> AsRef<[u8]> for DomainSeparatedHash<D> {
 /// Calculating a signature challenge
 ///
 /// ```
+/// # use blake2::Blake2b;
+/// # use digest::{consts::U32, Digest};
 /// # use tari_utilities::hex::{to_hex, Hex};
-/// use blake2::{Blake2b, Digest};
-/// use digest::consts::U32;
-/// use tari_crypto::{
+/// # use tari_crypto::{
 ///     hash_domain,
 ///     hashing::{DomainSeparatedHash, DomainSeparatedHasher, DomainSeparation},
 /// };
@@ -418,6 +425,8 @@ impl LengthExtensionAttackResistant for Sha3_256 {}
 
 impl LengthExtensionAttackResistant for Blake2b<U32> {}
 
+impl LengthExtensionAttackResistant for Blake2b<U64> {}
+
 //------------------------------------------------    HMAC  ------------------------------------------------------------
 /// A domain separation tag for use in MAC derivation algorithms.
 pub struct MacDomain;
@@ -517,6 +526,8 @@ impl<D: Digest> Deref for Mac<D> {
 /// `RistrettoKdf` is an implementation of [`DerivedKeyDomain`] that generates Ristretto keys.
 ///
 /// ```
+/// # use blake2::Blake2b;
+/// # use digest::{consts::U64, Digest};
 /// # use tari_utilities::ByteArray;
 /// # use tari_utilities::hex::Hex;
 /// # use tari_crypto::errors::HashingError;
@@ -524,14 +535,12 @@ impl<D: Digest> Deref for Mac<D> {
 /// # use tari_crypto::keys::SecretKey;
 /// # use tari_crypto::ristretto::ristretto_keys::RistrettoKdf;
 /// # use tari_crypto::ristretto::RistrettoSecretKey;
-/// # use digest::consts::U32;
-/// # use blake2::Blake2b;
 ///
 /// fn wallet_keys(
 ///     primary_key: &RistrettoSecretKey,
 ///     index: usize,
 /// ) -> Result<RistrettoSecretKey, HashingError> {
-///     RistrettoKdf::generate::<Blake2b<U32>>(
+///     RistrettoKdf::generate::<Blake2b<U64>>(
 ///         primary_key.as_bytes(),
 ///         &index.to_le_bytes(),
 ///         "wallet",
@@ -539,40 +548,47 @@ impl<D: Digest> Deref for Mac<D> {
 /// }
 ///
 /// let key = RistrettoSecretKey::from_hex(
-///     "b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c",
+///     "a8fb609c5ab7cc07548b076b6c25cc3237c4526fb7a6dcb83b26f457b172c20a",
 /// )
 /// .unwrap();
 /// let key_1 = wallet_keys(&key, 1).unwrap();
 /// assert_eq!(
 ///     key_1.to_hex(),
-///     "b778b8b5041fbde6c78be5bafd6d62633824bf303c97736d7337b3f6f70c4e0b"
+///     "08106b88a2ff4c52d1d8b458cf34802df8655ba989a7d91351e3504e087a2e0c"
 /// );
 /// let key_64 = wallet_keys(&key, 64).unwrap();
 /// assert_eq!(
 ///     key_64.to_hex(),
-///     "09e5204c93406ef3334ff5f7a4d5d84199ceb9119fafcb98928fa95e95f0ae05"
+///     "2c2206dadd2a21e71b6c52dd321572cde0f2b00e7116e1123fb580b09ed1b70e"
 /// );
 /// ```
 pub trait DerivedKeyDomain: DomainSeparation {
     /// The associated derived secret key type
     type DerivedKeyType: SecretKey;
 
-    /// Derive a key from the input key using a suitable domain separation tag and the given application label.
-    /// An error is returned if the supplied primary key isn't at least as long as the digest algorithm's output size.
+    /// Derive a key from the input key using a suitable domain separation tag and the given application label by wide
+    /// reduction. An error is returned if the supplied primary key isn't at least as long as the derived key.
     /// If the digest's output size is not sufficient to generate the derived key type, then an error will be thrown.
     fn generate<D>(primary_key: &[u8], data: &[u8], label: &'static str) -> Result<Self::DerivedKeyType, HashingError>
     where
         Self: Sized,
         D: Digest + Update,
     {
-        if primary_key.as_ref().len() < <D as Digest>::output_size() {
+        // Ensure the primary key is at least as long as the derived key
+        if primary_key.len() < <Self::DerivedKeyType as SecretKey>::KEY_LEN {
             return Err(HashingError::InputTooShort {});
         }
+
+        // Ensure the digest length is suitable for wide reduction
+        if <D as Digest>::output_size() != <Self::DerivedKeyType as SecretKey>::WIDE_REDUCTION_LEN {
+            return Err(HashingError::InputTooShort {});
+        }
+
         let hash = DomainSeparatedHasher::<D, Self>::new_with_label(label)
             .chain(primary_key)
             .chain(data)
             .finalize();
-        let derived_key = Self::DerivedKeyType::from_bytes(hash.as_ref())
+        let derived_key = Self::DerivedKeyType::from_uniform_bytes(hash.as_ref())
             .map_err(|e| HashingError::ConversionFromBytes { reason: e.to_string() })?;
         Ok(derived_key)
     }

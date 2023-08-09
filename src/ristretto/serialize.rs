@@ -51,7 +51,7 @@ impl<'de> Deserialize<'de> for RistrettoPublicKey {
 
             fn visit_bytes<E>(self, v: &[u8]) -> Result<RistrettoPublicKey, E>
             where E: de::Error {
-                RistrettoPublicKey::from_bytes(v).map_err(E::custom)
+                RistrettoPublicKey::from_canonical_bytes(v).map_err(E::custom)
             }
         }
 
@@ -89,7 +89,7 @@ impl<'de> Deserialize<'de> for RistrettoSecretKey {
 
             fn visit_bytes<E>(self, v: &[u8]) -> Result<RistrettoSecretKey, E>
             where E: de::Error {
-                RistrettoSecretKey::from_bytes(v).map_err(E::custom)
+                RistrettoSecretKey::from_canonical_bytes(v).map_err(E::custom)
             }
         }
 

@@ -70,7 +70,7 @@ pub enum HashingError {
         reason: String,
     },
     /// The digest does not produce enough output
-    #[snafu(display("The digest does produce enough output.`{bytes}' bytes are required."))]
+    #[snafu(display("The digest does not produce enough output.`{bytes}' bytes are required."))]
     DigestTooShort {
         /// The number of bytes required
         bytes: usize,
