@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use criterion::{criterion_group, BatchSize, Criterion};
 use rand::{thread_rng, RngCore};
+use rand_core::OsRng;
 use tari_crypto::{
     keys::{PublicKey, SecretKey},
     ristretto::{RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
@@ -45,7 +46,7 @@ fn sign_message(c: &mut Criterion) {
         b.iter_batched(
             gen_keypair,
             |d| {
-                let _sig = RistrettoSchnorr::sign_message(&d.k, d.m).unwrap();
+                let _sig = RistrettoSchnorr::sign_message(&d.k, d.m, &mut OsRng).unwrap();
             },
             BatchSize::SmallInput,
         );
@@ -59,7 +60,7 @@ fn verify_message(c: &mut Criterion) {
         b.iter_batched(
             || {
                 let d = gen_keypair();
-                let s = RistrettoSchnorr::sign_message(&d.k, d.m).unwrap();
+                let s = RistrettoSchnorr::sign_message(&d.k, d.m, &mut OsRng).unwrap();
                 (d, s)
             },
             |(d, s)| assert!(s.verify_message(&d.p, d.m)),

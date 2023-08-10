@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 //! The Tari-compatible implementation of Ristretto based on the curve25519-dalek implementation
-use std::{
+use alloc::{string::ToString, vec::Vec};
+use core::{
     borrow::Borrow,
     cmp::Ordering,
     fmt,
     hash::{Hash, Hasher},
     ops::{Add, Mul, Sub},
 };
-#[cfg(feature = "borsh")]
-use std::{io, io::Write};
 
 use blake2::Blake2b;
 use curve25519_dalek::{
@@ -21,7 +20,7 @@ use curve25519_dalek::{
 };
 use digest::{consts::U64, Digest};
 use once_cell::sync::OnceCell;
-use rand::{CryptoRng, Rng};
+use rand_core::{CryptoRng, RngCore};
 use tari_utilities::{hex::Hex, ByteArray, ByteArrayError, Hashable};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -57,17 +56,18 @@ pub struct RistrettoSecretKey(pub(crate) Scalar);
 
 #[cfg(feature = "borsh")]
 impl borsh::BorshSerialize for RistrettoSecretKey {
-    fn serialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
+    fn serialize<W: borsh::maybestd::io::Write>(&self, writer: &mut W) -> borsh::maybestd::io::Result<()> {
         borsh::BorshSerialize::serialize(&self.as_bytes(), writer)
     }
 }
 
 #[cfg(feature = "borsh")]
 impl borsh::BorshDeserialize for RistrettoSecretKey {
-    fn deserialize_reader<R>(reader: &mut R) -> Result<Self, io::Error>
-    where R: io::Read {
+    fn deserialize_reader<R>(reader: &mut R) -> Result<Self, borsh::maybestd::io::Error>
+    where R: borsh::maybestd::io::Read {
         let bytes: Vec<u8> = borsh::BorshDeserialize::deserialize_reader(reader)?;
-        Self::from_bytes(bytes.as_slice()).map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e.to_string()))
+        Self::from_bytes(bytes.as_slice())
+            .map_err(|e| borsh::maybestd::io::Error::new(borsh::maybestd::io::ErrorKind::InvalidInput, e.to_string()))
     }
 }
 
@@ -76,7 +76,7 @@ impl SecretKey for RistrettoSecretKey {
     const KEY_LEN: usize = 32;
 
     /// Return a random secret key on the `ristretto255` curve using the supplied CSPRNG.
-    fn random<R: Rng + CryptoRng>(rng: &mut R) -> Self {
+    fn random<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
         RistrettoSecretKey(Scalar::random(rng))
     }
 }
@@ -263,17 +263,18 @@ pub struct RistrettoPublicKey {
 
 #[cfg(feature = "borsh")]
 impl borsh::BorshSerialize for RistrettoPublicKey {
-    fn serialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
+    fn serialize<W: borsh::maybestd::io::Write>(&self, writer: &mut W) -> borsh::maybestd::io::Result<()> {
         borsh::BorshSerialize::serialize(&self.as_bytes(), writer)
     }
 }
 
 #[cfg(feature = "borsh")]
 impl borsh::BorshDeserialize for RistrettoPublicKey {
-    fn deserialize_reader<R>(reader: &mut R) -> Result<Self, io::Error>
-    where R: io::Read {
+    fn deserialize_reader<R>(reader: &mut R) -> Result<Self, borsh::maybestd::io::Error>
+    where R: borsh::maybestd::io::Read {
         let bytes: Vec<u8> = borsh::BorshDeserialize::deserialize_reader(reader)?;
-        Self::from_bytes(bytes.as_slice()).map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e.to_string()))
+        Self::from_bytes(bytes.as_slice())
+            .map_err(|e| borsh::maybestd::io::Error::new(borsh::maybestd::io::ErrorKind::InvalidInput, e.to_string()))
     }
 }
 
@@ -298,7 +299,7 @@ impl RistrettoPublicKey {
         // This function requires 512 bytes of data, so let's be opinionated here and use blake2b
         let hash = DomainSeparatedHasher::<Blake2b<U64>, RistrettoGeneratorPoint>::new_with_label(label).finalize();
         if hash.as_ref().len() < 64 {
-            return Err(HashingError::DigestTooShort(64));
+            return Err(HashingError::DigestTooShort { bytes: 64 });
         }
         let mut bytes = [0u8; 64];
         bytes.copy_from_slice(hash.as_ref());
@@ -429,7 +430,7 @@ impl RistrettoPublicKey {
                 let right = hex.len() - (w - left - 3);
                 f.write_str(format!("{}...{}", &hex[..left], &hex[right..]).as_str())
             },
-            _ => std::fmt::Display::fmt(&hex, f),
+            _ => core::fmt::Display::fmt(&hex, f),
         }
     }
 }
@@ -598,7 +599,7 @@ impl From<RistrettoPublicKey> for CompressedRistretto {
 #[cfg(test)]
 mod test {
     use digest::consts::U32;
-    use tari_utilities::{message_format::MessageFormat, ByteArray};
+    use tari_utilities::ByteArray;
 
     use super::*;
     use crate::{keys::PublicKey, ristretto::test_common::get_keypair};
@@ -807,7 +808,7 @@ mod test {
         // can fail in release mode, even though the values were effectively scrubbed.
         if cfg!(debug_assertions) {
             unsafe {
-                use std::slice;
+                use core::slice;
                 assert_eq!(slice::from_raw_parts(ptr, 32), zero);
             }
         }
@@ -831,44 +832,48 @@ mod test {
             "00e1f50500000000000000000000000000000000000000000000000000000000"
         );
     }
+    #[cfg(feature = "serde")]
+    mod test_serialize {
+        use tari_utilities::message_format::MessageFormat;
 
-    #[test]
-    fn serialize_deserialize_base64() {
-        let mut rng = rand::thread_rng();
-        let (k, pk) = RistrettoPublicKey::random_keypair(&mut rng);
-        let ser_k = k.to_base64().unwrap();
-        let ser_pk = pk.to_base64().unwrap();
-        let k2: RistrettoSecretKey = RistrettoSecretKey::from_base64(&ser_k).unwrap();
-        assert_eq!(k, k2, "Deserialised secret key");
-        let pk2: RistrettoPublicKey = RistrettoPublicKey::from_base64(&ser_pk).unwrap();
-        assert_completely_equal(&pk, &pk2);
+        use super::*;
+        #[test]
+        fn serialize_deserialize_base64() {
+            let mut rng = rand::thread_rng();
+            let (k, pk) = RistrettoPublicKey::random_keypair(&mut rng);
+            let ser_k = k.to_base64().unwrap();
+            let ser_pk = pk.to_base64().unwrap();
+            let k2: RistrettoSecretKey = RistrettoSecretKey::from_base64(&ser_k).unwrap();
+            assert_eq!(k, k2, "Deserialised secret key");
+            let pk2: RistrettoPublicKey = RistrettoPublicKey::from_base64(&ser_pk).unwrap();
+            assert_completely_equal(&pk, &pk2);
+        }
+
+        #[test]
+        fn serialize_deserialize_json() {
+            let mut rng = rand::thread_rng();
+            let (k, pk) = RistrettoPublicKey::random_keypair(&mut rng);
+            let ser_k = k.to_json().unwrap();
+            let ser_pk = pk.to_json().unwrap();
+            println!("JSON pubkey: {ser_pk} privkey: {ser_k}");
+            let k2: RistrettoSecretKey = RistrettoSecretKey::from_json(&ser_k).unwrap();
+            assert_eq!(k, k2, "Deserialised secret key");
+            let pk2: RistrettoPublicKey = RistrettoPublicKey::from_json(&ser_pk).unwrap();
+            assert_completely_equal(&pk, &pk2);
+        }
+
+        #[test]
+        fn serialize_deserialize_binary() {
+            let mut rng = rand::thread_rng();
+            let (k, pk) = RistrettoPublicKey::random_keypair(&mut rng);
+            let ser_k = k.to_binary().unwrap();
+            let ser_pk = pk.to_binary().unwrap();
+            let k2: RistrettoSecretKey = RistrettoSecretKey::from_binary(&ser_k).unwrap();
+            assert_eq!(k, k2);
+            let pk2: RistrettoPublicKey = RistrettoPublicKey::from_binary(&ser_pk).unwrap();
+            assert_completely_equal(&pk, &pk2);
+        }
     }
-
-    #[test]
-    fn serialize_deserialize_json() {
-        let mut rng = rand::thread_rng();
-        let (k, pk) = RistrettoPublicKey::random_keypair(&mut rng);
-        let ser_k = k.to_json().unwrap();
-        let ser_pk = pk.to_json().unwrap();
-        println!("JSON pubkey: {ser_pk} privkey: {ser_k}");
-        let k2: RistrettoSecretKey = RistrettoSecretKey::from_json(&ser_k).unwrap();
-        assert_eq!(k, k2, "Deserialised secret key");
-        let pk2: RistrettoPublicKey = RistrettoPublicKey::from_json(&ser_pk).unwrap();
-        assert_completely_equal(&pk, &pk2);
-    }
-
-    #[test]
-    fn serialize_deserialize_binary() {
-        let mut rng = rand::thread_rng();
-        let (k, pk) = RistrettoPublicKey::random_keypair(&mut rng);
-        let ser_k = k.to_binary().unwrap();
-        let ser_pk = pk.to_binary().unwrap();
-        let k2: RistrettoSecretKey = RistrettoSecretKey::from_binary(&ser_k).unwrap();
-        assert_eq!(k, k2);
-        let pk2: RistrettoPublicKey = RistrettoPublicKey::from_binary(&ser_pk).unwrap();
-        assert_completely_equal(&pk, &pk2);
-    }
-
     #[test]
     fn display_and_debug() {
         let hex = "e2f2ae0a6abc4e71a884a961c500515f58e30b6aa582dd8db6a65945e08d2d76";
@@ -964,7 +969,7 @@ mod test {
     #[test]
     fn kdf_key_too_short() {
         let err = RistrettoKdf::generate::<Blake2b<U32>>(b"this_key_is_too_short", b"data", "test").err();
-        assert!(matches!(err, Some(HashingError::InputTooShort)));
+        assert!(matches!(err, Some(HashingError::InputTooShort {})));
     }
 
     #[test]
@@ -1036,6 +1041,8 @@ mod test {
 
     #[cfg(feature = "borsh")]
     mod borsh {
+        use alloc::vec::Vec;
+
         use borsh::{BorshDeserialize, BorshSerialize};
 
         use crate::ristretto::{test_common::get_keypair, RistrettoPublicKey, RistrettoSecretKey};

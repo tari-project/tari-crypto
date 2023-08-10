@@ -2,9 +2,15 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 //! Tari-Crypto
+#![no_std]
 
+#[allow(unused_imports)]
 #[macro_use]
-extern crate lazy_static;
+extern crate alloc;
+
+#[cfg(any(feature = "bulletproofs_plus", test))]
+#[macro_use]
+extern crate std;
 
 #[macro_use]
 mod macros;
@@ -13,7 +19,9 @@ pub mod deterministic_randomizer;
 pub mod dhke;
 pub mod hashing;
 pub mod keys;
+#[cfg(feature = "bulletproofs_plus")]
 pub mod range_proof;
+#[cfg(feature = "bulletproofs_plus")]
 pub mod rewindable_range_proof;
 pub mod signatures;
 
@@ -22,6 +30,7 @@ pub mod signatures;
 pub mod ristretto;
 
 pub mod errors;
+#[cfg(feature = "bulletproofs_plus")]
 pub mod extended_range_proof;
 
 // Re-export tari_utils

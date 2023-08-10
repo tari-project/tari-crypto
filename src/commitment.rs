@@ -6,17 +6,17 @@
 //! envelope and reveal its contents. Also it's a special envelope that can only be opened by a special opener that
 //! you keep safe in your drawer.
 
-use std::{
+use core::{
     cmp::Ordering,
     convert::TryFrom,
     hash::{Hash, Hasher},
     ops::{Add, Mul, Sub},
 };
 
-use serde::{Deserialize, Serialize};
 use tari_utilities::{ByteArray, ByteArrayError};
 
 use crate::{
+    alloc::string::ToString,
     errors::CommitmentError,
     keys::{PublicKey, SecretKey},
 };
@@ -32,20 +32,21 @@ use crate::{
 ///   C_2 &= v_2.H + k_2.G \\\\
 ///   \therefore C_1 + C_2 &= (v_1 + v_2)H + (k_1 + k_2)G
 /// \end{aligned} $$
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct HomomorphicCommitment<P>(pub(crate) P);
 
 #[cfg(feature = "borsh")]
 impl<P: borsh::BorshDeserialize> borsh::BorshDeserialize for HomomorphicCommitment<P> {
-    fn deserialize_reader<R>(reader: &mut R) -> Result<Self, std::io::Error>
-    where R: std::io::Read {
+    fn deserialize_reader<R>(reader: &mut R) -> Result<Self, borsh::maybestd::io::Error>
+    where R: borsh::maybestd::io::Read {
         Ok(Self(P::deserialize_reader(reader)?))
     }
 }
 
 #[cfg(feature = "borsh")]
 impl<P: borsh::BorshSerialize> borsh::BorshSerialize for HomomorphicCommitment<P> {
-    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+    fn serialize<W: borsh::maybestd::io::Write>(&self, writer: &mut W) -> borsh::maybestd::io::Result<()> {
         self.0.serialize(writer)
     }
 }
@@ -251,9 +252,9 @@ impl ExtensionDegree {
             4 => Ok(ExtensionDegree::AddThreeBasePoints),
             5 => Ok(ExtensionDegree::AddFourBasePoints),
             6 => Ok(ExtensionDegree::AddFiveBasePoints),
-            _ => Err(CommitmentError::ExtensionDegree(
-                "Extension degree not valid".to_string(),
-            )),
+            _ => Err(CommitmentError::CommitmentExtensionDegree {
+                reason: "Extension degree not valid".to_string(),
+            }),
         }
     }
 }

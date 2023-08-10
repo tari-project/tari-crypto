@@ -6,10 +6,9 @@
 //! implementation of ECC curve). The idea being that we can swap out the underlying
 //! implementation without worrying too much about the impact on upstream code.
 
-use std::ops::Add;
+use core::ops::Add;
 
-use rand::{CryptoRng, Rng};
-use serde::{de::DeserializeOwned, ser::Serialize};
+use rand_core::{CryptoRng, RngCore};
 use tari_utilities::ByteArray;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -39,7 +38,7 @@ pub trait SecretKey:
     }
 
     /// Generates a random secret key
-    fn random<R: Rng + CryptoRng>(rng: &mut R) -> Self;
+    fn random<R: RngCore + CryptoRng>(rng: &mut R) -> Self;
 }
 
 //----------------------------------------   Public Keys  ----------------------------------------//
@@ -48,9 +47,7 @@ pub trait SecretKey:
 /// implementations need to implement this trait for them to be used in Tari.
 ///
 /// See [SecretKey](trait.SecretKey.html) for an example.
-pub trait PublicKey:
-    ByteArray + Add<Output = Self> + Clone + PartialOrd + Ord + Default + Serialize + DeserializeOwned + Zeroize
-{
+pub trait PublicKey: ByteArray + Add<Output = Self> + Clone + PartialOrd + Ord + Default + Zeroize {
     /// The length of the byte encoding of a key, in bytes
     const KEY_LEN: usize;
 
@@ -71,7 +68,7 @@ pub trait PublicKey:
     fn batch_mul(scalars: &[Self::K], points: &[Self]) -> Self;
 
     /// Generate a random public and secret key
-    fn random_keypair<R: Rng + CryptoRng>(rng: &mut R) -> (Self::K, Self) {
+    fn random_keypair<R: RngCore + CryptoRng>(rng: &mut R) -> (Self::K, Self) {
         let k = Self::K::random(rng);
         let pk = Self::from_secret_key(&k);
         (k, pk)

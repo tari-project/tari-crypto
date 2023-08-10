@@ -22,7 +22,8 @@
 //!   }
 //! ```
 
-use std::fmt;
+use alloc::string::String;
+use core::fmt;
 
 use serde::{
     de::{self, Visitor},

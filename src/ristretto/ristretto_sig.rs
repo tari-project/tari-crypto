@@ -42,6 +42,7 @@ use crate::{
 /// # use tari_crypto::keys::*;
 /// # use tari_crypto::signatures::SchnorrSignature;
 /// # use digest::Digest;
+/// # use rand::{Rng, thread_rng};
 ///
 /// fn get_keypair() -> (RistrettoSecretKey, RistrettoPublicKey) {
 ///     let mut rng = rand::thread_rng();
@@ -53,7 +54,8 @@ use crate::{
 /// #[allow(non_snake_case)]
 /// let (k, P) = get_keypair();
 /// let msg = "Small Gods";
-/// let sig = RistrettoSchnorr::sign_message(&k, &msg);
+/// let mut rng = thread_rng();
+/// let sig = RistrettoSchnorr::sign_message(&k, &msg, &mut rng);
 /// ```
 ///
 /// # Verifying signatures
@@ -68,6 +70,7 @@ use crate::{
 /// # use tari_utilities::hex::*;
 /// # use tari_utilities::ByteArray;
 /// # use digest::Digest;
+/// # use rand::{Rng, thread_rng};
 ///
 /// let msg = "Maskerade";
 /// let k = RistrettoSecretKey::from_hex(
@@ -76,8 +79,9 @@ use crate::{
 /// .unwrap();
 /// # #[allow(non_snake_case)]
 /// let P = RistrettoPublicKey::from_secret_key(&k);
+/// let mut rng = thread_rng();
 /// let sig: SchnorrSignature<RistrettoPublicKey, RistrettoSecretKey> =
-///     SchnorrSignature::sign_message(&k, msg).unwrap();
+///     SchnorrSignature::sign_message(&k, msg, &mut rng).unwrap();
 /// assert!(sig.verify_message(&P, msg));
 /// ```
 pub type RistrettoSchnorr = SchnorrSignature<RistrettoPublicKey, RistrettoSecretKey, SchnorrSigChallenge>;
@@ -94,6 +98,7 @@ pub type RistrettoSchnorr = SchnorrSignature<RistrettoPublicKey, RistrettoSecret
 /// # use tari_crypto::hash_domain;
 /// # use tari_crypto::signatures::SchnorrSignature;
 /// # use tari_utilities::hex::*;
+/// # use rand::{Rng, thread_rng};
 /// # use tari_utilities::ByteArray;
 /// # use digest::Digest;
 ///
@@ -106,8 +111,9 @@ pub type RistrettoSchnorr = SchnorrSignature<RistrettoPublicKey, RistrettoSecret
 /// .unwrap();
 /// # #[allow(non_snake_case)]
 /// let P = RistrettoPublicKey::from_secret_key(&k);
+/// let mut rng = thread_rng();
 /// let sig: SchnorrSignature<RistrettoPublicKey, RistrettoSecretKey, MyCustomDomain> =
-///     SchnorrSignature::sign_message(&k, msg).unwrap();
+///     SchnorrSignature::sign_message(&k, msg, &mut rng).unwrap();
 /// assert!(sig.verify_message(&P, msg));
 /// ```
 pub type RistrettoSchnorrWithDomain<H> = SchnorrSignature<RistrettoPublicKey, RistrettoSecretKey, H>;
@@ -261,7 +267,8 @@ mod test {
     fn sign_and_verify_message() {
         let mut rng = rand::thread_rng();
         let (k, P) = RistrettoPublicKey::random_keypair(&mut rng);
-        let sig = RistrettoSchnorr::sign_message(&k, "Queues are things that happen to other people").unwrap();
+        let sig =
+            RistrettoSchnorr::sign_message(&k, "Queues are things that happen to other people", &mut rng).unwrap();
         assert!(sig.verify_message(&P, "Queues are things that happen to other people"));
         assert!(!sig.verify_message(&P, "Qs are things that happen to other people"));
         assert!(!sig.verify_message(&(&P + &P), "Queues are things that happen to other people"));

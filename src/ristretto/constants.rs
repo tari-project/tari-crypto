@@ -6,6 +6,7 @@
 //! Tests the correctness of the NUMS construction.
 
 use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoBasepointTable, RistrettoPoint};
+use once_cell::sync::OnceCell;
 
 const NUMBER_NUMS_POINTS: usize = 10;
 
@@ -56,22 +57,28 @@ pub const RISTRETTO_NUMS_POINTS_COMPRESSED: [CompressedRistretto; NUMBER_NUMS_PO
     ]),
 ];
 
-lazy_static! {
-    /// A static array of pre-generated NUMS points
-    pub static ref RISTRETTO_NUMS_POINTS: [RistrettoPoint; NUMBER_NUMS_POINTS] = {
+/// A static array of pre-generated NUMS points
+pub fn ristretto_nums_points() -> &'static [RistrettoPoint; NUMBER_NUMS_POINTS] {
+    static INSTANCE: OnceCell<[RistrettoPoint; NUMBER_NUMS_POINTS]> = OnceCell::new();
+    INSTANCE.get_or_init(|| {
         let mut arr = [RistrettoPoint::default(); NUMBER_NUMS_POINTS];
         for i in 0..NUMBER_NUMS_POINTS {
             arr[i] = RISTRETTO_NUMS_POINTS_COMPRESSED[i].decompress().unwrap();
         }
         arr
-    };
+    })
+}
 
-    /// Precomputation table for the first point, which is used as the default commitment generator
-    pub static ref RISTRETTO_NUMS_TABLE_0: RistrettoBasepointTable = RistrettoBasepointTable::create(&RISTRETTO_NUMS_POINTS[0]);
+/// Precomputation table for the first point, which is used as the default commitment generator
+pub fn ristretto_nums_table_0() -> &'static RistrettoBasepointTable {
+    static INSTANCE: OnceCell<RistrettoBasepointTable> = OnceCell::new();
+    INSTANCE.get_or_init(|| RistrettoBasepointTable::create(&ristretto_nums_points()[0]))
 }
 
 #[cfg(test)]
 mod test {
+    use alloc::vec::Vec;
+
     use curve25519_dalek::{
         constants::{RISTRETTO_BASEPOINT_COMPRESSED, RISTRETTO_BASEPOINT_POINT},
         ristretto::{CompressedRistretto, RistrettoPoint},
@@ -81,9 +88,9 @@ mod test {
     use sha2::{Digest, Sha512};
 
     use crate::ristretto::constants::{
-        RISTRETTO_NUMS_POINTS,
+        ristretto_nums_points,
+        ristretto_nums_table_0,
         RISTRETTO_NUMS_POINTS_COMPRESSED,
-        RISTRETTO_NUMS_TABLE_0,
     };
 
     /// Generate a set of NUMS points by hashing domain separation labels and converting the hash output to a Ristretto
@@ -105,25 +112,27 @@ mod test {
         (points, compressed_points)
     }
 
-    /// Confirm that the [RISTRETTO_NUM_POINTS array](Const.RISTRETTO_NUMS_POINTS.html) is generated with Nothing Up
+    /// Confirm that the [RISTRETTO_NUM_POINTS array](Const.ristretto_nums_points().html) is generated with Nothing Up
     /// My Sleeve (NUMS), unique, not equal to the identity value and not equal to the Ristretto base point.
     #[test]
     pub fn check_nums_points() {
         let n = RISTRETTO_NUMS_POINTS_COMPRESSED.len();
         let calculated_nums_points = nums_ristretto(n);
+        #[allow(clippy::needless_range_loop)]
         for i in 0..n {
             // Should be equal to the NUMS constants
-            assert_eq!(calculated_nums_points.0[i], RISTRETTO_NUMS_POINTS[i]);
+            assert_eq!(calculated_nums_points.0[i], ristretto_nums_points()[i]);
             assert_eq!(calculated_nums_points.1[i], RISTRETTO_NUMS_POINTS_COMPRESSED[i]);
             // Should not be equal to the identity values
-            assert_ne!(RistrettoPoint::default(), RISTRETTO_NUMS_POINTS[i]);
+            assert_ne!(RistrettoPoint::default(), ristretto_nums_points()[i]);
             assert_ne!(CompressedRistretto::default(), RISTRETTO_NUMS_POINTS_COMPRESSED[i]);
             // Should not be equal to the Ristretto base point
-            assert_ne!(RISTRETTO_BASEPOINT_POINT, RISTRETTO_NUMS_POINTS[i]);
+            assert_ne!(RISTRETTO_BASEPOINT_POINT, ristretto_nums_points()[i]);
             assert_ne!(RISTRETTO_BASEPOINT_COMPRESSED, RISTRETTO_NUMS_POINTS_COMPRESSED[i]);
             // Should all be unique
+            #[allow(clippy::needless_range_loop)]
             for j in i + 1..n {
-                assert_ne!(RISTRETTO_NUMS_POINTS[i], RISTRETTO_NUMS_POINTS[j]);
+                assert_ne!(ristretto_nums_points()[i], ristretto_nums_points()[j]);
                 assert_ne!(RISTRETTO_NUMS_POINTS_COMPRESSED[i], RISTRETTO_NUMS_POINTS_COMPRESSED[j]);
             }
         }
@@ -133,12 +142,12 @@ mod test {
     #[test]
     pub fn check_tables() {
         // Perform test multiplications
-        assert_eq!(&*RISTRETTO_NUMS_TABLE_0 * &Scalar::ZERO, RistrettoPoint::identity());
+        assert_eq!(ristretto_nums_table_0() * &Scalar::ZERO, RistrettoPoint::identity());
 
         for j in 0..15u8 {
             assert_eq!(
-                &*RISTRETTO_NUMS_TABLE_0 * &Scalar::from(j),
-                RISTRETTO_NUMS_POINTS[0] * Scalar::from(j)
+                ristretto_nums_table_0() * &Scalar::from(j),
+                ristretto_nums_points()[0] * Scalar::from(j)
             );
         }
     }

@@ -28,7 +28,8 @@
 //!
 //! [hmac]: https://en.wikipedia.org/wiki/HMAC#Design_principles "HMAC: Design principles"
 
-use std::{marker::PhantomData, ops::Deref};
+use alloc::string::String;
+use core::{marker::PhantomData, ops::Deref};
 
 use blake2::{Blake2b, Blake2bVar};
 use digest::{consts::U32, Digest, FixedOutput, FixedOutputReset, Output, OutputSizeUser, Update};
@@ -36,6 +37,7 @@ use sha3::Sha3_256;
 use tari_utilities::ByteArray;
 
 use crate::{
+    alloc::string::ToString,
     errors::{HashingError, SliceError},
     keys::SecretKey,
 };
@@ -305,7 +307,10 @@ pub trait AsFixedBytes<const I: usize>: AsRef<[u8]> {
         let hash_vec = self.as_ref();
         if hash_vec.is_empty() || hash_vec.len() < I {
             let hash_vec_length = if hash_vec.is_empty() { 0 } else { hash_vec.len() };
-            return Err(SliceError::CopyFromSlice(I, hash_vec_length));
+            return Err(SliceError::CopyFromSlice {
+                target: I,
+                provided: hash_vec_length,
+            });
         }
         let mut buffer: [u8; I] = [0; I];
         buffer.copy_from_slice(&hash_vec[..I]);
@@ -567,7 +572,8 @@ pub trait DerivedKeyDomain: DomainSeparation {
             .chain(primary_key)
             .chain(data)
             .finalize();
-        let derived_key = Self::DerivedKeyType::from_bytes(hash.as_ref())?;
+        let derived_key = Self::DerivedKeyType::from_bytes(hash.as_ref())
+            .map_err(|e| HashingError::ConversionFromBytes { reason: e.to_string() })?;
         Ok(derived_key)
     }
 }
