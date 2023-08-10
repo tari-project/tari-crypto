@@ -43,30 +43,11 @@ pub trait SecretKey:
 
 //----------------------------------------   Public Keys  ----------------------------------------//
 
-#[cfg(not(feature = "serde"))]
-/// Supertraits for publickey trait. We use this so that we can make serde optional
-pub trait SuperPublicKey: ByteArray + Add<Output = Self> + Clone + PartialOrd + Ord + Default + Zeroize {}
-#[cfg(feature = "serde")]
-/// Supertraits for publickey trait. We use this so that we can make serde optional
-pub trait SuperPublicKey:
-    ByteArray
-    + Add<Output = Self>
-    + Clone
-    + PartialOrd
-    + Ord
-    + Default
-    + Zeroize
-    + serde::ser::Serialize
-    + serde::de::DeserializeOwned
-{
-}
-impl<T: PublicKey> SuperPublicKey for T {}
-
 /// A trait specifying common behaviour for representing `PublicKey`s. Specific elliptic curve
 /// implementations need to implement this trait for them to be used in Tari.
 ///
 /// See [SecretKey](trait.SecretKey.html) for an example.
-pub trait PublicKey: SuperPublicKey {
+pub trait PublicKey: ByteArray + Add<Output = Self> + Clone + PartialOrd + Ord + Default + Zeroize {
     /// The length of the byte encoding of a key, in bytes
     const KEY_LEN: usize;
 
