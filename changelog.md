@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.18.0](https://github.com/tari-project/tari-crypto/compare/v0.17.0...v0.18.0) (2023-08-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* enable no_std support for tari_crypto (#191)
+* move the WASM and FFI builds to seperate Repos (#193)
+
+### Features
+
+* enable no_std support for tari_crypto ([#191](https://github.com/tari-project/tari-crypto/issues/191)) ([a0e9765](https://github.com/tari-project/tari-crypto/commit/a0e9765d2b96a3f8c3bdb5c3c80ff3afd26ce97b))
+* fix new_generator ([#192](https://github.com/tari-project/tari-crypto/issues/192)) ([0d463b0](https://github.com/tari-project/tari-crypto/commit/0d463b064e6e41c1c0d1ff2064afa0b3f7f6bac9))
+* move the WASM and FFI builds to seperate Repos ([#193](https://github.com/tari-project/tari-crypto/issues/193)) ([053119f](https://github.com/tari-project/tari-crypto/commit/053119f2110aaf3089c7b9df96f50b8cc8d3217a))
+* remove unused dalek rangeproof ([#184](https://github.com/tari-project/tari-crypto/issues/184)) ([d21cd37](https://github.com/tari-project/tari-crypto/commit/d21cd377616776743b6e33552000cfc9fc06c0bd))
+* update dependancies ([#185](https://github.com/tari-project/tari-crypto/issues/185)) ([4c2424f](https://github.com/tari-project/tari-crypto/commit/4c2424f2f0426f9ad4a55a9ed35ecd29fe87e0c7))
+* zeroize temporary scalar byte array ([#188](https://github.com/tari-project/tari-crypto/issues/188)) ([2147522](https://github.com/tari-project/tari-crypto/commit/2147522916cc5649ad6c96bcd3a66af439dddaf2))
+
 ## [0.17.0](https://github.com/tari-project/tari-crypto/compare/v0.16.12...v0.17.0) (2023-06-13)
 
 
