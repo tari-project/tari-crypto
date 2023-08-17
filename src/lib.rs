@@ -21,8 +21,6 @@ pub mod hashing;
 pub mod keys;
 #[cfg(feature = "bulletproofs_plus")]
 pub mod range_proof;
-#[cfg(feature = "bulletproofs_plus")]
-pub mod rewindable_range_proof;
 pub mod signatures;
 
 // Implementations
