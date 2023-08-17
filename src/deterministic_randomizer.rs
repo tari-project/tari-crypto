@@ -181,7 +181,36 @@ mod test {
         let data = [0u8, 1u8, 2u8, 3u8];
         let mut randomizer = R::new(seed);
 
+        // Test a known sampling
         let sample = randomizer.sample(&data, 3).unwrap();
         assert_eq!(&sample, &[2u8, 3u8, 1u8]);
+
+        // Test sampling from an empty array
+        let empty: [u8; 0] = [];
+        assert_eq!(&randomizer.sample(&empty, 0).unwrap(), &empty);
+        assert!(randomizer.sample(&empty, 1).is_err());
+
+        // Test sampling too many items from a non-empty array
+        assert!(randomizer.sample(&data, data.len() + 1).is_err());
+
+        // Test sampling an entire array
+        let mut full = randomizer.sample(&data, data.len()).unwrap();
+        full.sort();
+        assert_eq!(full, data);
+    }
+
+    #[test]
+    fn test_seeding() {
+        let seed = [1u8; 32];
+        let mut randomizer = R::new(seed);
+
+        // Assert that resetting yields the same state
+        let data = randomizer.next_bounded_u64(u64::MAX).unwrap();
+        randomizer.reset();
+        assert_eq!(randomizer.next_bounded_u64(u64::MAX).unwrap(), data);
+
+        // Assert that reseeding yields a distinct state (with high probability)
+        randomizer.reseed([2u8; 32]);
+        assert_ne!(randomizer.next_bounded_u64(u64::MAX).unwrap(), data);
     }
 }
