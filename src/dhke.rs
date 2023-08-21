@@ -11,11 +11,12 @@
 
 use core::ops::Mul;
 
-use zeroize::Zeroize;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::keys::PublicKey;
 
-/// A type to hold a DH secret key.
+/// The result of a Diffie-Hellman key exchange
+#[derive(Zeroize, ZeroizeOnDrop)]
 pub struct DiffieHellmanSharedSecret<P>(P)
 where P: Zeroize;
 
@@ -35,20 +36,31 @@ where
     }
 }
 
-impl<P> Zeroize for DiffieHellmanSharedSecret<P>
-where P: Zeroize
-{
-    /// Zeroize the shared secret's underlying public key
-    fn zeroize(&mut self) {
-        self.0.zeroize();
-    }
-}
+#[cfg(test)]
+mod test {
+    use rand_core::OsRng;
 
-impl<P> Drop for DiffieHellmanSharedSecret<P>
-where P: Zeroize
-{
-    /// Zeroize the shared secret when out of scope or otherwise dropped
-    fn drop(&mut self) {
-        self.zeroize();
+    use super::DiffieHellmanSharedSecret;
+    use crate::{
+        keys::{PublicKey, SecretKey},
+        ristretto::{RistrettoPublicKey, RistrettoSecretKey},
+    };
+
+    #[test]
+    fn test_dhke() {
+        // Generate two key pairs
+        let mut rng = OsRng;
+
+        let sk1 = RistrettoSecretKey::random(&mut rng);
+        let pk1 = RistrettoPublicKey::from_secret_key(&sk1);
+
+        let sk2 = RistrettoSecretKey::random(&mut rng);
+        let pk2 = RistrettoPublicKey::from_secret_key(&sk2);
+
+        // Assert that both sides of a key exchange match
+        let left = DiffieHellmanSharedSecret::<RistrettoPublicKey>::new(&sk1, &pk2);
+        let right = DiffieHellmanSharedSecret::<RistrettoPublicKey>::new(&sk2, &pk1);
+
+        assert_eq!(left.as_bytes(), right.as_bytes());
     }
 }
