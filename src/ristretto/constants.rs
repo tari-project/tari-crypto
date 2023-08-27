@@ -102,7 +102,7 @@ mod test {
         let mut a: [u8; 64] = [0; 64];
         for i in 0..n {
             let mut data = b"TARI CRYPTO NUMS BASEPOINT LABEL - ".to_vec(); // Domain label
-            data.append(&mut i.to_le_bytes().to_vec()); // Append domain separated label counter
+            data.append(&mut (i as u64).to_le_bytes().to_vec()); // Append domain separated label counter
             let hashed_v = Sha512::digest(&data);
             a.copy_from_slice(&hashed_v);
             let next_val = RistrettoPoint::from_uniform_bytes(&a);
