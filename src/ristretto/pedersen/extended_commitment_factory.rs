@@ -11,6 +11,7 @@ use curve25519_dalek::{
     scalar::Scalar,
     traits::{Identity, MultiscalarMul},
 };
+use zeroize::Zeroize;
 
 #[cfg(feature = "precomputed_tables")]
 use crate::ristretto::pedersen::scalar_mul_with_pre_computation_tables;
@@ -84,7 +85,7 @@ impl ExtendedPedersenCommitmentFactory {
     }
 
     /// Creates a Pedersen commitment using the value scalar and a blinding factor vector
-    pub fn commit_scalars(
+    fn commit_scalars(
         &self,
         value: &Scalar,
         blinding_factors: &[Scalar],
@@ -166,8 +167,9 @@ impl ExtendedHomomorphicCommitmentFactory for ExtendedPedersenCommitmentFactory 
         k_vec: &[RistrettoSecretKey],
         v: &RistrettoSecretKey,
     ) -> Result<PedersenCommitment, CommitmentError> {
-        let blinding_factors: Vec<Scalar> = k_vec.iter().map(|k| k.0).collect();
+        let mut blinding_factors: Vec<Scalar> = k_vec.iter().map(|k| k.0).collect();
         let c = self.commit_scalars(&v.0, &blinding_factors)?;
+        blinding_factors.zeroize();
         Ok(HomomorphicCommitment(RistrettoPublicKey::new_from_pk(c)))
     }
 
