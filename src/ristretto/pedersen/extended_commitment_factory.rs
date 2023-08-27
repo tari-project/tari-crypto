@@ -4,7 +4,7 @@
 //! Extended commitments are commitments that have more than one blinding factor.
 
 use alloc::vec::Vec;
-use core::{borrow::Borrow, iter::once};
+use core::{iter::once};
 
 use curve25519_dalek::{
     ristretto::{CompressedRistretto, RistrettoPoint},
@@ -90,8 +90,6 @@ impl ExtendedPedersenCommitmentFactory {
         value: &Scalar,
         blinding_factors: &[Scalar],
     ) -> Result<RistrettoPoint, CommitmentError>
-    where
-        for<'a> &'a Scalar: Borrow<Scalar>,
     {
         if blinding_factors.is_empty() || blinding_factors.len() > self.extension_degree as usize {
             Err(CommitmentError::CommitmentExtensionDegree {
@@ -106,13 +104,13 @@ impl ExtendedPedersenCommitmentFactory {
             }
             #[cfg(not(feature = "precomputed_tables"))]
             {
-                let scalars = once(value).chain(blinding_factors);
+                let scalars = once(value).chain(blinding_factors.iter());
                 let g_base_head = self.g_base_vec.iter().take(blinding_factors.len());
                 let points = once(&self.h_base).chain(g_base_head);
                 Ok(RistrettoPoint::multiscalar_mul(scalars, points))
             }
         } else {
-            let scalars = once(value).chain(blinding_factors);
+            let scalars = once(value).chain(blinding_factors.iter());
             let g_base_head = self.g_base_vec.iter().take(blinding_factors.len());
             let points = once(&self.h_base).chain(g_base_head);
             Ok(RistrettoPoint::multiscalar_mul(scalars, points))
