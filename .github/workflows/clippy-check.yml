@@ -1,4 +1,4 @@
-name: Clippy and FMT
+name: Formatting, lints, and code checks
 on: [push, pull_request]
 
 jobs:
@@ -6,52 +6,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v1
+        uses: actions/checkout@v4
       - name: Install components
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
           components: clippy, rustfmt
           toolchain: nightly
-          override: true
       - name: Toolchain thumbv8m.main-none-eabi
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
           toolchain: nightly
-          target: thumbv8m.main-none-eabi
-          override: true
+          targets: thumbv8m.main-none-eabi
       - name: Check formatting
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          toolchain: nightly
-          args: --all -- --check
-      - name: Install cargo-lints
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: cargo-lints
-      - name: Clippy lints
-        uses: actions-rs/cargo@v1
-        with:
-          command: lints
-          toolchain: nightly
-          args: clippy --all-targets --all-features
-      - name: Cargo check
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --release --all-targets
-      - name: Cargo check no default
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --release --no-default-features
+        run: cargo +nightly fmt --all -- --check
+      - name: Install linter
+        run: cargo install cargo-lints
+      - name: Run linter
+        run: cargo +nightly lints clippy --all-targets --all-features
+      - name: Check code
+        run: cargo +stable check --release --all-targets
+      - name: Check code (no default features)
+        run: cargo +stable check --release --no-default-features
       # This check here is to ensure that it builds for no-std rust targets
-      - name: Cargo check for no-std
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          toolchain: nightly
-          args: --no-default-features --target=thumbv8m.main-none-eabi -Zavoid-dev-deps
-
+      - name: Check code (no-std)
+        run: cargo +nightly check --no-default-features --target=thumbv8m.main-none-eabi -Zavoid-dev-deps
+      - name: Check benchmarks
+        run: cargo +nightly check --benches

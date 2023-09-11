@@ -11,40 +11,19 @@ jobs:
         rust:
           - stable
     steps:
-      - name: checkout
-        uses: actions/checkout@v2
-      - name: toolchain
-        uses: actions-rs/toolchain@v1
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install components
+        uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
-          toolchain: ${{ matrix.rust }}
-          override: true
+          toolchain: stable
       - name: test/debug
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
+        run: cargo +stable test
       - name: test/release
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --release
+        run: cargo +stable test --release
       - name: test/debug features
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --all-features
+        run: cargo +stable test --all-features
       - name: test/release features
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --release --all-features
-      - name: docs build
-        uses: actions-rs/cargo@v1
-        with:
-          command: doc
-          args: --all-features
-      - name: bench
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --benches
+        run: cargo +stable test --release --all-features
+      - name: Build documentation
+        run: cargo doc --all-features --no-deps
