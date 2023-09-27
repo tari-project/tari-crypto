@@ -5,6 +5,8 @@
 
 use std::{string::ToString, vec::Vec};
 
+use zeroize::{Zeroize, ZeroizeOnDrop};
+
 use crate::{
     commitment::{ExtensionDegree, HomomorphicCommitment},
     errors::RangeProofError,
@@ -99,7 +101,7 @@ pub trait ExtendedRangeProofService {
 
 /// Extended blinding factor vector used as part of the witness to construct an extended proof, or rewind data
 /// extracted from a range proof containing the mask (e.g. blinding factor vector).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Zeroize, ZeroizeOnDrop)]
 pub struct ExtendedMask<K>
 where K: SecretKey
 {
@@ -200,7 +202,7 @@ where PK: PublicKey
 
 /// The extended witness contains the extended mask (blinding factor vector), value and a minimum value
 /// promise; this will be used to construct the extended range proof
-#[derive(Clone)]
+#[derive(Clone, Zeroize, ZeroizeOnDrop)]
 pub struct ExtendedWitness<K>
 where K: SecretKey
 {

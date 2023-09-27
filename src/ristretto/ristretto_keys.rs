@@ -65,7 +65,7 @@ impl borsh::BorshSerialize for RistrettoSecretKey {
 impl borsh::BorshDeserialize for RistrettoSecretKey {
     fn deserialize_reader<R>(reader: &mut R) -> Result<Self, borsh::maybestd::io::Error>
     where R: borsh::maybestd::io::Read {
-        let bytes: Vec<u8> = borsh::BorshDeserialize::deserialize_reader(reader)?;
+        let bytes: Zeroizing<Vec<u8>> = Zeroizing::new(borsh::BorshDeserialize::deserialize_reader(reader)?);
         Self::from_canonical_bytes(bytes.as_slice())
             .map_err(|e| borsh::maybestd::io::Error::new(borsh::maybestd::io::ErrorKind::InvalidInput, e.to_string()))
     }
@@ -230,12 +230,6 @@ define_mul_variants!(
 impl From<u64> for RistrettoSecretKey {
     fn from(v: u64) -> Self {
         let s = Scalar::from(v);
-        RistrettoSecretKey(s)
-    }
-}
-
-impl From<Scalar> for RistrettoSecretKey {
-    fn from(s: Scalar) -> Self {
         RistrettoSecretKey(s)
     }
 }
