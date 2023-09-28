@@ -65,9 +65,19 @@ impl borsh::BorshSerialize for RistrettoSecretKey {
 impl borsh::BorshDeserialize for RistrettoSecretKey {
     fn deserialize_reader<R>(reader: &mut R) -> Result<Self, borsh::maybestd::io::Error>
     where R: borsh::maybestd::io::Read {
-        let bytes: Vec<u8> = borsh::BorshDeserialize::deserialize_reader(reader)?;
-        Self::from_bytes(bytes.as_slice())
+        let mut bytes: Vec<u8> = borsh::BorshDeserialize::deserialize_reader(reader)?;
+        match Self::from_bytes(bytes.as_slice())
             .map_err(|e| borsh::maybestd::io::Error::new(borsh::maybestd::io::ErrorKind::InvalidInput, e.to_string()))
+        {
+            Ok(k) => {
+                bytes.zeroize();
+                Ok(k)
+            },
+            Err(e) => {
+                bytes.zeroize();
+                Err(e)
+            },
+        }
     }
 }
 
