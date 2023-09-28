@@ -102,8 +102,8 @@ where
         for<'a> &'a K: Mul<&'a K, Output = K>,
         C: HomomorphicCommitmentFactory<P = P>,
     {
-        // The challenge must be a valid scalar
-        let e = match K::from_bytes(challenge) {
+        // The challenge is computed by wide reduction
+        let e = match K::from_uniform_bytes(challenge) {
             Ok(e) => e,
             Err(_) => return Err(CommitmentAndPublicKeySignatureError::InvalidChallenge),
         };
@@ -148,8 +148,8 @@ where
         C: HomomorphicCommitmentFactory<P = P>,
         R: RngCore + CryptoRng,
     {
-        // The challenge must be a valid scalar
-        let e = match K::from_bytes(challenge) {
+        // The challenge is computed by wide reduction
+        let e = match K::from_uniform_bytes(challenge) {
             Ok(e) => e,
             Err(_) => return false,
         };

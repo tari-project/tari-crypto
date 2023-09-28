@@ -30,9 +30,18 @@ use crate::{
 ///     "8063d85e151abee630e643e2b3dc47bfaeb8aa859c9d10d60847985f286aad19",
 /// )
 /// .unwrap();
-/// let u_a = RistrettoSecretKey::from_bytes(b"10000000000000000000000010000000").unwrap();
-/// let u_x = RistrettoSecretKey::from_bytes(b"a00000000000000000000000a0000000").unwrap();
-/// let u_y = RistrettoSecretKey::from_bytes(b"a00000000000000000000000a0000000").unwrap();
+/// let u_a = RistrettoSecretKey::from_hex(
+///     "a8fb609c5ab7cc07548b076b6c25cc3237c4526fb7a6dcb83b26f457b172c20a",
+/// )
+/// .unwrap();
+/// let u_x = RistrettoSecretKey::from_hex(
+///     "0e689df8ad4ad9d2fd5aaf8cb0a66d85cb0d4b7a380405514d453625813b0b0f",
+/// )
+/// .unwrap();
+/// let u_y = RistrettoSecretKey::from_hex(
+///     "f494050bd0d4ed0ec514cdce9430d0564df6b35d2a12b7daa0e99c7d94a06509",
+/// )
+/// .unwrap();
 /// let sig = RistrettoComAndPubSig::new(ephemeral_commitment, ephemeral_pubkey, u_a, u_x, u_y);
 /// ```
 ///
@@ -48,7 +57,7 @@ use crate::{
 /// # use tari_crypto::ristretto::pedersen::*;
 /// use tari_crypto::ristretto::pedersen::commitment_factory::PedersenCommitmentFactory;
 /// use tari_utilities::hex::Hex;
-/// use digest::consts::U32;
+/// use digest::consts::U64;
 ///
 /// let mut rng = rand::thread_rng();
 /// let a_val = RistrettoSecretKey::random(&mut rng);
@@ -57,7 +66,7 @@ use crate::{
 /// let a_nonce = RistrettoSecretKey::random(&mut rng);
 /// let x_nonce = RistrettoSecretKey::random(&mut rng);
 /// let y_nonce = RistrettoSecretKey::random(&mut rng);
-/// let e = Blake2b::<U32>::digest(b"Maskerade"); // In real life, this should be strong Fiat-Shamir!
+/// let e = Blake2b::<U64>::digest(b"Maskerade"); // In real life, this should be strong Fiat-Shamir!
 /// let factory = PedersenCommitmentFactory::default();
 /// let commitment = factory.commit(&x_val, &a_val);
 /// let pubkey = RistrettoPublicKey::from_secret_key(&y_val);
@@ -72,8 +81,8 @@ pub type RistrettoComAndPubSig = CommitmentAndPublicKeySignature<RistrettoPublic
 #[cfg(test)]
 mod test {
     use blake2::Blake2b;
-    use digest::{consts::U32, Digest};
-    use tari_utilities::{hex::from_hex, ByteArray};
+    use digest::{consts::U64, Digest};
+    use tari_utilities::ByteArray;
 
     use crate::{
         commitment::HomomorphicCommitmentFactory,
@@ -132,15 +141,15 @@ mod test {
         let ephemeral_commitment = factory.commit(&r_x, &r_a);
         let ephemeral_pubkey = RistrettoPublicKey::from_secret_key(&r_y);
 
-        // Challenge; doesn't use proper Fiat-Shamir, so it's for testing only!
-        let challenge = Blake2b::<U32>::new()
+        // Challenge; doesn't use domain-separated Fiat-Shamir, so it's for testing only!
+        let challenge = Blake2b::<U64>::new()
             .chain_update(commitment.as_bytes())
             .chain_update(pubkey.as_bytes())
             .chain_update(ephemeral_commitment.as_bytes())
             .chain_update(ephemeral_pubkey.as_bytes())
             .chain_update(b"Small Gods")
             .finalize();
-        let e_key = RistrettoSecretKey::from_bytes(&challenge).unwrap();
+        let e_key = RistrettoSecretKey::from_uniform_bytes(&challenge).unwrap();
 
         // Responses
         let u_a = &r_a + e_key.clone() * &a_value;
@@ -178,7 +187,7 @@ mod test {
         assert!(!sig.verify_challenge(&commitment, &evil_pubkey, &challenge, &factory, &mut rng));
 
         // A different challenge should fail
-        let evil_challenge = Blake2b::<U32>::digest(b"Guards! Guards!");
+        let evil_challenge = Blake2b::<U64>::digest(b"Guards! Guards!");
         assert!(!sig.verify_challenge(&commitment, &pubkey, &evil_challenge, &factory, &mut rng));
     }
 
@@ -205,7 +214,7 @@ mod test {
         let ephemeral_pubkey = RistrettoPublicKey::from_secret_key(&r_y);
 
         // Challenge; doesn't use proper Fiat-Shamir, so it's for testing only!
-        let challenge = Blake2b::<U32>::new()
+        let challenge = Blake2b::<U64>::new()
             .chain_update(commitment.as_bytes())
             .chain_update(pubkey.as_bytes())
             .chain_update(ephemeral_commitment.as_bytes())
@@ -292,7 +301,7 @@ mod test {
         let ephemeral_pubkey_bob = RistrettoPublicKey::from_secret_key(&r_y_bob);
 
         // The challenge is common to Alice and Bob; here we use an arbitrary hash
-        let challenge = Blake2b::<U32>::digest(b"Test challenge");
+        let challenge = Blake2b::<U64>::digest(b"Test challenge");
 
         // Alice's signature
         let sig_alice = RistrettoComAndPubSig::sign(
@@ -336,28 +345,6 @@ mod test {
         let commitment_sum = &commitment_alice + &commitment_bob;
         let pubkey_sum = &pubkey_alice + &pubkey_bob;
         assert!(sig_sum.verify_challenge(&commitment_sum, &pubkey_sum, &challenge, &factory, &mut rng))
-    }
-
-    /// Ristretto scalars have a max value 2^255. This test checks that hashed messages above this value can still be
-    /// signed as a result of applying modulo arithmetic on the challenge value
-    #[test]
-    fn challenge_from_invalid_scalar() {
-        let mut rng = rand::thread_rng();
-        let factory = PedersenCommitmentFactory::default();
-
-        let a_value = RistrettoSecretKey::random(&mut rng);
-        let x_value = RistrettoSecretKey::random(&mut rng);
-        let y_value = RistrettoSecretKey::random(&mut rng);
-
-        let message = from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap();
-
-        let r_a = RistrettoSecretKey::random(&mut rng);
-        let r_x = RistrettoSecretKey::random(&mut rng);
-        let r_y = RistrettoSecretKey::random(&mut rng);
-
-        assert!(
-            RistrettoComAndPubSig::sign(&a_value, &x_value, &y_value, &r_a, &r_x, &r_y, &message, &factory).is_ok()
-        );
     }
 
     #[test]

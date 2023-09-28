@@ -90,7 +90,7 @@ mod test {
         let (_, p) = RistrettoPublicKey::random_keypair(&mut rng);
         let c = PedersenCommitment::from_public_key(&p);
         assert_eq!(c.as_public_key(), &p);
-        let c2 = PedersenCommitment::from_bytes(c.as_bytes()).unwrap();
+        let c2 = PedersenCommitment::from_canonical_bytes(c.as_bytes()).unwrap();
         assert_eq!(c, c2);
     }
 
