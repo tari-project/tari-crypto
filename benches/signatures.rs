@@ -46,7 +46,7 @@ fn sign_message(c: &mut Criterion) {
         b.iter_batched(
             gen_keypair,
             |d| {
-                let _sig = RistrettoSchnorr::sign_message(&d.k, d.m, &mut OsRng).unwrap();
+                let _sig = RistrettoSchnorr::sign(&d.k, d.m, &mut OsRng).unwrap();
             },
             BatchSize::SmallInput,
         );
@@ -60,10 +60,10 @@ fn verify_message(c: &mut Criterion) {
         b.iter_batched(
             || {
                 let d = gen_keypair();
-                let s = RistrettoSchnorr::sign_message(&d.k, d.m, &mut OsRng).unwrap();
+                let s = RistrettoSchnorr::sign(&d.k, d.m, &mut OsRng).unwrap();
                 (d, s)
             },
-            |(d, s)| assert!(s.verify_message(&d.p, d.m)),
+            |(d, s)| assert!(s.verify(&d.p, d.m)),
             BatchSize::SmallInput,
         );
     });

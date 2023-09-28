@@ -22,7 +22,7 @@ use digest::{consts::U64, Digest};
 use once_cell::sync::OnceCell;
 use rand_core::{CryptoRng, RngCore};
 use tari_utilities::{hex::Hex, ByteArray, ByteArrayError, Hashable};
-use zeroize::{Zeroize, ZeroizeOnDrop};
+use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 use crate::{
     errors::HashingError,
@@ -44,7 +44,7 @@ use crate::{
 /// use tari_utilities::{hex::Hex, ByteArray};
 ///
 /// let mut rng = rand::thread_rng();
-/// let _k1 = RistrettoSecretKey::from_bytes(&[
+/// let _k1 = RistrettoSecretKey::from_canonical_bytes(&[
 ///     1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 ///     0, 0,
 /// ]);
@@ -66,7 +66,7 @@ impl borsh::BorshDeserialize for RistrettoSecretKey {
     fn deserialize_reader<R>(reader: &mut R) -> Result<Self, borsh::maybestd::io::Error>
     where R: borsh::maybestd::io::Read {
         let bytes: Vec<u8> = borsh::BorshDeserialize::deserialize_reader(reader)?;
-        Self::from_bytes(bytes.as_slice())
+        Self::from_canonical_bytes(bytes.as_slice())
             .map_err(|e| borsh::maybestd::io::Error::new(borsh::maybestd::io::ErrorKind::InvalidInput, e.to_string()))
     }
 }
@@ -74,29 +74,49 @@ impl borsh::BorshDeserialize for RistrettoSecretKey {
 //-----------------------------------------   Ristretto Secret Key    ------------------------------------------------//
 impl SecretKey for RistrettoSecretKey {
     const KEY_LEN: usize = 32;
+    const WIDE_REDUCTION_LEN: usize = 64;
 
     /// Return a random secret key on the `ristretto255` curve using the supplied CSPRNG.
     fn random<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
         RistrettoSecretKey(Scalar::random(rng))
+    }
+
+    /// Return a secret key computed from a uniform byte slice using wide reduction
+    /// If the byte array is not exactly 64 bytes, returns an error
+    fn from_uniform_bytes(bytes: &[u8]) -> Result<Self, ByteArrayError> {
+        if bytes.len() != Self::WIDE_REDUCTION_LEN {
+            return Err(ByteArrayError::IncorrectLength {});
+        }
+
+        let mut bytes_copied = Zeroizing::new([0u8; Self::WIDE_REDUCTION_LEN]);
+        bytes_copied.copy_from_slice(bytes);
+
+        Ok(RistrettoSecretKey(Scalar::from_bytes_mod_order_wide(&bytes_copied)))
     }
 }
 
 //-------------------------------------  Ristretto Secret Key ByteArray  ---------------------------------------------//
 
 impl ByteArray for RistrettoSecretKey {
-    /// Create a secret key on the Ristretto255 curve using the given little-endian byte array. If the byte array is
-    /// not exactly 32 bytes long, `from_bytes` returns an error. This function is guaranteed to return a valid key
-    /// in the group since it performs a mod _l_ on the input.
-    fn from_bytes(bytes: &[u8]) -> Result<RistrettoSecretKey, ByteArrayError>
+    /// Return a secret key computed from a canonical byte array
+    /// If the byte array is not exactly 32 bytes, returns an error
+    /// If the byte array does not represent a canonical encoding, returns an error
+    fn from_canonical_bytes(bytes: &[u8]) -> Result<RistrettoSecretKey, ByteArrayError>
     where Self: Sized {
-        if bytes.len() != 32 {
+        if bytes.len() != Self::KEY_LEN {
             return Err(ByteArrayError::IncorrectLength {});
         }
-        let mut a = [0u8; 32];
-        a.copy_from_slice(bytes);
-        let k = Scalar::from_bytes_mod_order(a);
-        a.zeroize();
-        Ok(RistrettoSecretKey(k))
+
+        let mut bytes_copied = [0u8; 32];
+        bytes_copied.copy_from_slice(bytes);
+        let scalar = Option::<Scalar>::from(Scalar::from_canonical_bytes(bytes_copied)).ok_or(
+            ByteArrayError::ConversionError {
+                reason: ("Invalid canonical scalar byte array".to_string()),
+            },
+        )?;
+        bytes_copied.zeroize();
+
+        Ok(RistrettoSecretKey(scalar))
     }
 
     /// Return the byte array for the secret key in little-endian order
@@ -245,7 +265,7 @@ impl<'a> Borrow<Scalar> for &'a RistrettoSecretKey {
 /// use tari_utilities::{hex::Hex, ByteArray};
 ///
 /// let mut rng = rand::thread_rng();
-/// let _p1 = RistrettoPublicKey::from_bytes(&[
+/// let _p1 = RistrettoPublicKey::from_canonical_bytes(&[
 ///     224, 196, 24, 247, 200, 217, 196, 205, 215, 57, 91, 147, 234, 18, 79, 58, 217, 144, 33,
 ///     187, 104, 29, 252, 51, 2, 169, 217, 154, 46, 83, 230, 78,
 /// ]);
@@ -273,7 +293,7 @@ impl borsh::BorshDeserialize for RistrettoPublicKey {
     fn deserialize_reader<R>(reader: &mut R) -> Result<Self, borsh::maybestd::io::Error>
     where R: borsh::maybestd::io::Read {
         let bytes: Vec<u8> = borsh::BorshDeserialize::deserialize_reader(reader)?;
-        Self::from_bytes(bytes.as_slice())
+        Self::from_canonical_bytes(bytes.as_slice())
             .map_err(|e| borsh::maybestd::io::Error::new(borsh::maybestd::io::ErrorKind::InvalidInput, e.to_string()))
     }
 }
@@ -484,7 +504,7 @@ impl ByteArray for RistrettoPublicKey {
     /// the following circumstances:
     /// * The byte array is not exactly 32 bytes
     /// * The byte array does not represent a valid (compressed) point on the ristretto255 curve
-    fn from_bytes(bytes: &[u8]) -> Result<RistrettoPublicKey, ByteArrayError>
+    fn from_canonical_bytes(bytes: &[u8]) -> Result<RistrettoPublicKey, ByteArrayError>
     where Self: Sized {
         // Check the length here, because The Ristretto constructor panics rather than returning an error
         if bytes.len() != 32 {
@@ -598,7 +618,8 @@ impl From<RistrettoPublicKey> for CompressedRistretto {
 
 #[cfg(test)]
 mod test {
-    use digest::consts::U32;
+    use blake2::Blake2b;
+    use digest::consts::{U32, U64};
     use tari_utilities::ByteArray;
 
     use super::*;
@@ -629,7 +650,7 @@ mod test {
 
     #[test]
     fn invalid_secret_key_bytes() {
-        RistrettoSecretKey::from_bytes(&[1, 2, 3]).expect_err("Secret keys should be 32 bytes");
+        RistrettoSecretKey::from_canonical_bytes(&[1, 2, 3]).expect_err("Secret keys should be 32 bytes");
     }
 
     #[test]
@@ -659,7 +680,7 @@ mod test {
         for i in 0u8..16 {
             let pk = RistrettoPublicKey::from_hex(encodings_of_small_multiples[i as usize]).unwrap();
             bytes[0] = i;
-            let sk = RistrettoSecretKey::from_bytes(&bytes).unwrap();
+            let sk = RistrettoSecretKey::from_canonical_bytes(&bytes).unwrap();
             let pk2 = RistrettoPublicKey::from_secret_key(&sk);
             assert_eq!(pk, pk2);
         }
@@ -967,35 +988,38 @@ mod test {
     }
 
     #[test]
-    fn kdf_key_too_short() {
-        let err = RistrettoKdf::generate::<Blake2b<U32>>(b"this_key_is_too_short", b"data", "test").err();
+    fn kdf_too_short() {
+        let err = RistrettoKdf::generate::<Blake2b<U32>>(b"this_hasher_is_too_short", b"data", "test").err();
+        assert!(matches!(err, Some(HashingError::InputTooShort {})));
+
+        let err = RistrettoKdf::generate::<Blake2b<U64>>(b"this_key_is_too_short", b"data", "test").err();
         assert!(matches!(err, Some(HashingError::InputTooShort {})));
     }
 
     #[test]
     fn kdf_test() {
         let key =
-            RistrettoSecretKey::from_hex("b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c").unwrap();
-        let derived1 = RistrettoKdf::generate::<Blake2b<U32>>(key.as_bytes(), b"derived1", "test").unwrap();
-        let derived2 = RistrettoKdf::generate::<Blake2b<U32>>(key.as_bytes(), b"derived2", "test").unwrap();
+            RistrettoSecretKey::from_hex("45c5b950e04167785ff735bead8d746740db04bce3ee2c1f6523bdc59023e50e").unwrap();
+        let derived1 = RistrettoKdf::generate::<Blake2b<U64>>(key.as_bytes(), b"derived1", "test").unwrap();
+        let derived2 = RistrettoKdf::generate::<Blake2b<U64>>(key.as_bytes(), b"derived2", "test").unwrap();
         assert_eq!(
             derived1.to_hex(),
-            "e8df6fa40344c1fde721e9a35d46daadb48dc66f7901a9795ebb0374474ea601"
+            "22deb0c38ec2dc9f741912f6e3c2cd3f76a5b33142a289da15eecdcd882bda06"
         );
         assert_eq!(
             derived2.to_hex(),
-            "3ae035e2663d9c561300cca67743ccdb56ea07ca7dacd8394356c4354b030e0c"
+            "fcca9ca5c993d817581ab6040d92feef4c78529b5a485b51d0e11af427944207"
         );
     }
 
     #[test]
     fn visibility_test() {
         let key =
-            RistrettoSecretKey::from_hex("b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c").unwrap();
+            RistrettoSecretKey::from_hex("cd4f563f5e53a67ade2400b281e75f4b306253501da6529338e7be4f2b5c6200").unwrap();
         let invisible = format!("{key:?}");
-        assert!(!invisible.contains("016c"));
+        assert!(invisible.contains("***"));
         let visible = format!("{:?}", key.reveal());
-        assert!(visible.contains("016c"));
+        assert!(visible.contains("cd4f563f5e53a67ade2400b281e75f4b306253501da6529338e7be4f2b5c6200"));
     }
 
     #[test]

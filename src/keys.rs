@@ -9,7 +9,7 @@
 use core::ops::Add;
 
 use rand_core::{CryptoRng, RngCore};
-use tari_utilities::ByteArray;
+use tari_utilities::{ByteArray, ByteArrayError};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// A trait specifying common behaviour for representing `SecretKey`s. Specific elliptic curve
@@ -32,6 +32,9 @@ pub trait SecretKey:
     /// The length of the byte encoding of a key, in bytes
     const KEY_LEN: usize;
 
+    /// The number of bytes used for construction by wide reduction
+    const WIDE_REDUCTION_LEN: usize;
+
     /// The length of the byte encoding of a key, in bytes
     fn key_length() -> usize {
         Self::KEY_LEN
@@ -39,6 +42,10 @@ pub trait SecretKey:
 
     /// Generates a random secret key
     fn random<R: RngCore + CryptoRng>(rng: &mut R) -> Self;
+
+    /// Generates a secret key from a slice of uniformly-distributed bytes using wide reduction
+    /// If the number of bytes is incorrect, this will fail
+    fn from_uniform_bytes(bytes: &[u8]) -> Result<Self, ByteArrayError>;
 }
 
 //----------------------------------------   Public Keys  ----------------------------------------//

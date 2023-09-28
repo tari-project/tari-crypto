@@ -92,7 +92,7 @@ where
         for<'a> &'a K: Mul<&'a K, Output = K>,
         C: HomomorphicCommitmentFactory<P = P>,
     {
-        let e = match K::from_bytes(challenge) {
+        let e = match K::from_uniform_bytes(challenge) {
             Ok(e) => e,
             Err(_) => return Err(CommitmentSignatureError::InvalidChallenge),
         };
@@ -120,7 +120,7 @@ where
         for<'b> &'b HomomorphicCommitment<P>: Add<&'b HomomorphicCommitment<P>, Output = HomomorphicCommitment<P>>,
         C: HomomorphicCommitmentFactory<P = P>,
     {
-        let e = match K::from_bytes(challenge) {
+        let e = match K::from_uniform_bytes(challenge) {
             Ok(e) => e,
             Err(_) => return false,
         };
@@ -178,9 +178,9 @@ where
         if buf.len() != P::KEY_LEN + 2 * K::key_length() {
             return Err(ByteArrayError::IncorrectLength {});
         }
-        let public_nonce = HomomorphicCommitment::from_public_key(&P::from_bytes(&buf[0..P::KEY_LEN])?);
-        let u = K::from_bytes(&buf[P::KEY_LEN..P::KEY_LEN + K::key_length()])?;
-        let v = K::from_bytes(&buf[P::KEY_LEN + K::key_length()..P::KEY_LEN + 2 * K::key_length()])?;
+        let public_nonce = HomomorphicCommitment::from_public_key(&P::from_canonical_bytes(&buf[0..P::KEY_LEN])?);
+        let u = K::from_canonical_bytes(&buf[P::KEY_LEN..P::KEY_LEN + K::key_length()])?;
+        let v = K::from_canonical_bytes(&buf[P::KEY_LEN + K::key_length()..P::KEY_LEN + 2 * K::key_length()])?;
 
         Ok(Self { public_nonce, u, v })
     }

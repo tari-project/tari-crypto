@@ -13,7 +13,6 @@ pub mod ristretto_keys;
 mod ristretto_sig;
 #[cfg(feature = "serde")]
 pub mod serialize;
-pub mod utils;
 
 pub use self::{
     ristretto_com_and_pub_sig::RistrettoComAndPubSig,

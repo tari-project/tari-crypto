@@ -68,8 +68,8 @@ where P: PublicKey
 impl<P> ByteArray for HomomorphicCommitment<P>
 where P: PublicKey
 {
-    fn from_bytes(bytes: &[u8]) -> Result<Self, ByteArrayError> {
-        let p = P::from_bytes(bytes)?;
+    fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, ByteArrayError> {
+        let p = P::from_canonical_bytes(bytes)?;
         Ok(Self(p))
     }
 
