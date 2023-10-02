@@ -104,7 +104,7 @@ impl ExtendedPedersenCommitmentFactory {
             }
             #[cfg(not(feature = "precomputed_tables"))]
             {
-                let scalars = once(value).chain(blinding_factors.iter());
+                let scalars = once(value).chain(blinding_factors);
                 let g_base_head = self.g_base_vec.iter().take(blinding_factors.len());
                 let points = once(&self.h_base).chain(g_base_head);
                 Ok(RistrettoPoint::multiscalar_mul(scalars, points))
