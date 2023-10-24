@@ -88,7 +88,7 @@ impl TryFrom<&RistrettoExtendedMask> for BulletproofsExtendedMask {
     type Error = RangeProofError;
 
     fn try_from(extended_mask: &RistrettoExtendedMask) -> Result<Self, Self::Error> {
-        let extension_degree = BulletproofsExtensionDegree::try_from_size(extended_mask.secrets().len())
+        let extension_degree = BulletproofsExtensionDegree::try_from(extended_mask.secrets().len())
             .map_err(|e| RangeProofError::RPExtensionDegree { reason: e.to_string() })?;
         BulletproofsExtendedMask::assign(extension_degree, Vec::try_from(extended_mask)?)
             .map_err(|e| RangeProofError::RPExtensionDegree { reason: e.to_string() })
@@ -109,7 +109,7 @@ impl BulletproofsPlusService {
                 h_base_compressed: factory.h_base_compressed,
                 g_base_vec: factory.g_base_vec,
                 g_base_compressed_vec: factory.g_base_compressed_vec,
-                extension_degree: BulletproofsExtensionDegree::try_from_size(factory.extension_degree as usize)
+                extension_degree: BulletproofsExtensionDegree::try_from(factory.extension_degree as usize)
                     .map_err(|e| RangeProofError::InitializationError { reason: e.to_string() })?,
             })
             .map_err(|e| RangeProofError::InitializationError { reason: e.to_string() })?,
@@ -242,7 +242,7 @@ impl RangeProofService for BulletproofsPlusService {
                     seed_nonce: None,
                 };
                 match RistrettoRangeProof::verify_batch(
-                    self.transcript_label,
+                    &[self.transcript_label],
                     &[statement],
                     &[rp.clone()],
                     VerifyAction::VerifyOnly,
@@ -362,10 +362,13 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
         // Deserialize the range proofs
         let range_proofs = self.deserialize_range_proofs(&proofs)?;
 
+        // Set up a common transcript label
+        let transcript_labels = vec![self.transcript_label; range_statements.len()];
+
         // Verify and recover
         let mut recovered_extended_masks = Vec::new();
         match RistrettoRangeProof::verify_batch(
-            self.transcript_label,
+            &transcript_labels,
             &range_statements,
             &range_proofs,
             VerifyAction::RecoverAndVerify,
@@ -406,9 +409,12 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
         // Deserialize the range proofs
         let range_proofs = self.deserialize_range_proofs(&proofs)?;
 
+        // Set up a common transcript label
+        let transcript_labels = vec![self.transcript_label; range_statements.len()];
+
         // Verify
         match RistrettoRangeProof::verify_batch(
-            self.transcript_label,
+            &transcript_labels,
             &range_statements,
             &range_proofs,
             VerifyAction::VerifyOnly,
@@ -440,8 +446,8 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
                 // Prepare the range statement
 
                 match RistrettoRangeProof::verify_batch(
-                    self.transcript_label,
-                    &vec![statement],
+                    &[self.transcript_label],
+                    &[statement],
                     &[rp],
                     VerifyAction::RecoverOnly,
                 ) {
@@ -485,7 +491,7 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
                 let range_statements = self.prepare_private_range_statements(vec![statement]);
 
                 match RistrettoRangeProof::verify_batch(
-                    self.transcript_label,
+                    &[self.transcript_label],
                     &range_statements,
                     &[rp],
                     VerifyAction::RecoverOnly,
@@ -626,9 +632,7 @@ mod test {
                     let key = RistrettoSecretKey(Scalar::random_not_zero(&mut rng));
                     let proof = bulletproofs_plus_service.construct_proof(&key, value);
                     // This should only succeed with trivial aggregation and extension and a valid value
-                    if extension_degree == CommitmentExtensionDegree::DefaultPedersen &&
-                        aggregation_factor == 1 &&
-                        value >> (BIT_LENGTH - 1) <= 1
+                    if extension_degree == CommitmentExtensionDegree::DefaultPedersen && value >> (BIT_LENGTH - 1) <= 1
                     {
                         // The proof should succeed
                         let proof = proof.unwrap();
