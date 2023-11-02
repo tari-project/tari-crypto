@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.19.0](https://github.com/tari-project/tari-crypto/compare/v0.18.0...v0.19.0) (2023-11-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* Changes the commitment and secret key APIs.
+* This changes the way that scalars are produced from
+byte arrays, modifies the `SecretKey` trait and corresponding
+`RistrettoSecretKey` implementation, and updates the Schnorr signature
+API.
+
+### Features
+
+* differentiate scalar parsing from byte arrays ([#194](https://github.com/tari-project/tari-crypto/issues/194)) ([f9b6cb8](https://github.com/tari-project/tari-crypto/commit/f9b6cb8f7a7c6a41373b935ac8293331422f2266)), closes [/github.com/tari-project/tari-crypto/blob/053119f2110aaf3089c7b9df96f50b8cc8d3217a/src/ristretto/ristretto_keys.rs#L90-L100](https://github.com/tari-project//github.com/tari-project/tari-crypto/blob/053119f2110aaf3089c7b9df96f50b8cc8d3217a/src/ristretto/ristretto_keys.rs/issues/L90-L100) [#189](https://github.com/tari-project/tari-crypto/issues/189)
+* simplify zeroizing and add test to DHKE ([#197](https://github.com/tari-project/tari-crypto/issues/197)) ([1e6f603](https://github.com/tari-project/tari-crypto/commit/1e6f60319d483bb504bead04c4f8e37a6734b770)), closes [#196](https://github.com/tari-project/tari-crypto/issues/196)
+
+
+### Bug Fixes
+
+* improve zeroizing support ([#209](https://github.com/tari-project/tari-crypto/issues/209)) ([ff1c393](https://github.com/tari-project/tari-crypto/commit/ff1c39363218d65711f62ddcdee58ce1c9001460)), closes [#204](https://github.com/tari-project/tari-crypto/issues/204)
+
 ## [0.18.0](https://github.com/tari-project/tari-crypto/compare/v0.17.0...v0.18.0) (2023-08-10)
 
 
