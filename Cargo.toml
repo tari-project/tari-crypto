@@ -37,6 +37,20 @@ rand = { version = "0.8" }
 
 [features]
 default = ["bulletproofs_plus", "serde", "precomputed_tables", "borsh"]
+std = [
+    "blake2/std",
+    "borsh?/std",
+    "digest/std",
+    "log/std",
+    "once_cell/std",
+    "rand_chacha/std",
+    "rand_core/std",
+    "serde?/std",
+    "sha3/std",
+    "snafu/std",
+    "tari_utilities/std",
+    "zeroize/std",
+]
 precomputed_tables = []
 
 [lib]
