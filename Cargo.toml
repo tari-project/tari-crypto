@@ -7,13 +7,13 @@ categories = ["cryptography"]
 homepage = "https://tari.com"
 readme = "README.md"
 license = "BSD-3-Clause"
-version = "0.19.0"
+version = "0.19.1"
 edition = "2018"
 
 [dependencies]
-tari_utilities = { version = "0.6", default-features = false, features = ["zero"] }
+tari_utilities = { version = "0.6.2", default-features = false, features = ["zero"] }
 blake2 = { version = "0.10", default-features = false  }
-borsh = { version = "0.10" , optional = true , default-features = false}
+borsh = { version = "1.2" , optional = true , default-features = false, features = ["derive"]}
 bulletproofs_plus = { package = "tari_bulletproofs_plus", version = "0.3", optional = true }
 curve25519-dalek = { package = "tari-curve25519-dalek",  version = "4.0.3", default-features = false, features = [ "alloc", "rand_core", "precomputed-tables", "zeroize"] }
 digest = { version = "0.10", default-features = false }

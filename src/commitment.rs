@@ -38,15 +38,15 @@ pub struct HomomorphicCommitment<P>(pub(crate) P);
 
 #[cfg(feature = "borsh")]
 impl<P: borsh::BorshDeserialize> borsh::BorshDeserialize for HomomorphicCommitment<P> {
-    fn deserialize_reader<R>(reader: &mut R) -> Result<Self, borsh::maybestd::io::Error>
-    where R: borsh::maybestd::io::Read {
+    fn deserialize_reader<R>(reader: &mut R) -> Result<Self, borsh::io::Error>
+    where R: borsh::io::Read {
         Ok(Self(P::deserialize_reader(reader)?))
     }
 }
 
 #[cfg(feature = "borsh")]
 impl<P: borsh::BorshSerialize> borsh::BorshSerialize for HomomorphicCommitment<P> {
-    fn serialize<W: borsh::maybestd::io::Write>(&self, writer: &mut W) -> borsh::maybestd::io::Result<()> {
+    fn serialize<W: borsh::io::Write>(&self, writer: &mut W) -> borsh::io::Result<()> {
         self.0.serialize(writer)
     }
 }
