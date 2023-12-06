@@ -1,7 +1,7 @@
 # Changelog
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
-## [0.19.1](https://github.com/tari-project/tari-crypto/compare/v0.19.0...v0.19.1) (2023-11-30)
+## [0.20.0](https://github.com/tari-project/tari-crypto/compare/v0.19.0...v0.20.0) (2023-12-06)
 
 ### Features
 * Upgrade borsh to 1.2 official
