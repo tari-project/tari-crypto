@@ -7,11 +7,11 @@ categories = ["cryptography"]
 homepage = "https://tari.com"
 readme = "README.md"
 license = "BSD-3-Clause"
-version = "0.19.1"
+version = "0.20.0"
 edition = "2018"
 
 [dependencies]
-tari_utilities = { version = "0.6.2", default-features = false, features = ["zero"] }
+tari_utilities = { version = "0.7", default-features = false, features = ["zero"] }
 blake2 = { version = "0.10", default-features = false  }
 borsh = { version = "1.2" , optional = true , default-features = false, features = ["derive"]}
 bulletproofs_plus = { package = "tari_bulletproofs_plus", version = "0.3", optional = true }
@@ -27,7 +27,7 @@ snafu = { version = "0.7", default-features = false}
 zeroize = {version = "1" , default-features = false}
 
 [dev-dependencies]
-tari_utilities = { version = "0.6", features = ["std"] }
+tari_utilities = { version = "0.7", features = ["std"] }
 serde = { version = "1.0"}
 bincode = { version = "1.1" }
 criterion = { version = "0.5", default-features = false }
