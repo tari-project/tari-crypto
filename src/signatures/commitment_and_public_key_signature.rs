@@ -176,6 +176,11 @@ where
         C: HomomorphicCommitmentFactory<P = P>,
         R: RngCore + CryptoRng,
     {
+        // Reject a zero commitment and public key
+        if commitment.as_public_key() == &P::default() || pubkey == &P::default() {
+            return false;
+        }
+
         // The challenge cannot be zero
         if *challenge == K::default() {
             return false;

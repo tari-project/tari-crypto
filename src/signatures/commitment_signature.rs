@@ -136,6 +136,11 @@ where
         for<'b> &'b HomomorphicCommitment<P>: Add<&'b HomomorphicCommitment<P>, Output = HomomorphicCommitment<P>>,
         C: HomomorphicCommitmentFactory<P = P>,
     {
+        // Reject a zero commitment
+        if public_commitment.as_public_key() == &P::default() {
+            return false;
+        }
+
         // v*H + u*G
         let lhs = self.calc_signature_verifier(factory);
         // R + e.C

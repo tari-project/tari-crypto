@@ -24,7 +24,8 @@ use crate::{
     keys::{PublicKey, SecretKey},
 };
 
-// Define the hashing domain for Schnorr signatures
+// Define a default hashing domain for Schnorr signatures
+// You almost certainly want to define your own that is specific to signature context!
 hash_domain!(SchnorrSigChallenge, "com.tari.schnorr_signature", 1);
 
 /// An error occurred during construction of a SchnorrSignature
@@ -231,6 +232,11 @@ where
         for<'b> &'b K: Mul<&'a P, Output = P>,
         for<'b> &'b P: Add<P, Output = P>,
     {
+        // Reject a zero key
+        if public_key == &P::default() {
+            return false;
+        }
+
         let lhs = self.calc_signature_verifier();
         let rhs = &self.public_nonce + challenge * public_key;
         // Implementors should make this a constant time comparison

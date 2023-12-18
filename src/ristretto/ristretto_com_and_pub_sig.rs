@@ -82,10 +82,11 @@ pub type RistrettoComAndPubSig = CommitmentAndPublicKeySignature<RistrettoPublic
 mod test {
     use blake2::Blake2b;
     use digest::{consts::U64, Digest};
+    use rand_core::RngCore;
     use tari_utilities::ByteArray;
 
     use crate::{
-        commitment::HomomorphicCommitmentFactory,
+        commitment::{HomomorphicCommitment, HomomorphicCommitmentFactory},
         keys::{PublicKey, SecretKey},
         ristretto::{
             pedersen::{commitment_factory::PedersenCommitmentFactory, PedersenCommitment},
@@ -358,5 +359,71 @@ mod test {
         );
         assert_eq!(bytes.capacity(), bytes.len());
         assert!(bytes.iter().all(|b| *b == 0x00));
+    }
+
+    #[test]
+    fn zero_commitment() {
+        let mut rng = rand::thread_rng();
+        let factory = PedersenCommitmentFactory::default();
+
+        // Generate a zero commitment opening and a random key
+        let a = RistrettoSecretKey::default();
+        let x = RistrettoSecretKey::default();
+        let commitment = factory.commit(&x, &a);
+        assert_eq!(commitment, HomomorphicCommitment::<RistrettoPublicKey>::default());
+
+        let y = RistrettoSecretKey::random(&mut rng);
+        let public_key = RistrettoPublicKey::from_secret_key(&y);
+
+        // Generate a signature with the zero opening and key
+        let mut challenge = [0u8; RistrettoSecretKey::WIDE_REDUCTION_LEN];
+        rng.fill_bytes(&mut challenge);
+        let sig = RistrettoComAndPubSig::sign(
+            &a,
+            &x,
+            &y,
+            &RistrettoSecretKey::random(&mut rng),
+            &RistrettoSecretKey::random(&mut rng),
+            &RistrettoSecretKey::random(&mut rng),
+            &challenge,
+            &factory,
+        )
+        .unwrap();
+
+        // The signature should fail to verify
+        assert!(!sig.verify_challenge(&commitment, &public_key, &challenge, &factory, &mut rng));
+    }
+
+    #[test]
+    fn zero_public_key() {
+        let mut rng = rand::thread_rng();
+        let factory = PedersenCommitmentFactory::default();
+
+        // Generate a random commitment opening and a zero key
+        let a = RistrettoSecretKey::random(&mut rng);
+        let x = RistrettoSecretKey::random(&mut rng);
+        let commitment = factory.commit(&x, &a);
+
+        let y = RistrettoSecretKey::default();
+        let public_key = RistrettoPublicKey::from_secret_key(&y);
+        assert_eq!(public_key, RistrettoPublicKey::default());
+
+        // Generate a signature with the opening and zero key
+        let mut challenge = [0u8; RistrettoSecretKey::WIDE_REDUCTION_LEN];
+        rng.fill_bytes(&mut challenge);
+        let sig = RistrettoComAndPubSig::sign(
+            &a,
+            &x,
+            &y,
+            &RistrettoSecretKey::random(&mut rng),
+            &RistrettoSecretKey::random(&mut rng),
+            &RistrettoSecretKey::random(&mut rng),
+            &challenge,
+            &factory,
+        )
+        .unwrap();
+
+        // The signature should fail to verify
+        assert!(!sig.verify_challenge(&commitment, &public_key, &challenge, &factory, &mut rng));
     }
 }
