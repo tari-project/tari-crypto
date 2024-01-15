@@ -9,6 +9,7 @@
 use core::ops::Add;
 
 use rand_core::{CryptoRng, RngCore};
+use subtle::ConstantTimeEq;
 use tari_utilities::{ByteArray, ByteArrayError};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -27,7 +28,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 /// let p = RistrettoPublicKey::from_secret_key(&k);
 /// ```
 pub trait SecretKey:
-    ByteArray + Clone + PartialEq + Eq + Add<Output = Self> + Default + Zeroize + ZeroizeOnDrop
+    ByteArray + Clone + ConstantTimeEq + PartialEq + Eq + Add<Output = Self> + Default + Zeroize + ZeroizeOnDrop
 {
     /// The length of the byte encoding of a key, in bytes
     const KEY_LEN: usize;
@@ -54,7 +55,9 @@ pub trait SecretKey:
 /// implementations need to implement this trait for them to be used in Tari.
 ///
 /// See [SecretKey](trait.SecretKey.html) for an example.
-pub trait PublicKey: ByteArray + Add<Output = Self> + Clone + PartialOrd + Ord + Default + Zeroize {
+pub trait PublicKey:
+    ByteArray + ConstantTimeEq + PartialEq + Eq + Add<Output = Self> + Clone + PartialOrd + Ord + Default + Zeroize
+{
     /// The length of the byte encoding of a key, in bytes
     const KEY_LEN: usize;
 
