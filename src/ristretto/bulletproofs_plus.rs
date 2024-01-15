@@ -19,6 +19,7 @@ use bulletproofs_plus::{
 };
 use curve25519_dalek::{ristretto::RistrettoPoint, scalar::Scalar};
 use log::*;
+use merlin::Transcript;
 
 use crate::{
     alloc::string::ToString,
@@ -88,7 +89,7 @@ impl TryFrom<&RistrettoExtendedMask> for BulletproofsExtendedMask {
     type Error = RangeProofError;
 
     fn try_from(extended_mask: &RistrettoExtendedMask) -> Result<Self, Self::Error> {
-        let extension_degree = BulletproofsExtensionDegree::try_from_size(extended_mask.secrets().len())
+        let extension_degree = BulletproofsExtensionDegree::try_from(extended_mask.secrets().len())
             .map_err(|e| RangeProofError::RPExtensionDegree { reason: e.to_string() })?;
         BulletproofsExtendedMask::assign(extension_degree, Vec::try_from(extended_mask)?)
             .map_err(|e| RangeProofError::RPExtensionDegree { reason: e.to_string() })
@@ -109,7 +110,7 @@ impl BulletproofsPlusService {
                 h_base_compressed: factory.h_base_compressed,
                 g_base_vec: factory.g_base_vec,
                 g_base_compressed_vec: factory.g_base_compressed_vec,
-                extension_degree: BulletproofsExtensionDegree::try_from_size(factory.extension_degree as usize)
+                extension_degree: BulletproofsExtensionDegree::try_from(factory.extension_degree as usize)
                     .map_err(|e| RangeProofError::InitializationError { reason: e.to_string() })?,
             })
             .map_err(|e| RangeProofError::InitializationError { reason: e.to_string() })?,
@@ -223,8 +224,12 @@ impl RangeProofService for BulletproofsPlusService {
         let statement = RangeStatement::init(self.generators.clone(), vec![commitment], vec![None], None)
             .map_err(|e| RangeProofError::ProofConstructionError { reason: e.to_string() })?;
 
-        let proof = RistrettoRangeProof::prove(self.transcript_label, &statement, &witness)
-            .map_err(|e| RangeProofError::ProofConstructionError { reason: e.to_string() })?;
+        let proof = RistrettoRangeProof::prove(
+            &mut Transcript::new(self.transcript_label.as_bytes()),
+            &statement,
+            &witness,
+        )
+        .map_err(|e| RangeProofError::ProofConstructionError { reason: e.to_string() })?;
 
         Ok(proof.to_bytes())
     }
@@ -242,7 +247,7 @@ impl RangeProofService for BulletproofsPlusService {
                     seed_nonce: None,
                 };
                 match RistrettoRangeProof::verify_batch(
-                    self.transcript_label,
+                    &mut [Transcript::new(self.transcript_label.as_bytes())],
                     &[statement],
                     &[rp.clone()],
                     VerifyAction::VerifyOnly,
@@ -306,8 +311,12 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
         )
         .map_err(|e| RangeProofError::ProofConstructionError { reason: e.to_string() })?;
 
-        let proof = RistrettoRangeProof::prove(self.transcript_label, &statement, &witness)
-            .map_err(|e| RangeProofError::ProofConstructionError { reason: e.to_string() })?;
+        let proof = RistrettoRangeProof::prove(
+            &mut Transcript::new(self.transcript_label.as_bytes()),
+            &statement,
+            &witness,
+        )
+        .map_err(|e| RangeProofError::ProofConstructionError { reason: e.to_string() })?;
 
         Ok(proof.to_bytes())
     }
@@ -345,8 +354,12 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
         )
         .map_err(|e| RangeProofError::ProofConstructionError { reason: e.to_string() })?;
 
-        let proof = RistrettoRangeProof::prove(self.transcript_label, &statement, &witness)
-            .map_err(|e| RangeProofError::ProofConstructionError { reason: e.to_string() })?;
+        let proof = RistrettoRangeProof::prove(
+            &mut Transcript::new(self.transcript_label.as_bytes()),
+            &statement,
+            &witness,
+        )
+        .map_err(|e| RangeProofError::ProofConstructionError { reason: e.to_string() })?;
 
         Ok(proof.to_bytes())
     }
@@ -362,10 +375,13 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
         // Deserialize the range proofs
         let range_proofs = self.deserialize_range_proofs(&proofs)?;
 
+        // Set up transcripts
+        let mut transcripts = vec![Transcript::new(self.transcript_label.as_bytes()); range_statements.len()];
+
         // Verify and recover
         let mut recovered_extended_masks = Vec::new();
         match RistrettoRangeProof::verify_batch(
-            self.transcript_label,
+            &mut transcripts,
             &range_statements,
             &range_proofs,
             VerifyAction::RecoverAndVerify,
@@ -406,9 +422,12 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
         // Deserialize the range proofs
         let range_proofs = self.deserialize_range_proofs(&proofs)?;
 
+        // Set up transcripts
+        let mut transcripts = vec![Transcript::new(self.transcript_label.as_bytes()); range_statements.len()];
+
         // Verify
         match RistrettoRangeProof::verify_batch(
-            self.transcript_label,
+            &mut transcripts,
             &range_statements,
             &range_proofs,
             VerifyAction::VerifyOnly,
@@ -430,6 +449,7 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
             .map_err(|e| RangeProofError::InvalidRangeProof { reason: e.to_string() })
         {
             Ok(rp) => {
+                // Prepare the range statement
                 let statement = RangeStatement {
                     generators: self.generators.clone(),
                     commitments: vec![commitment.0.point()],
@@ -437,11 +457,10 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
                     minimum_value_promises: vec![None],
                     seed_nonce: Some(seed_nonce.0),
                 };
-                // Prepare the range statement
 
                 match RistrettoRangeProof::verify_batch(
-                    self.transcript_label,
-                    &vec![statement],
+                    &mut [Transcript::new(self.transcript_label.as_bytes())],
+                    &[statement],
                     &[rp],
                     VerifyAction::RecoverOnly,
                 ) {
@@ -485,7 +504,7 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
                 let range_statements = self.prepare_private_range_statements(vec![statement]);
 
                 match RistrettoRangeProof::verify_batch(
-                    self.transcript_label,
+                    &mut [Transcript::new(self.transcript_label.as_bytes())],
                     &range_statements,
                     &[rp],
                     VerifyAction::RecoverOnly,
@@ -626,9 +645,7 @@ mod test {
                     let key = RistrettoSecretKey(Scalar::random_not_zero(&mut rng));
                     let proof = bulletproofs_plus_service.construct_proof(&key, value);
                     // This should only succeed with trivial aggregation and extension and a valid value
-                    if extension_degree == CommitmentExtensionDegree::DefaultPedersen &&
-                        aggregation_factor == 1 &&
-                        value >> (BIT_LENGTH - 1) <= 1
+                    if extension_degree == CommitmentExtensionDegree::DefaultPedersen && value >> (BIT_LENGTH - 1) <= 1
                     {
                         // The proof should succeed
                         let proof = proof.unwrap();

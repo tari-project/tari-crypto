@@ -625,12 +625,10 @@ impl From<RistrettoPublicKey> for CompressedRistretto {
 
 #[cfg(test)]
 mod test {
-    use blake2::Blake2b;
-    use digest::consts::{U32, U64};
-    use tari_utilities::ByteArray;
+    use digest::consts::U32;
 
     use super::*;
-    use crate::{keys::PublicKey, ristretto::test_common::get_keypair};
+    use crate::ristretto::test_common::get_keypair;
 
     fn assert_completely_equal(k1: &RistrettoPublicKey, k2: &RistrettoPublicKey) {
         assert_eq!(k1, k2);
