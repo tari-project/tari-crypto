@@ -1,9 +1,6 @@
 name: Formatting, lints, and code checks
 on: [push, pull_request]
 
-env:
-  nightly: nightly-2024-02-01
-
 jobs:
   clippy_check:
     runs-on: ubuntu-latest
@@ -14,24 +11,24 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           components: clippy, rustfmt
-          toolchain: ${{ env.nightly }}
+          toolchain: nightly
       - name: Toolchain thumbv8m.main-none-eabi
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: ${{ env.nightly }}
+          toolchain: nightly
           targets: thumbv8m.main-none-eabi
       - name: Check formatting
-        run: cargo +${{ env.nightly }} fmt --all -- --check
+        run: cargo +nightly fmt --all -- --check
       - name: Install linter
         run: cargo install cargo-lints
       - name: Run linter
-        run: cargo +${{ env.nightly }} lints clippy --all-targets --all-features
+        run: cargo +nightly lints clippy --all-targets --all-features
       - name: Check code
         run: cargo +stable check --release --all-targets
       - name: Check code (no default features)
         run: cargo +stable check --release --no-default-features
       # This check here is to ensure that it builds for no-std rust targets
       - name: Check code (no-std)
-        run: cargo +${{ env.nightly }} check --no-default-features --target=thumbv8m.main-none-eabi -Zavoid-dev-deps
+        run: cargo +nightly check --no-default-features --target=thumbv8m.main-none-eabi -Zavoid-dev-deps
       - name: Check benchmarks
-        run: cargo +${{ env.nightly }} check --benches
+        run: cargo +nightly check --benches
