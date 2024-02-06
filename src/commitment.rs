@@ -156,7 +156,7 @@ impl<P: PublicKey> Hash for HomomorphicCommitment<P> {
 
 impl<P: PublicKey> PartialEq for HomomorphicCommitment<P> {
     fn eq(&self, other: &Self) -> bool {
-        self.as_public_key().eq(other.as_public_key())
+        self.as_public_key() == other.as_public_key()
     }
 }
 
