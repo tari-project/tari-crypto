@@ -551,7 +551,8 @@ mod test {
 
     use bulletproofs_plus::protocols::scalar_protocol::ScalarProtocol;
     use curve25519_dalek::scalar::Scalar;
-    use rand::Rng;
+    use rand_chacha::ChaCha12Rng;
+    use rand_core::{RngCore, SeedableRng};
 
     use crate::{
         commitment::{
@@ -610,7 +611,7 @@ mod test {
     /// Using nontrivial aggregation or extension or an invalid value should fail
     #[test]
     fn test_range_proof_service() {
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         const BIT_LENGTH: usize = 4;
         const AGGREGATION_FACTORS: [usize; 2] = [1, 2];
 
@@ -654,7 +655,7 @@ mod test {
     fn test_construct_verify_extended_proof_with_recovery() {
         static BIT_LENGTH: [usize; 2] = [2, 64];
         static AGGREGATION_SIZE: [usize; 2] = [1, 2];
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         for extension_degree in [
             CommitmentExtensionDegree::DefaultPedersen,
             CommitmentExtensionDegree::AddFiveBasePoints,
@@ -672,7 +673,7 @@ mod test {
                 let mut commitment_value_map_private = HashMap::new();
 
                 #[allow(clippy::cast_possible_truncation)]
-                let (value_min, value_max) = (0u64, ((1u128 << bit_length) - 1) as u64);
+                let value_max = ((1u128 << bit_length) - 1) as u64;
                 for aggregation_size in AGGREGATION_SIZE {
                     // 1. Prover's service
                     let bulletproofs_plus_service =
@@ -682,7 +683,7 @@ mod test {
                     let mut statements = vec![];
                     let mut extended_witnesses = vec![];
                     for m in 0..aggregation_size {
-                        let value = rng.gen_range(value_min..value_max);
+                        let value = rng.next_u64() % value_max; // biased, but fine for testing
                         let minimum_value_promise = if m == 0 { value / 3 } else { 0 };
                         let secrets =
                             vec![RistrettoSecretKey(Scalar::random_not_zero(&mut rng)); extension_degree as usize];
@@ -796,7 +797,7 @@ mod test {
     #[test]
     // Test correctness of single aggregated proofs of varying extension degree
     fn test_single_aggregated_extended_proof() {
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
 
         const BIT_LENGTH: usize = 4;
         const AGGREGATION_FACTOR: usize = 2;
@@ -809,14 +810,14 @@ mod test {
             let bulletproofs_plus_service =
                 BulletproofsPlusService::init(BIT_LENGTH, AGGREGATION_FACTOR, factory.clone()).unwrap();
 
-            let (value_min, value_max) = (0u64, (1u64 << BIT_LENGTH) - 1);
+            let value_max = (1u64 << BIT_LENGTH) - 1;
 
             let mut statements = Vec::with_capacity(AGGREGATION_FACTOR);
             let mut extended_witnesses = Vec::with_capacity(AGGREGATION_FACTOR);
 
             // Set up the statements and witnesses
             for _ in 0..AGGREGATION_FACTOR {
-                let value = rng.gen_range(value_min..value_max);
+                let value = rng.next_u64() % value_max; // biased, but fine for testing
                 let minimum_value_promise = value / 3;
                 let secrets = vec![RistrettoSecretKey(Scalar::random_not_zero(&mut rng)); extension_degree as usize];
                 let extended_mask = RistrettoExtendedMask::assign(extension_degree, secrets.clone()).unwrap();
@@ -853,17 +854,17 @@ mod test {
         let bit_length = 64usize;
         let aggregation_size = 1usize;
         let extension_degree = CommitmentExtensionDegree::DefaultPedersen;
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         let factory = ExtendedPedersenCommitmentFactory::new_with_extension_degree(extension_degree).unwrap();
         #[allow(clippy::cast_possible_truncation)]
-        let (value_min, value_max) = (0u64, ((1u128 << bit_length) - 1) as u64);
+        let value_max = ((1u128 << bit_length) - 1) as u64;
         // 1. Prover's service
         let mut provers_bulletproofs_plus_service =
             BulletproofsPlusService::init(bit_length, aggregation_size, factory.clone()).unwrap();
         provers_bulletproofs_plus_service.custom_transcript_label("123 range proof");
 
         // 2. Create witness data
-        let value = rng.gen_range(value_min..value_max);
+        let value = rng.next_u64() % value_max; // biased, but fine for testing
         let minimum_value_promise = value / 3;
         let secrets = vec![RistrettoSecretKey(Scalar::random_not_zero(&mut rng)); extension_degree as usize];
         let extended_mask = RistrettoExtendedMask::assign(extension_degree, secrets.clone()).unwrap();
@@ -960,17 +961,17 @@ mod test {
         let bit_length = 64usize;
         let aggregation_size = 1usize;
         let extension_degree = CommitmentExtensionDegree::DefaultPedersen;
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         let factory = ExtendedPedersenCommitmentFactory::new_with_extension_degree(extension_degree).unwrap();
         #[allow(clippy::cast_possible_truncation)]
-        let (value_min, value_max) = (0u64, ((1u128 << bit_length) - 1) as u64);
+        let value_max = ((1u128 << bit_length) - 1) as u64;
         // 1. Prover's service
         let mut provers_bulletproofs_plus_service =
             BulletproofsPlusService::init(bit_length, aggregation_size, factory.clone()).unwrap();
         provers_bulletproofs_plus_service.custom_transcript_label("123 range proof");
 
         // 2. Create witness data
-        let value = rng.gen_range(value_min..value_max);
+        let value = rng.next_u64() % value_max; // biased, but fine for testing
         let mask = RistrettoSecretKey(Scalar::random_not_zero(&mut rng));
         let commitment = factory.commit_value(&mask, value);
 

@@ -66,6 +66,8 @@ pub(crate) fn scalar_mul_with_pre_computation_tables(k: &Scalar, v: &Scalar) -> 
 
 #[cfg(test)]
 mod test {
+    use rand_chacha::ChaCha12Rng;
+    use rand_core::SeedableRng;
     use tari_utilities::ByteArray;
 
     use crate::{
@@ -86,7 +88,7 @@ mod test {
 
     #[test]
     fn pubkey_roundtrip() {
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         let (_, p) = RistrettoPublicKey::random_keypair(&mut rng);
         let c = PedersenCommitment::from_public_key(&p);
         assert_eq!(c.as_public_key(), &p);
@@ -96,7 +98,7 @@ mod test {
 
     #[test]
     fn commitment_sub() {
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         let (_, a) = RistrettoPublicKey::random_keypair(&mut rng);
         let (_, b) = RistrettoPublicKey::random_keypair(&mut rng);
         let c = &a + &b;
@@ -133,7 +135,7 @@ mod test {
     fn check_commitments_between_factories() {
         let factory_singular = PedersenCommitmentFactory::default();
         let factory_extended = ExtendedPedersenCommitmentFactory::default();
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         let v = RistrettoSecretKey::random(&mut rng);
         let k = RistrettoSecretKey::random(&mut rng);
         let c_singular = factory_singular.commit(&k, &v);

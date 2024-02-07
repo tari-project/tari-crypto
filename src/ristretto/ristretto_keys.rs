@@ -40,17 +40,20 @@ use crate::{
 /// little-endian):
 ///
 /// ```edition2018
-/// use rand;
+/// # #[cfg(feature = "rand")]
+/// # {
+/// # use rand_core::OsRng;
 /// use tari_crypto::{keys::SecretKey, ristretto::RistrettoSecretKey};
 /// use tari_utilities::{hex::Hex, ByteArray};
 ///
-/// let mut rng = rand::thread_rng();
+/// let mut rng = OsRng;
 /// let _k1 = RistrettoSecretKey::from_canonical_bytes(&[
 ///     1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 ///     0, 0,
 /// ]);
 /// let _k2 = RistrettoSecretKey::from_hex(&"100000002000000030000000040000000");
 /// let _k3 = RistrettoSecretKey::random(&mut rng);
+/// # }
 /// ```
 #[derive(Clone, Default, Zeroize, ZeroizeOnDrop)]
 pub struct RistrettoSecretKey(pub(crate) Scalar);
@@ -260,14 +263,16 @@ impl<'a> Borrow<Scalar> for &'a RistrettoSecretKey {
 /// Both [PublicKey](trait.PublicKey.html) and [ByteArray](trait.ByteArray.html) are implemented on
 /// `RistrettoPublicKey` so all of the following will work:
 /// ```edition2018
-/// use rand;
+/// # #[cfg(feature = "rand")]
+/// # {
+/// # use rand_core::OsRng;
 /// use tari_crypto::{
 ///     keys::{PublicKey, SecretKey},
 ///     ristretto::{RistrettoPublicKey, RistrettoSecretKey},
 /// };
 /// use tari_utilities::{hex::Hex, ByteArray};
 ///
-/// let mut rng = rand::thread_rng();
+/// let mut rng = OsRng;
 /// let _p1 = RistrettoPublicKey::from_canonical_bytes(&[
 ///     224, 196, 24, 247, 200, 217, 196, 205, 215, 57, 91, 147, 234, 18, 79, 58, 217, 144, 33,
 ///     187, 104, 29, 252, 51, 2, 169, 217, 154, 46, 83, 230, 78,
@@ -277,6 +282,7 @@ impl<'a> Borrow<Scalar> for &'a RistrettoSecretKey {
 /// );
 /// let sk = RistrettoSecretKey::random(&mut rng);
 /// let _p3 = RistrettoPublicKey::from_secret_key(&sk);
+/// # }
 /// ```
 #[derive(Clone)]
 pub struct RistrettoPublicKey {
@@ -627,6 +633,8 @@ impl From<RistrettoPublicKey> for CompressedRistretto {
 mod test {
     use blake2::Blake2b;
     use digest::consts::{U32, U64};
+    use rand_chacha::ChaCha12Rng;
+    use rand_core::SeedableRng;
     use tari_utilities::ByteArray;
 
     use super::*;
@@ -649,7 +657,7 @@ mod test {
 
     #[test]
     fn test_generation() {
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         let k1 = RistrettoSecretKey::random(&mut rng);
         let k2 = RistrettoSecretKey::random(&mut rng);
         assert_ne!(k1, k2);
@@ -695,7 +703,7 @@ mod test {
 
     #[test]
     fn secret_to_hex() {
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         let sk = RistrettoSecretKey::random(&mut rng);
         let hex = sk.to_hex();
         let sk2 = RistrettoSecretKey::from_hex(&hex).unwrap();
@@ -704,7 +712,7 @@ mod test {
 
     #[test]
     fn pubkey_to_hex() {
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         let sk = RistrettoSecretKey::random(&mut rng);
         let pk = RistrettoPublicKey::from_secret_key(&sk);
         let hex = pk.to_hex();
@@ -714,7 +722,7 @@ mod test {
 
     #[test]
     fn secret_to_vec() {
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         let sk = RistrettoSecretKey::random(&mut rng);
         let vec = sk.to_vec();
         let sk2 = RistrettoSecretKey::from_vec(&vec).unwrap();
@@ -723,7 +731,7 @@ mod test {
 
     #[test]
     fn public_to_vec() {
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         let sk = RistrettoSecretKey::random(&mut rng);
         let pk = RistrettoPublicKey::from_secret_key(&sk);
         let vec = pk.to_vec();
@@ -734,7 +742,7 @@ mod test {
     #[test]
     fn zero_plus_k_is_k() {
         let zero = RistrettoSecretKey::default();
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         let k = RistrettoSecretKey::random(&mut rng);
         assert_eq!(&k + &zero, k);
         assert_eq!(&k + zero.clone(), k);
@@ -745,7 +753,7 @@ mod test {
     #[test]
     fn k_minus_zero_is_k() {
         let zero = RistrettoSecretKey::default();
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         let k = RistrettoSecretKey::random(&mut rng);
         assert_eq!(&k - &zero, k);
         assert_eq!(&k - zero.clone(), k);
@@ -818,7 +826,7 @@ mod test {
 
     #[test]
     fn create_keypair() {
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         let (k, pk) = RistrettoPublicKey::random_keypair(&mut rng);
         assert_completely_equal(&pk, &RistrettoPublicKey::from_secret_key(&k));
     }
@@ -826,7 +834,7 @@ mod test {
     #[test]
     fn secret_keys_are_cleared_after_drop() {
         let zero = &vec![0u8; 32][..];
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         let ptr;
         {
             let k = RistrettoSecretKey::random(&mut rng);
@@ -867,7 +875,7 @@ mod test {
         use super::*;
         #[test]
         fn serialize_deserialize_base64() {
-            let mut rng = rand::thread_rng();
+            let mut rng = ChaCha12Rng::seed_from_u64(12345);
             let (k, pk) = RistrettoPublicKey::random_keypair(&mut rng);
             let ser_k = k.to_base64().unwrap();
             let ser_pk = pk.to_base64().unwrap();
@@ -879,7 +887,7 @@ mod test {
 
         #[test]
         fn serialize_deserialize_json() {
-            let mut rng = rand::thread_rng();
+            let mut rng = ChaCha12Rng::seed_from_u64(12345);
             let (k, pk) = RistrettoPublicKey::random_keypair(&mut rng);
             let ser_k = k.to_json().unwrap();
             let ser_pk = pk.to_json().unwrap();
@@ -892,7 +900,7 @@ mod test {
 
         #[test]
         fn serialize_deserialize_binary() {
-            let mut rng = rand::thread_rng();
+            let mut rng = ChaCha12Rng::seed_from_u64(12345);
             let (k, pk) = RistrettoPublicKey::random_keypair(&mut rng);
             let ser_k = k.to_binary().unwrap();
             let ser_pk = pk.to_binary().unwrap();
@@ -1031,7 +1039,7 @@ mod test {
 
     #[test]
     fn zeroize_test() {
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         let zeros = [0u8; 32];
 
         // Zeroize scalar

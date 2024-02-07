@@ -28,13 +28,12 @@ subtle = { version = "2.5.0", default-features = false }
 zeroize = {version = "1" , default-features = false}
 
 [dev-dependencies]
-tari_utilities = { version = "0.7", features = ["std"] }
-serde = { version = "1.0"}
+tari_utilities = { version = "0.7" }
+serde = { version = "1.0" }
 bincode = { version = "1.1" }
 criterion = { version = "0.5", default-features = false }
 sha2 = { version = "0.10" }
-rand = { version = "0.8" }
-
+rand_chacha = { version = "0.3.1", default-features = false }
 
 [features]
 default = ["bulletproofs_plus", "serde", "precomputed_tables", "borsh"]
@@ -54,6 +53,8 @@ std = [
     "zeroize/std",
 ]
 precomputed_tables = []
+# This is so doctests can work with `OsRng`
+rand = ['rand_core/getrandom']
 
 [lib]
 # Disable benchmarks to allow Criterion to take over

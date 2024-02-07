@@ -41,14 +41,16 @@ use crate::{
 /// or you can create a signature by signing a message:
 ///
 /// ```rust
+/// # #[cfg(feature = "rand")]
+/// # {
 /// # use tari_crypto::ristretto::*;
 /// # use tari_crypto::keys::*;
 /// # use tari_crypto::signatures::SchnorrSignature;
 /// # use digest::Digest;
-/// # use rand::{Rng, thread_rng};
+/// # use rand_core::OsRng;
 ///
 /// fn get_keypair() -> (RistrettoSecretKey, RistrettoPublicKey) {
-///     let mut rng = rand::thread_rng();
+///     let mut rng = OsRng;
 ///     let k = RistrettoSecretKey::random(&mut rng);
 ///     let pk = RistrettoPublicKey::from_secret_key(&k);
 ///     (k, pk)
@@ -57,8 +59,9 @@ use crate::{
 /// #[allow(non_snake_case)]
 /// let (k, P) = get_keypair();
 /// let msg = "Small Gods";
-/// let mut rng = thread_rng();
+/// let mut rng = OsRng;
 /// let sig = RistrettoSchnorr::sign(&k, &msg, &mut rng);
+/// # }
 /// ```
 ///
 /// # Verifying signatures
@@ -67,13 +70,15 @@ use crate::{
 /// method:
 ///
 /// ```edition2018
+/// # #[cfg(feature = "rand")]
+/// # {
 /// # use tari_crypto::ristretto::*;
 /// # use tari_crypto::keys::*;
 /// # use tari_crypto::signatures::SchnorrSignature;
 /// # use tari_utilities::hex::*;
 /// # use tari_utilities::ByteArray;
 /// # use digest::Digest;
-/// # use rand::{Rng, thread_rng};
+/// # use rand_core::OsRng;
 ///
 /// let msg = "Maskerade";
 /// let k = RistrettoSecretKey::from_hex(
@@ -82,10 +87,11 @@ use crate::{
 /// .unwrap();
 /// # #[allow(non_snake_case)]
 /// let P = RistrettoPublicKey::from_secret_key(&k);
-/// let mut rng = thread_rng();
+/// let mut rng = OsRng;
 /// let sig: SchnorrSignature<RistrettoPublicKey, RistrettoSecretKey> =
 ///     SchnorrSignature::sign(&k, msg, &mut rng).unwrap();
 /// assert!(sig.verify(&P, msg));
+/// # }
 /// ```
 pub type RistrettoSchnorr = SchnorrSignature<RistrettoPublicKey, RistrettoSecretKey, SchnorrSigChallenge>;
 
@@ -96,12 +102,14 @@ pub type RistrettoSchnorr = SchnorrSignature<RistrettoPublicKey, RistrettoSecret
 ///
 /// ## Example
 /// ```edition2018
+/// # #[cfg(feature = "rand")]
+/// # {
 /// # use tari_crypto::ristretto::*;
 /// # use tari_crypto::keys::*;
 /// # use tari_crypto::hash_domain;
 /// # use tari_crypto::signatures::SchnorrSignature;
 /// # use tari_utilities::hex::*;
-/// # use rand::{Rng, thread_rng};
+/// # use rand_core::OsRng;
 /// # use tari_utilities::ByteArray;
 /// # use digest::Digest;
 ///
@@ -114,10 +122,11 @@ pub type RistrettoSchnorr = SchnorrSignature<RistrettoPublicKey, RistrettoSecret
 /// .unwrap();
 /// # #[allow(non_snake_case)]
 /// let P = RistrettoPublicKey::from_secret_key(&k);
-/// let mut rng = thread_rng();
+/// let mut rng = OsRng;
 /// let sig: SchnorrSignature<RistrettoPublicKey, RistrettoSecretKey, MyCustomDomain> =
 ///     SchnorrSignature::sign(&k, msg, &mut rng).unwrap();
 /// assert!(sig.verify(&P, msg));
+/// # }
 /// ```
 pub type RistrettoSchnorrWithDomain<H> = SchnorrSignature<RistrettoPublicKey, RistrettoSecretKey, H>;
 
@@ -125,6 +134,8 @@ pub type RistrettoSchnorrWithDomain<H> = SchnorrSignature<RistrettoPublicKey, Ri
 mod test {
     use blake2::Blake2b;
     use digest::{consts::U64, Digest};
+    use rand_chacha::ChaCha12Rng;
+    use rand_core::SeedableRng;
     use tari_utilities::{
         hex::{to_hex, Hex},
         ByteArray,
@@ -153,7 +164,7 @@ mod test {
     #[test]
     #[allow(non_snake_case)]
     fn raw_sign_and_verify_challenge() {
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         let (k, P) = RistrettoPublicKey::random_keypair(&mut rng);
         let (r, R) = RistrettoPublicKey::random_keypair(&mut rng);
         // Use sign raw, and bind the nonce and public key manually
@@ -181,7 +192,7 @@ mod test {
     #[test]
     #[allow(non_snake_case)]
     fn test_signature_addition() {
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         // Alice and Bob generate some keys and nonces
         let (k1, P1) = RistrettoPublicKey::random_keypair(&mut rng);
         let (r1, R1) = RistrettoPublicKey::random_keypair(&mut rng);
@@ -233,7 +244,7 @@ mod test {
     #[allow(non_snake_case)]
     fn custom_hash_domain() {
         hash_domain!(TestDomain, "test.signature.com");
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         let (k, P) = RistrettoPublicKey::random_keypair(&mut rng);
         let (r, _) = RistrettoPublicKey::random_keypair(&mut rng);
         let msg = "Moving Pictures";
@@ -256,7 +267,7 @@ mod test {
     #[test]
     #[allow(non_snake_case)]
     fn sign_and_verify_message() {
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         let (k, P) = RistrettoPublicKey::random_keypair(&mut rng);
         let sig = RistrettoSchnorr::sign(&k, "Queues are things that happen to other people", &mut rng).unwrap();
         assert!(sig.verify(&P, "Queues are things that happen to other people"));
@@ -266,7 +277,7 @@ mod test {
 
     #[test]
     fn zero_public_key() {
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
 
         // Generate a zero key
         let secret_key = RistrettoSecretKey::default();

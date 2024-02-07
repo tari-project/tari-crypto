@@ -211,7 +211,8 @@ mod test {
     };
 
     use curve25519_dalek::{ristretto::RistrettoPoint, scalar::Scalar, traits::MultiscalarMul};
-    use rand::rngs::ThreadRng;
+    use rand_chacha::ChaCha12Rng;
+    use rand_core::SeedableRng;
 
     use crate::{
         commitment::{
@@ -301,7 +302,7 @@ mod test {
     #[allow(non_snake_case)]
     fn check_open_both_traits() {
         let H = *ristretto_pedersen_h();
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         for extension_degree in EXTENSION_DEGREE {
             let factory = ExtendedPedersenCommitmentFactory::new_with_extension_degree(extension_degree).unwrap();
             for _ in 0..25 {
@@ -348,7 +349,7 @@ mod test {
     /// `open(k1_i+k2_i, v1+v2)` is true for _C_
     #[test]
     fn check_homomorphism_both_traits() {
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         for extension_degree in EXTENSION_DEGREE {
             for _ in 0..25 {
                 let v1 = RistrettoSecretKey::random(&mut rng);
@@ -399,7 +400,7 @@ mod test {
     /// `open(k1+k2, v1)` is true for _C_
     #[test]
     fn check_homomorphism_with_public_key_singular() {
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         // Left-hand side
         let v1 = RistrettoSecretKey::random(&mut rng);
         let k1 = RistrettoSecretKey::random(&mut rng);
@@ -414,7 +415,7 @@ mod test {
         assert!(factory.open(&(&k1 + &k2), &v1, &c2));
     }
 
-    fn scalar_random_not_zero(rng: &mut ThreadRng) -> Scalar {
+    fn scalar_random_not_zero(rng: &mut ChaCha12Rng) -> Scalar {
         loop {
             let value = Scalar::random(rng);
             if value != Scalar::ZERO {
@@ -427,7 +428,7 @@ mod test {
     fn random_keypair_extended(
         factory: &ExtendedPedersenCommitmentFactory,
         extension_degree: ExtensionDegree,
-        rng: &mut ThreadRng,
+        rng: &mut ChaCha12Rng,
     ) -> (RistrettoSecretKey, RistrettoPublicKey) {
         let mut k_vec = vec![scalar_random_not_zero(rng)];
         if extension_degree != ExtensionDegree::DefaultPedersen {
@@ -448,7 +449,7 @@ mod test {
     /// Note: Homomorphism with public key only holds for extended commitments with`ExtensionDegree::DefaultPedersen`
     #[test]
     fn check_homomorphism_with_public_key_extended() {
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         for extension_degree in EXTENSION_DEGREE {
             // Left-hand side
             let v1 = RistrettoSecretKey::random(&mut rng);
@@ -493,7 +494,7 @@ mod test {
     /// `open(sum(k_j), sum(v_j))` is true for `sum(C_j)`
     #[test]
     fn sum_commitment_vector_singular() {
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         let mut v_sum = RistrettoSecretKey::default();
         let mut k_sum = RistrettoSecretKey::default();
         let zero = RistrettoSecretKey::default();
@@ -522,7 +523,7 @@ mod test {
     /// `open(sum(sum(k_i)_j), sum(v_j))` is true for `sum(C_j)`
     #[test]
     fn sum_commitment_vector_extended() {
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         let v_zero = RistrettoSecretKey::default();
         let k_zero = vec![RistrettoSecretKey::default(); ExtensionDegree::AddFiveBasePoints as usize];
         for extension_degree in EXTENSION_DEGREE {
@@ -557,7 +558,7 @@ mod test {
         use crate::ristretto::pedersen::PedersenCommitment;
         #[test]
         fn serialize_deserialize_singular() {
-            let mut rng = rand::thread_rng();
+            let mut rng = ChaCha12Rng::seed_from_u64(12345);
             let factory = ExtendedPedersenCommitmentFactory::default();
             let k = RistrettoSecretKey::random(&mut rng);
             let c = factory.commit_value(&k, 420);
@@ -575,7 +576,7 @@ mod test {
 
         #[test]
         fn serialize_deserialize_extended() {
-            let mut rng = rand::thread_rng();
+            let mut rng = ChaCha12Rng::seed_from_u64(12345);
             for extension_degree in EXTENSION_DEGREE {
                 let factory = ExtendedPedersenCommitmentFactory::new_with_extension_degree(extension_degree).unwrap();
                 let k_vec = vec![RistrettoSecretKey::random(&mut rng); extension_degree as usize];

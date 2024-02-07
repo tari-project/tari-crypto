@@ -41,17 +41,20 @@ use crate::{
 /// verify it by calling the `verify_challenge` method:
 ///
 /// ```rust
+/// # #[cfg(feature = "rand")]
+/// # {
 /// # use tari_crypto::ristretto::*;
 /// # use tari_crypto::keys::*;
 /// # use digest::Digest;
 /// # use tari_crypto::commitment::HomomorphicCommitmentFactory;
 /// # use tari_crypto::ristretto::pedersen::*;
+/// # use rand_core::OsRng;
 /// use blake2::Blake2b;
 /// use digest::consts::U64;
 /// use tari_crypto::ristretto::pedersen::commitment_factory::PedersenCommitmentFactory;
 /// use tari_utilities::hex::Hex;
 ///
-/// let mut rng = rand::thread_rng();
+/// let mut rng = OsRng;
 /// let a_val = RistrettoSecretKey::random(&mut rng);
 /// let x_val = RistrettoSecretKey::random(&mut rng);
 /// let a_nonce = RistrettoSecretKey::random(&mut rng);
@@ -61,6 +64,7 @@ use crate::{
 /// let commitment = factory.commit(&x_val, &a_val);
 /// let sig = RistrettoComSig::sign(&a_val, &x_val, &a_nonce, &x_nonce, &e, &factory).unwrap();
 /// assert!(sig.verify_challenge(&commitment, &e, &factory));
+/// # }
 /// ```
 ///
 /// # Verifying signatures
@@ -107,7 +111,8 @@ pub type RistrettoComSig = CommitmentSignature<RistrettoPublicKey, RistrettoSecr
 mod test {
     use blake2::Blake2b;
     use digest::{consts::U64, Digest};
-    use rand_core::RngCore;
+    use rand_chacha::ChaCha12Rng;
+    use rand_core::{RngCore, SeedableRng};
     use tari_utilities::ByteArray;
 
     use crate::{
@@ -137,7 +142,7 @@ mod test {
     #[test]
     #[allow(non_snake_case)]
     fn sign_and_verify_message() {
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         let a_value = RistrettoSecretKey::random(&mut rng);
         let x_value = RistrettoSecretKey::random(&mut rng);
         let factory = PedersenCommitmentFactory::default();
@@ -173,7 +178,7 @@ mod test {
     #[test]
     #[allow(non_snake_case)]
     fn test_signature_addition() {
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         let factory = PedersenCommitmentFactory::default();
         // Alice generate some keys and nonces
         let a_value_alice = RistrettoSecretKey::random(&mut rng);
@@ -232,7 +237,7 @@ mod test {
 
     #[test]
     fn zero_commitment() {
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         let factory = PedersenCommitmentFactory::default();
 
         // Generate a zero commitment opening
