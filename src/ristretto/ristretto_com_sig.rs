@@ -107,10 +107,11 @@ pub type RistrettoComSig = CommitmentSignature<RistrettoPublicKey, RistrettoSecr
 mod test {
     use blake2::Blake2b;
     use digest::{consts::U64, Digest};
+    use rand_core::RngCore;
     use tari_utilities::ByteArray;
 
     use crate::{
-        commitment::HomomorphicCommitmentFactory,
+        commitment::{HomomorphicCommitment, HomomorphicCommitmentFactory},
         keys::{PublicKey, SecretKey},
         ristretto::{
             pedersen::{commitment_factory::PedersenCommitmentFactory, PedersenCommitment},
@@ -227,5 +228,33 @@ mod test {
         );
         assert_eq!(bytes.capacity(), bytes.len());
         assert!(bytes.iter().all(|b| *b == 0x00));
+    }
+
+    #[test]
+    fn zero_commitment() {
+        let mut rng = rand::thread_rng();
+        let factory = PedersenCommitmentFactory::default();
+
+        // Generate a zero commitment opening
+        let secret_a = RistrettoSecretKey::default();
+        let secret_x = RistrettoSecretKey::default();
+        let commitment = factory.commit(&secret_x, &secret_a);
+        assert_eq!(commitment, HomomorphicCommitment::<RistrettoPublicKey>::default());
+
+        // Generate a signature with the zero opening
+        let mut challenge = [0u8; RistrettoSecretKey::WIDE_REDUCTION_LEN];
+        rng.fill_bytes(&mut challenge);
+        let sig = RistrettoComSig::sign(
+            &secret_a,
+            &secret_x,
+            &RistrettoSecretKey::random(&mut rng),
+            &RistrettoSecretKey::random(&mut rng),
+            &challenge,
+            &factory,
+        )
+        .unwrap();
+
+        // The signature should fail to verify
+        assert!(!sig.verify_challenge(&commitment, &challenge, &factory));
     }
 }

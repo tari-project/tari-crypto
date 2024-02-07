@@ -263,4 +263,21 @@ mod test {
         assert!(!sig.verify(&P, "Qs are things that happen to other people"));
         assert!(!sig.verify(&(&P + &P), "Queues are things that happen to other people"));
     }
+
+    #[test]
+    fn zero_public_key() {
+        let mut rng = rand::thread_rng();
+
+        // Generate a zero key
+        let secret_key = RistrettoSecretKey::default();
+        let public_key = RistrettoPublicKey::from_secret_key(&secret_key);
+        assert_eq!(public_key, RistrettoPublicKey::default());
+
+        // Sign a message with the zero key
+        let message = "A secret message";
+        let sig = RistrettoSchnorr::sign(&secret_key, message, &mut rng).unwrap();
+
+        // The signature should fail to verify
+        assert!(!sig.verify(&public_key, message,));
+    }
 }
