@@ -4,8 +4,8 @@
 use std::time::Duration;
 
 use criterion::{criterion_group, BatchSize, Criterion};
-use rand::{thread_rng, RngCore};
-use rand_core::OsRng;
+use rand_chacha::ChaCha12Rng;
+use rand_core::{RngCore, SeedableRng};
 use tari_crypto::{
     keys::{PublicKey, SecretKey},
     ristretto::{RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},
@@ -13,7 +13,7 @@ use tari_crypto::{
 
 fn generate_secret_key(c: &mut Criterion) {
     c.bench_function("Generate secret key", |b| {
-        let mut rng = thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         b.iter(|| {
             let _key = RistrettoSecretKey::random(&mut rng);
         });
@@ -22,7 +22,7 @@ fn generate_secret_key(c: &mut Criterion) {
 
 fn native_keypair(c: &mut Criterion) {
     c.bench_function("Generate key pair", |b| {
-        let mut rng = thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         b.iter(|| RistrettoPublicKey::random_keypair(&mut rng));
     });
 }
@@ -34,7 +34,7 @@ struct SigningData {
 }
 
 fn gen_keypair() -> SigningData {
-    let mut rng = thread_rng();
+    let mut rng = ChaCha12Rng::seed_from_u64(12345);
     let mut m = [0u8; 32];
     rng.fill_bytes(&mut m);
     let (k, p) = RistrettoPublicKey::random_keypair(&mut rng);
@@ -43,10 +43,11 @@ fn gen_keypair() -> SigningData {
 
 fn sign_message(c: &mut Criterion) {
     c.bench_function("Create RistrettoSchnorr", move |b| {
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         b.iter_batched(
             gen_keypair,
             |d| {
-                let _sig = RistrettoSchnorr::sign(&d.k, d.m, &mut OsRng).unwrap();
+                let _sig = RistrettoSchnorr::sign(&d.k, d.m, &mut rng).unwrap();
             },
             BatchSize::SmallInput,
         );
@@ -57,10 +58,11 @@ fn sign_message(c: &mut Criterion) {
 
 fn verify_message(c: &mut Criterion) {
     c.bench_function("Verify RistrettoSchnorr", move |b| {
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         b.iter_batched(
             || {
                 let d = gen_keypair();
-                let s = RistrettoSchnorr::sign(&d.k, d.m, &mut OsRng).unwrap();
+                let s = RistrettoSchnorr::sign(&d.k, d.m, &mut rng).unwrap();
                 (d, s)
             },
             |(d, s)| assert!(s.verify(&d.p, d.m)),

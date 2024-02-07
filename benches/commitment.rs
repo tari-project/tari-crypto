@@ -4,7 +4,8 @@
 use std::time::Duration;
 
 use criterion::{criterion_group, Criterion};
-use rand::thread_rng;
+use rand_chacha::ChaCha12Rng;
+use rand_core::SeedableRng;
 use tari_crypto::{
     commitment::HomomorphicCommitmentFactory,
     keys::SecretKey,
@@ -13,7 +14,7 @@ use tari_crypto::{
 
 pub fn commit_default(c: &mut Criterion) {
     let factory = PedersenCommitmentFactory::default();
-    let mut rng = thread_rng();
+    let mut rng = ChaCha12Rng::seed_from_u64(12345);
 
     c.bench_function("commit_default key pair", |b| {
         // Commitment value and mask

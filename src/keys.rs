@@ -20,12 +20,15 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 ///
 /// Assuming there is a Ristretto implementation,
 /// ```edition2018
+/// # #[cfg(feature = "rand")]
+/// # {
 /// # use tari_crypto::ristretto::{ RistrettoSecretKey, RistrettoPublicKey };
 /// # use tari_crypto::keys::{ SecretKey, PublicKey };
-/// # use rand;
-/// let mut rng = rand::thread_rng();
+/// # use rand_core::OsRng;
+/// let mut rng = OsRng;
 /// let k = RistrettoSecretKey::random(&mut rng);
 /// let p = RistrettoPublicKey::from_secret_key(&k);
+/// # }
 /// ```
 pub trait SecretKey:
     ByteArray + Clone + ConstantTimeEq + PartialEq + Eq + Add<Output = Self> + Default + Zeroize + ZeroizeOnDrop

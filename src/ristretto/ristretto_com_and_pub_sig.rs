@@ -49,17 +49,20 @@ use crate::{
 /// verify it by calling the `verify_challenge` method:
 ///
 /// ```rust
+/// # #[cfg(feature = "rand")]
+/// # {
 /// # use tari_crypto::ristretto::*;
 /// # use tari_crypto::keys::*;
 /// # use blake2::Blake2b;
 /// # use digest::Digest;
 /// # use tari_crypto::commitment::HomomorphicCommitmentFactory;
 /// # use tari_crypto::ristretto::pedersen::*;
+/// # use rand_core::OsRng;
 /// use tari_crypto::ristretto::pedersen::commitment_factory::PedersenCommitmentFactory;
 /// use tari_utilities::hex::Hex;
 /// use digest::consts::U64;
 ///
-/// let mut rng = rand::thread_rng();
+/// let mut rng = OsRng;
 /// let a_val = RistrettoSecretKey::random(&mut rng);
 /// let x_val = RistrettoSecretKey::random(&mut rng);
 /// let y_val = RistrettoSecretKey::random(&mut rng);
@@ -75,6 +78,7 @@ use crate::{
 /// )
 /// .unwrap();
 /// assert!(sig.verify_challenge(&commitment, &pubkey, &e, &factory, &mut rng));
+/// # }
 /// ```
 pub type RistrettoComAndPubSig = CommitmentAndPublicKeySignature<RistrettoPublicKey, RistrettoSecretKey>;
 
@@ -82,7 +86,8 @@ pub type RistrettoComAndPubSig = CommitmentAndPublicKeySignature<RistrettoPublic
 mod test {
     use blake2::Blake2b;
     use digest::{consts::U64, Digest};
-    use rand_core::RngCore;
+    use rand_chacha::ChaCha12Rng;
+    use rand_core::{RngCore, SeedableRng};
     use tari_utilities::ByteArray;
 
     use crate::{
@@ -123,7 +128,7 @@ mod test {
     /// Create a signature, and then verify it. Also checks that some invalid signatures fail to verify
     #[test]
     fn sign_and_verify_message() {
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
 
         // Witness data
         let a_value = RistrettoSecretKey::random(&mut rng);
@@ -195,7 +200,7 @@ mod test {
     /// Create two partial signatures to the same challenge and computes if the total aggregate signature is valid.
     #[test]
     fn sign_and_verify_message_partial() {
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
 
         // Witness data
         let a_value = RistrettoSecretKey::random(&mut rng);
@@ -268,7 +273,7 @@ mod test {
     /// Test that commitment signatures are linear, as in a multisignature construction
     #[test]
     fn test_signature_addition() {
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         let factory = PedersenCommitmentFactory::default();
 
         // Alice's data
@@ -363,7 +368,7 @@ mod test {
 
     #[test]
     fn zero_commitment() {
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         let factory = PedersenCommitmentFactory::default();
 
         // Generate a zero commitment opening and a random key
@@ -396,7 +401,7 @@ mod test {
 
     #[test]
     fn zero_public_key() {
-        let mut rng = rand::thread_rng();
+        let mut rng = ChaCha12Rng::seed_from_u64(12345);
         let factory = PedersenCommitmentFactory::default();
 
         // Generate a random commitment opening and a zero key
