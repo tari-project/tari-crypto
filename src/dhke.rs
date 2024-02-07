@@ -11,18 +11,19 @@
 
 use core::ops::Mul;
 
+use subtle::{Choice, ConstantTimeEq};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::keys::PublicKey;
 
 /// The result of a Diffie-Hellman key exchange
-#[derive(Zeroize, ZeroizeOnDrop)]
+#[derive(PartialEq, Eq, Zeroize, ZeroizeOnDrop)]
 pub struct DiffieHellmanSharedSecret<P>(P)
-where P: Zeroize;
+where P: PublicKey;
 
 impl<P> DiffieHellmanSharedSecret<P>
 where
-    P: PublicKey + Zeroize,
+    P: PublicKey,
     for<'a> &'a <P as PublicKey>::K: Mul<&'a P, Output = P>,
 {
     /// Perform a Diffie-Hellman key exchange
@@ -33,6 +34,14 @@ where
     /// Get the shared secret as a byte array
     pub fn as_bytes(&self) -> &[u8] {
         self.0.as_bytes()
+    }
+}
+
+impl<P> ConstantTimeEq for DiffieHellmanSharedSecret<P>
+where P: PublicKey
+{
+    fn ct_eq(&self, other: &DiffieHellmanSharedSecret<P>) -> Choice {
+        self.0.ct_eq(&other.0)
     }
 }
 

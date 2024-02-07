@@ -21,6 +21,7 @@ use curve25519_dalek::{
 use digest::{consts::U64, Digest};
 use once_cell::sync::OnceCell;
 use rand_core::{CryptoRng, RngCore};
+use subtle::ConstantTimeEq;
 use tari_utilities::{hex::Hex, ByteArray, ByteArrayError, Hashable};
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
@@ -51,7 +52,7 @@ use crate::{
 /// let _k2 = RistrettoSecretKey::from_hex(&"100000002000000030000000040000000");
 /// let _k3 = RistrettoSecretKey::random(&mut rng);
 /// ```
-#[derive(Eq, Clone, Default, Zeroize, ZeroizeOnDrop)]
+#[derive(Clone, Default, Zeroize, ZeroizeOnDrop)]
 pub struct RistrettoSecretKey(pub(crate) Scalar);
 
 #[cfg(feature = "borsh")]
@@ -132,11 +133,19 @@ impl Hash for RistrettoSecretKey {
     }
 }
 
-impl PartialEq for RistrettoSecretKey {
-    fn eq(&self, other: &Self) -> bool {
-        self.0.eq(&other.0)
+impl ConstantTimeEq for RistrettoSecretKey {
+    fn ct_eq(&self, other: &Self) -> subtle::Choice {
+        self.0.ct_eq(&other.0)
     }
 }
+
+impl PartialEq for RistrettoSecretKey {
+    fn eq(&self, other: &Self) -> bool {
+        self.ct_eq(other).into()
+    }
+}
+
+impl Eq for RistrettoSecretKey {}
 
 //----------------------------------   RistrettoSecretKey Debug --------------------------------------------//
 impl fmt::Debug for RistrettoSecretKey {
@@ -423,6 +432,12 @@ impl fmt::Display for RistrettoPublicKey {
     }
 }
 
+impl ConstantTimeEq for RistrettoPublicKey {
+    fn ct_eq(&self, other: &Self) -> subtle::Choice {
+        self.point.ct_eq(&other.point)
+    }
+}
+
 impl RistrettoPublicKey {
     // Formats a 64 char hex string to a given width.
     // If w >= 64, we pad the result.
@@ -471,9 +486,7 @@ impl fmt::Debug for RistrettoPublicKey {
 
 impl PartialEq for RistrettoPublicKey {
     fn eq(&self, other: &RistrettoPublicKey) -> bool {
-        // Although this is slower than `self.compressed == other.compressed`, expanded point comparison is an equal
-        // time comparison
-        self.point == other.point
+        self.ct_eq(other).into()
     }
 }
 
