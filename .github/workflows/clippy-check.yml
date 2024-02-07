@@ -12,11 +12,11 @@ jobs:
         with:
           components: clippy, rustfmt
           toolchain: nightly
-      - name: Toolchain wasm32-unknown-unknown
+      - name: Toolchain
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-          targets: wasm32-unknown-unknown
+          targets: thumbv8m.main-none-eabi
       - name: Check formatting
         run: cargo +nightly fmt --all -- --check
       - name: Install linter
@@ -29,6 +29,6 @@ jobs:
         run: cargo +stable check --release --no-default-features
       # This check here is to ensure that it builds for no-std rust targets
       - name: Check code (no-std)
-        run: cargo +stable check --no-default-features --target=wasm32-unknown-unknown
+        run: cargo +stable check --no-default-features --target=thumbv8m.main-none-eabi
       - name: Check benchmarks
         run: cargo +stable check --benches
