@@ -4,6 +4,7 @@
 //! Bulletproofs+ implementation
 
 use alloc::vec::Vec;
+use core::slice;
 use std::convert::TryFrom;
 
 pub use bulletproofs_plus::ristretto::RistrettoRangeProof;
@@ -418,6 +419,119 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
                 reason: format!("Internal range proof(s) error ({e})"),
             }),
         }
+    }
+
+    fn verify_batch_with_first_blame(
+        &self,
+        proofs: Vec<&Self::Proof>,
+        statements: Vec<&RistrettoAggregatedPublicStatement>,
+    ) -> Result<(), Option<usize>> {
+        // Prepare the range statements
+        let range_statements = self.prepare_public_range_statements(statements);
+
+        // Deserialize the range proofs
+        let range_proofs = self.deserialize_range_proofs(&proofs).map_err(|_| None)?;
+
+        // Try to verify the entire batch
+        if RistrettoRangeProof::verify_batch(
+            self.transcript_label,
+            &range_statements,
+            &range_proofs,
+            VerifyAction::VerifyOnly,
+        )
+        .is_ok()
+        {
+            return Ok(());
+        }
+
+        // If the batch fails, perform a binary search to identify a failing proof
+        let mut left = 0;
+        let mut right = range_proofs.len();
+
+        while left < right {
+            let mid = if (left + right) % 2 == 0 {
+                (left + right) / 2
+            } else {
+                (left + right) / 2 + 1
+            };
+
+            // Which side is the failure on?
+            let failure_on_left = RistrettoRangeProof::verify_batch(
+                self.transcript_label,
+                &range_statements[left..mid],
+                &range_proofs[left..mid],
+                VerifyAction::VerifyOnly,
+            )
+            .is_err();
+
+            if failure_on_left {
+                // Are we done?
+                if left == mid - 1 {
+                    return Err(Some(left));
+                }
+
+                // Discard the right side and continue
+                right = mid;
+            } else {
+                // Are we done?
+                if right == mid + 1 {
+                    return Err(Some(right));
+                }
+
+                // Discard the left side and continue
+                left = mid;
+            }
+        }
+
+        // We should never get here! If we do, some has gone wrong unexpectedly
+        Err(None)
+    }
+
+    fn verify_batch_with_all_blame(
+        &self,
+        proofs: Vec<&Self::Proof>,
+        statements: Vec<&RistrettoAggregatedPublicStatement>,
+    ) -> Result<(), Option<Vec<usize>>> {
+        // Prepare the range statements
+        let range_statements = self.prepare_public_range_statements(statements);
+
+        // Deserialize the range proofs
+        let range_proofs = self.deserialize_range_proofs(&proofs).map_err(|_| None)?;
+
+        // Try to verify the entire batch
+        if RistrettoRangeProof::verify_batch(
+            self.transcript_label,
+            &range_statements,
+            &range_proofs,
+            VerifyAction::VerifyOnly,
+        )
+        .is_ok()
+        {
+            return Ok(());
+        }
+
+        let mut failures = Vec::with_capacity(range_proofs.len());
+
+        // If the batch fails, verify all proofs and identify failures
+        for (index, (proof, statement)) in range_proofs.iter().zip(range_statements.iter()).enumerate() {
+            if RistrettoRangeProof::verify_batch(
+                self.transcript_label,
+                slice::from_ref(statement),
+                slice::from_ref(proof),
+                VerifyAction::VerifyOnly,
+            )
+            .is_err()
+            {
+                failures.push(index);
+            }
+        }
+
+        // Ensure that we have found at least one failed proof; otherwise, something has gone wrong unexpectedly
+        if failures.is_empty() {
+            return Err(None);
+        }
+
+        Err(Some(failures))
     }
 
     fn recover_mask(
