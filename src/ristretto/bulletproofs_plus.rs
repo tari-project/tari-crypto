@@ -483,7 +483,7 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
             }
         }
 
-        // We should never get here!
+        // We should never get here! If we do, some has gone wrong unexpectedtly
         Err(None)
     }
 
@@ -524,6 +524,11 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
             {
                 failures.push(index);
             }
+        }
+
+        // Ensure that we have found at least one failed proof; otherwise, something has gone wrong unexpectedly
+        if failures.is_empty() {
+            return Err(None);
         }
 
         Err(Some(failures))
