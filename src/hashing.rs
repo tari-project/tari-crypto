@@ -78,26 +78,48 @@ pub trait DomainSeparation {
     /// Adds the domain separation tag to the given digest. The domain separation tag is defined as
     /// `{domain}.v{version}.{label}`, where the version and tag are typically hard-coded into the implementing
     /// type, and the label is provided per specific application of the domain.
+    ///
+    /// Revision with notes below:
+    /// Adds a domain separation tag to the digest.
+    /// The domain separation tag is constructed as `{domain}.v{version}.{label}`.
+    ///
+    /// # Arguments
+    /// * `digest` - A mutable reference to the digest to which the tag will be added.
+    /// * `label` - The label to use for creating the tag. If the label is empty, it will be omitted from the tag.
+    ///
+    /// # Panics
+    /// This function panics if the label or the version cannot be converted into a UTF-8 string. This can only occur if
+    /// the byte conversion of the version number or the label is invalid, which should not happen if the API is used
+    /// correctly as these are controlled within the library itself.
     fn add_domain_separation_tag<S: AsRef<[u8]>, D: Digest>(digest: &mut D, label: S) {
-        let label = if label.as_ref().is_empty() { &[] } else { label.as_ref() };
+        let label = if label.as_ref().is_empty() {
+            &[]
+        } else {
+            label.as_ref()
+        };
         let domain = Self::domain();
         let (version_offset, version) = byte_to_decimal_ascii_bytes(Self::version());
-        let len = if label.is_empty() {
-            // 2 additional bytes are 1 x '.' delimiters and 'v' tag for version
-            domain.len() + (3 - version_offset) + 2
+
+        let version_string = String::from_utf8(version[version_offset..].to_vec())
+            .expect("Version conversion failed: invalid UTF-8");
+        let label_string = if label.is_empty() {
+            String::new()
         } else {
-            // 3 additional bytes are 2 x '.' delimiters and 'v' tag for version
-            domain.len() + (3 - version_offset) + label.len() + 3
+            String::from_utf8(label.to_vec())
+                .expect("Label conversion failed: invalid UTF-8")
         };
-        let len = (len as u64).to_le_bytes();
-        digest.update(len);
-        digest.update(domain);
-        digest.update(b".v");
-        digest.update(&version[version_offset..]);
-        if !label.is_empty() {
-            digest.update(b".");
-            digest.update(label);
-        }
+
+        let full_tag = if label_string.is_empty() {
+            format!("{}.{}", domain, version_string)
+        } else {
+            format!("{}.{}.{}", domain, version_string, label_string)
+        };
+
+        let len = full_tag.len();
+        let len_bytes = (len as u64).to_le_bytes();
+
+        digest.update(len_bytes);
+        digest.update(full_tag.as_bytes());
     }
 }
 
