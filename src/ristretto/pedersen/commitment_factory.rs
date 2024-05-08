@@ -90,18 +90,13 @@ mod test {
     use alloc::vec::Vec;
     use std::{
         collections::hash_map::DefaultHasher,
-        convert::From,
         hash::{Hash, Hasher},
     };
 
     use curve25519_dalek::scalar::Scalar;
 
     use super::*;
-    use crate::{
-        commitment::HomomorphicCommitmentFactory,
-        keys::{PublicKey, SecretKey},
-        ristretto::{pedersen::commitment_factory::PedersenCommitmentFactory, RistrettoSecretKey},
-    };
+    use crate::keys::{PublicKey, SecretKey};
 
     #[test]
     fn check_default_base() {
