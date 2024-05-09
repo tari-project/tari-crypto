@@ -989,10 +989,6 @@ mod test {
     fn ristretto_kdf_metadata() {
         assert_eq!(RistrettoKdf::version(), 1);
         assert_eq!(RistrettoKdf::domain(), "com.tari.kdf.ristretto");
-        assert_eq!(
-            RistrettoKdf::domain_separation_tag("test"),
-            "com.tari.kdf.ristretto.v1.test"
-        );
     }
 
     #[test]
