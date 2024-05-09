@@ -1,6 +1,19 @@
 # Changelog
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+
+### [0.21.1](https://github.com/tari-project/tari-crypto/compare/v0.20.0...v0.21.1) (2024-05-09)
+
+
+### Features
+
+* add constant-time trait bounds ([#219](https://github.com/tari-project/tari-crypto/issues/219)) ([a6cef07](https://github.com/tari-project/tari-crypto/commit/a6cef074ad874eddd8d018da1475df14fd5220c1)), closes [/github.com/dalek-cryptography/curve25519-dalek/blob/ba737a379071191158bacfa6d138f6249b12fc09/curve25519-dalek/src/scalar.rs#L296-L300](https://github.com/tari-project//github.com/dalek-cryptography/curve25519-dalek/blob/ba737a379071191158bacfa6d138f6249b12fc09/curve25519-dalek/src/scalar.rs/issues/L296-L300) [/github.com/dalek-cryptography/curve25519-dalek/blob/ba737a379071191158bacfa6d138f6249b12fc09/curve25519-dalek/src/ristretto.rs#L822-L826](https://github.com/tari-project//github.com/dalek-cryptography/curve25519-dalek/blob/ba737a379071191158bacfa6d138f6249b12fc09/curve25519-dalek/src/ristretto.rs/issues/L822-L826) [#139](https://github.com/tari-project/tari-crypto/issues/139)
+* Upgrade dalek dependency
+
+### Bug Fixes
+
+* reject identity keys and commitments in signatures ([#217](https://github.com/tari-project/tari-crypto/issues/217)) ([e755b26](https://github.com/tari-project/tari-crypto/commit/e755b26d4da6cef8eb00023a1fdcc923fc71870f))
+
 ## [0.20.0](https://github.com/tari-project/tari-crypto/compare/v0.19.0...v0.20.0) (2023-12-06)
 
 ### Features
