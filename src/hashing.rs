@@ -28,7 +28,6 @@
 //!
 //! [hmac]: https://en.wikipedia.org/wiki/HMAC#Design_principles "HMAC: Design principles"
 
-use alloc::string::String;
 use core::{marker::PhantomData, ops::Deref};
 
 use blake2::{Blake2b, Blake2bVar};
@@ -49,6 +48,26 @@ use crate::{
     keys::SecretKey,
 };
 
+/// An enumeration specifying flags used by hashers.
+/// Flags prepend anything included as hasher input.
+///
+/// The idea is that when putting input into a hasher, we include several things:
+/// - A flag indicating the input type, encoded as a byte
+/// - If the input is of variable length (determined by the type), a little-endian 64-bit encoding of the length
+/// - The input, encoded as bytes
+/// By doing so, we mitigate the risk of collision.
+#[repr(u8)]
+enum Flag {
+    /// An initial domain separator indicating the purpose of the hasher
+    DomainSeparator = 0,
+    /// The version of the hasher, which MUST be a single byte
+    Version,
+    /// A label that can be used to differentiate uses of the hasher
+    Label,
+    /// Arbitrary byte data to be added to the hasher
+    Data,
+}
+
 /// The `DomainSeparation` trait is used to inject domain separation tags into the [`DomainSeparatedHasher`] in a
 /// way that can be applied consistently, but without hard-coding anything into the hasher itself.
 ///
@@ -65,62 +84,25 @@ pub trait DomainSeparation {
     /// Returns the category label for the metadata tag. For example, `tari_hmac`
     fn domain() -> &'static str;
 
-    /// The domain separation tag is defined as `{domain}.v{version}.{label}`, where the version and tag are
-    /// typically hard-coded into the implementing type, and the label is provided per specific application of the
-    /// domain
-    fn domain_separation_tag<S: AsRef<str>>(label: S) -> String {
-        if !label.as_ref().is_empty() {
-            return format!("{}.v{}.{}", Self::domain(), Self::version(), label.as_ref());
-        }
-        format!("{}.v{}", Self::domain(), Self::version())
-    }
-
-    /// Adds the domain separation tag to the given digest. The domain separation tag is defined as
-    /// `{domain}.v{version}.{label}`, where the version and tag are typically hard-coded into the implementing
-    /// type, and the label is provided per specific application of the domain.
+    /// Performs complete domain separation by including a domain separator, version, and label.
     fn add_domain_separation_tag<S: AsRef<[u8]>, D: Digest>(digest: &mut D, label: S) {
-        let label = if label.as_ref().is_empty() { &[] } else { label.as_ref() };
-        let domain = Self::domain();
-        let (version_offset, version) = byte_to_decimal_ascii_bytes(Self::version());
-        let len = if label.is_empty() {
-            // 2 additional bytes are 1 x '.' delimiters and 'v' tag for version
-            domain.len() + (3 - version_offset) + 2
-        } else {
-            // 3 additional bytes are 2 x '.' delimiters and 'v' tag for version
-            domain.len() + (3 - version_offset) + label.len() + 3
-        };
-        let len = (len as u64).to_le_bytes();
-        digest.update(len);
-        digest.update(domain);
-        digest.update(b".v");
-        digest.update(&version[version_offset..]);
-        if !label.is_empty() {
-            digest.update(b".");
-            digest.update(label);
-        }
-    }
-}
+        // Domain separator
+        let domain_bytes = Self::domain().as_bytes();
+        let domain_length = domain_bytes.len() as u64;
+        digest.update([Flag::DomainSeparator as u8]);
+        digest.update(domain_length.to_le_bytes());
+        digest.update(domain_bytes);
 
-/// Converts a byte value to ASCII bytes that represent its value in big-endian order. This function returns a tuple
-/// containing the inclusive index of the most significant decimal value byte, and the 3 ASCII bytes (big-endian). For
-/// example, byte_to_decimal_ascii_bytes(0) returns (2, [0, 0, 48]).
-/// byte_to_decimal_ascii_bytes(42) returns (1, [0, 52, 50]).
-/// byte_to_decimal_ascii_bytes(255) returns (0, [50, 53, 53]).
-fn byte_to_decimal_ascii_bytes(mut byte: u8) -> (usize, [u8; 3]) {
-    const ZERO_ASCII_CHAR: u8 = 48;
-    // A u8 can only ever be a 3 char number.
-    let mut bytes = [0u8, 0u8, ZERO_ASCII_CHAR];
-    let mut pos = 3usize;
-    if byte == 0 {
-        return (2, bytes);
+        // Version; this is of fixed length, so we don't need to use length prepending
+        digest.update([Flag::Version as u8]);
+        digest.update([Self::version()]);
+
+        // Label
+        let label_length = label.as_ref().len() as u64;
+        digest.update([Flag::Label as u8]);
+        digest.update(label_length.to_le_bytes());
+        digest.update(label);
     }
-    while byte > 0 {
-        let rem = byte % 10;
-        byte /= 10;
-        bytes[pos - 1] = ZERO_ASCII_CHAR + rem;
-        pos -= 1;
-    }
-    (pos, bytes)
 }
 
 //--------------------------------------     Domain Separated Hash   ---------------------------------------------------
@@ -271,11 +253,12 @@ impl<D: Digest, M: DomainSeparation> DomainSeparatedHasher<D, M> {
         }
     }
 
-    /// Adds the data to the digest function by first appending the length of the data in the byte array, and then
-    /// supplying the data itself.
+    /// Adds the data to the digest function.
+    /// This is done safely in a manner that prevents collisions.
     pub fn update(&mut self, data: impl AsRef<[u8]>) {
-        let len = (data.as_ref().len() as u64).to_le_bytes();
-        self.inner.update(len);
+        let data_length = (data.as_ref().len() as u64).to_le_bytes();
+        self.inner.update([Flag::Data as u8]);
+        self.inner.update(data_length);
         self.inner.update(data);
     }
 
@@ -658,12 +641,7 @@ mod test {
     use tari_utilities::hex::{from_hex, to_hex};
 
     use crate::hashing::{
-        byte_to_decimal_ascii_bytes,
-        AsFixedBytes,
-        DomainSeparatedHasher,
-        DomainSeparation,
-        Mac,
-        MacDomain,
+        AsFixedBytes, DomainSeparatedHasher, DomainSeparation, Flag, Mac, MacDomain
     };
 
     mod util {
@@ -692,7 +670,7 @@ mod test {
             util::hash_from_digest(
                 MyDemoHasher::new(),
                 &[0, 0, 0],
-                "d4cbf5b6b97485a991973db8a6ce4d3fc660db5dff5f55f2b0cb363fca34b0a2",
+                "7f018785a03c826fe26be7a1d4c90cf99db0d8e313c3dd6d53eeb6233827e8e3",
             );
         }
         {
@@ -701,18 +679,15 @@ mod test {
             util::hash_from_digest(
                 MyDemoHasher2::new(),
                 &[0, 0, 0],
-                "d4cbf5b6b97485a991973db8a6ce4d3fc660db5dff5f55f2b0cb363fca34b0a2",
+                "7f018785a03c826fe26be7a1d4c90cf99db0d8e313c3dd6d53eeb6233827e8e3",
             );
         }
     }
 
     #[test]
-    // Regression test
     fn mac_domain_metadata() {
         assert_eq!(MacDomain::version(), 1);
         assert_eq!(MacDomain::domain(), "com.tari.mac");
-        assert_eq!(MacDomain::domain_separation_tag(""), "com.tari.mac.v1");
-        assert_eq!(MacDomain::domain_separation_tag("test"), "com.tari.mac.v1.test");
     }
 
     #[test]
@@ -752,7 +727,8 @@ mod test {
     #[test]
     fn dst_hasher() {
         hash_domain!(GenericHashDomain, "com.tari.generic");
-        assert_eq!(GenericHashDomain::domain_separation_tag(""), "com.tari.generic.v1");
+        assert_eq!(GenericHashDomain::domain(), "com.tari.generic");
+        assert_eq!(GenericHashDomain::version(), 1);
         let hash = DomainSeparatedHasher::<Blake2b<U32>, GenericHashDomain>::new_with_label("test_hasher")
             .chain("some foo")
             .finalize();
@@ -762,7 +738,7 @@ mod test {
         assert_eq!(hash.as_ref(), hash2.as_ref());
         assert_eq!(
             to_hex(hash.as_ref()),
-            "a8326620e305430a0b632a0a5e33c6c1124d7513b4bd84736faaa3a0b9ba557f"
+            "f2288bde23da07c021468a1b63487514cc4cbb68d15c34bc6621964b31547df6"
         );
 
         let hash_1 =
@@ -776,7 +752,8 @@ mod test {
     #[test]
     fn digest_is_the_same_as_standard_api() {
         hash_domain!(MyDemoHasher, "com.macro.test");
-        assert_eq!(MyDemoHasher::domain_separation_tag(""), "com.macro.test.v1");
+        assert_eq!(MyDemoHasher::domain(), "com.macro.test");
+        assert_eq!(MyDemoHasher::version(), 1);
         util::hash_test::<DomainSeparatedHasher<Blake2b<U32>, MyDemoHasher>>(
             &[0, 0, 0],
             "d4cbf5b6b97485a991973db8a6ce4d3fc660db5dff5f55f2b0cb363fca34b0a2",
@@ -803,21 +780,24 @@ mod test {
     #[test]
     fn can_be_used_as_digest() {
         hash_domain!(MyDemoHasher, "com.macro.test");
-        assert_eq!(MyDemoHasher::domain_separation_tag(""), "com.macro.test.v1");
+        assert_eq!(MyDemoHasher::domain(), "com.macro.test");
+        assert_eq!(MyDemoHasher::version(), 1);
         util::hash_test::<DomainSeparatedHasher<Blake2b<U32>, MyDemoHasher>>(
             &[0, 0, 0],
             "d4cbf5b6b97485a991973db8a6ce4d3fc660db5dff5f55f2b0cb363fca34b0a2",
         );
 
         hash_domain!(MyDemoHasher2, "com.macro.test", 2);
-        assert_eq!(MyDemoHasher2::domain_separation_tag(""), "com.macro.test.v2");
+        assert_eq!(MyDemoHasher2::domain(), "com.macro.test");
+        assert_eq!(MyDemoHasher2::version(), 2);
         util::hash_test::<DomainSeparatedHasher<Blake2b<U32>, MyDemoHasher2>>(
             &[0, 0, 0],
             "ce327b02271d035bad4dcc1e69bc292392ee4ee497f1f8467d54bf4b4c72639a",
         );
 
         hash_domain!(TariHasher, "com.tari.hasher");
-        assert_eq!(TariHasher::domain_separation_tag(""), "com.tari.hasher.v1");
+        assert_eq!(TariHasher::domain(), "com.tari.hasher");
+        assert_eq!(TariHasher::version(), 1);
         util::hash_test::<DomainSeparatedHasher<Blake2b<U32>, TariHasher>>(
             &[0, 0, 0],
             "ae359f05bb76c646c6767d25f53893fc38b0c7b56f8a74a1cbb008ea3ffc183f",
@@ -871,28 +851,19 @@ mod test {
                 "com.discworld"
             }
         }
-        let domain = "com.discworld.v42.turtles";
-        assert_eq!(MyDemoHasher::domain_separation_tag("turtles"), domain);
-        let hash = DomainSeparatedHasher::<Blake2b<U32>, MyDemoHasher>::new_with_label("turtles").finalize();
+        let label = "turtles";
+        let hash = DomainSeparatedHasher::<Blake2b<U32>, MyDemoHasher>::new_with_label(label).finalize();
         let expected = Blake2b::<U32>::default()
-            .chain((domain.len() as u64).to_le_bytes())
-            .chain(domain)
+            .chain([Flag::DomainSeparator as u8])
+            .chain((MyDemoHasher::domain().len() as u64).to_le_bytes())
+            .chain(MyDemoHasher::domain())
+            .chain([Flag::Version as u8])
+            .chain([MyDemoHasher::version()])
+            .chain([Flag::Label as u8])
+            .chain((label.as_bytes().len() as u64).to_le_bytes())
+            .chain(label.as_bytes())
             .finalize();
         assert_eq!(hash.as_ref(), expected.as_slice());
-    }
-
-    #[test]
-    fn update_domain_separation_tag() {
-        hash_domain!(TestDomain, "com.test");
-        let s_tag = TestDomain::domain_separation_tag("mytest");
-        let expected_hash = Blake2b::<U32>::default()
-            .chain(s_tag.len().to_le_bytes())
-            .chain(s_tag)
-            .finalize();
-
-        let mut digest = Blake2b::<U32>::default();
-        TestDomain::add_domain_separation_tag(&mut digest, "mytest");
-        assert_eq!(digest.finalize(), expected_hash);
     }
 
     #[test]
@@ -922,17 +893,9 @@ mod test {
         //          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `LengthExtensionAttackResistant` is not implemented for
         //          `Sha256`
         let mac = Mac::<Blake2b<U32>>::generate(key, "test message", "test");
-        assert_eq!(MacDomain::domain_separation_tag("test"), "com.tari.mac.v1.test");
         assert_eq!(
             to_hex(mac.as_ref()),
             "9bcfbe2bad73b14ac42f673ddca34e82ce03cbbac69d34526004f5d108dff061"
         )
-    }
-
-    #[test]
-    fn check_bytes_to_decimal_ascii_bytes() {
-        assert_eq!(byte_to_decimal_ascii_bytes(0), (2, [0u8, 0, 48]));
-        assert_eq!(byte_to_decimal_ascii_bytes(42), (1, [0u8, 52, 50]));
-        assert_eq!(byte_to_decimal_ascii_bytes(255), (0, [50u8, 53, 53]));
     }
 }
