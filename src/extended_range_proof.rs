@@ -83,6 +83,33 @@ pub trait ExtendedRangeProofService {
         statements: Vec<&AggregatedPublicStatement<Self::PK>>,
     ) -> Result<(), RangeProofError>;
 
+    /// Verify a batch of proofs.
+    /// If verification fails, this function performs a binary search to identify a failing proof and returns an error
+    /// containing the index of a failed proof. If it can't deserialize the proofs, or if something goes wrong
+    /// internally, returns `Err(None)`.
+    ///
+    /// If initial verification of the entire batch fails, this performs a number of subsequent batch verifications that
+    /// is logarithmic in the number of proofs. Note that this function cannot tell if a batch contains multiple
+    /// failing proofs; that's on you!
+    fn verify_batch_with_first_blame(
+        &self,
+        proofs: Vec<&Self::Proof>,
+        statements: Vec<&AggregatedPublicStatement<Self::PK>>,
+    ) -> Result<(), Option<usize>>;
+
+    /// Verify a batch of proofs.
+    /// If verification fails, this function verifies each proof in the batch separately and returns an error containing
+    /// the indexes of all failed proofs. If it can't deserialize the proofs, or if something goes wrong internally,
+    /// returns `Err(None)`.
+    ///
+    /// If initial verification of the entire batch fails, this performs a subsequent number of batch verifications that
+    /// is linear in the number of proofs.
+    fn verify_batch_with_all_blame(
+        &self,
+        proofs: Vec<&Self::Proof>,
+        statements: Vec<&AggregatedPublicStatement<Self::PK>>,
+    ) -> Result<(), Option<Vec<usize>>>;
+
     /// Recover the (unverified) extended mask for a non-aggregated proof using the provided seed-nonce.
     fn recover_extended_mask(
         &self,
