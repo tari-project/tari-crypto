@@ -32,7 +32,7 @@ where
         Self(sk * pk)
     }
 
-    // Constructs a new Diffie-Hellman key exchange from an already created Diffie-Hellman key exchange
+    /// Constructs a new Diffie-Hellman key exchange from an already created Diffie-Hellman key exchange
     pub fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, ByteArrayError> {
         let pk = P::from_canonical_bytes(bytes)?;
         Ok(Self(pk))
