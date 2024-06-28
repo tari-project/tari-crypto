@@ -18,7 +18,7 @@ use crate::keys::PublicKey;
 
 /// The result of a Diffie-Hellman key exchange
 #[derive(PartialEq, Eq, Zeroize, ZeroizeOnDrop)]
-pub struct DiffieHellmanSharedSecret<P>(P)
+pub struct DiffieHellmanSharedSecret<P>(pub P)
 where P: PublicKey;
 
 impl<P> DiffieHellmanSharedSecret<P>
