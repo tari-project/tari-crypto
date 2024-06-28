@@ -169,8 +169,8 @@ impl<D: Digest> AsRef<[u8]> for DomainSeparatedHash<D> {
 /// 1. The version number is fixed for a given schema of the domain tag.
 /// 2. The domain represents a broad class of use cases for the hashing, e.g. MACs, or key derivation.
 /// 3. The label is used to differentiate different applications of a use case. e.g. there might be two places key
-/// derivation is used in your application: for wallet derived keys, and communication derived keys. These might have
-/// the label "wallet-key" and "comms-key" respectively.
+///    derivation is used in your application: for wallet derived keys, and communication derived keys. These might have
+///    the label "wallet-key" and "comms-key" respectively.
 ///
 /// [`DomainSeparatedHasher`] is useful for more generic use-cases that aren't covered by the two primary use cases
 /// covered in this API (MAcs and key derivation).

@@ -12,6 +12,7 @@
 use core::ops::Mul;
 
 use subtle::{Choice, ConstantTimeEq};
+use tari_utilities::ByteArrayError;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::keys::PublicKey;
@@ -29,6 +30,12 @@ where
     /// Perform a Diffie-Hellman key exchange
     pub fn new(sk: &P::K, pk: &P) -> Self {
         Self(sk * pk)
+    }
+
+    /// Constructs a new Diffie-Hellman key exchange from an already created Diffie-Hellman key exchange
+    pub fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, ByteArrayError> {
+        let pk = P::from_canonical_bytes(bytes)?;
+        Ok(Self(pk))
     }
 
     /// Get the shared secret as a byte array
@@ -71,5 +78,9 @@ mod test {
         let right = DiffieHellmanSharedSecret::<RistrettoPublicKey>::new(&sk2, &pk1);
 
         assert_eq!(left.as_bytes(), right.as_bytes());
+
+        let left_bytes = left.as_bytes();
+        let new_left = DiffieHellmanSharedSecret::<RistrettoPublicKey>::from_canonical_bytes(left_bytes).unwrap();
+        assert_eq!(left.as_bytes(), new_left.as_bytes());
     }
 }
