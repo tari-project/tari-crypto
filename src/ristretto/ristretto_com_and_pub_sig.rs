@@ -92,6 +92,7 @@ mod test {
             pedersen::{commitment_factory::PedersenCommitmentFactory, PedersenCommitment},
             RistrettoComAndPubSig,
             RistrettoPublicKey,
+            RistrettoSchnorr,
             RistrettoSecretKey,
         },
     };
@@ -263,6 +264,62 @@ mod test {
 
         // verify signature
         assert!(sig_p_total.verify_challenge(&commitment, &pubkey, &challenge, &factory, &mut rng));
+    }
+
+    /// Create a schnorr and RistrettoComAndPubSig adding them together and testing if they still valid.
+    #[test]
+    fn sign_and_verify_combined_schnorr() {
+        let mut rng = rand::thread_rng();
+
+        // Challenge; doesn't use proper Fiat-Shamir, so it's for testing only!
+        let challenge = Blake2b::<U64>::new().chain_update(b"Small Gods").finalize();
+
+        // Witness data
+        let a_value = RistrettoSecretKey::random(&mut rng);
+        let x_value = RistrettoSecretKey::random(&mut rng);
+        let y_value = RistrettoSecretKey::random(&mut rng);
+
+        // Statement data
+        let factory = PedersenCommitmentFactory::default();
+        let commitment = factory.commit(&x_value, &a_value);
+        let pubkey = RistrettoPublicKey::from_secret_key(&y_value);
+
+        // Nonce data
+        let r_a = RistrettoSecretKey::random(&mut rng);
+        let r_x = RistrettoSecretKey::random(&mut rng);
+        let r_y = RistrettoSecretKey::random(&mut rng);
+
+        let sig_capk =
+            RistrettoComAndPubSig::sign(&a_value, &x_value, &y_value, &r_a, &r_x, &r_y, &challenge, &factory).unwrap();
+        assert!(sig_capk.verify_challenge(&commitment, &pubkey, &challenge, &factory, &mut rng));
+
+        let (k, pub_k) = RistrettoPublicKey::random_keypair(&mut rng);
+        let r = RistrettoSecretKey::random(&mut rng);
+
+        let total_y_value = &y_value + &k;
+        let total_r_y = &r_y + &r;
+
+        let sig = RistrettoSchnorr::sign_raw_uniform(&k, r, &challenge).unwrap();
+        assert!(sig.verify_raw_uniform(&pub_k, &challenge));
+
+        let total_pubkey = RistrettoPublicKey::from_secret_key(&total_y_value);
+
+        let total_sig_capk = RistrettoComAndPubSig::sign(
+            &a_value,
+            &x_value,
+            &total_y_value,
+            &r_a,
+            &r_x,
+            &total_r_y,
+            &challenge,
+            &factory,
+        )
+        .unwrap();
+        assert!(total_sig_capk.verify_challenge(&commitment, &total_pubkey, &challenge, &factory, &mut rng));
+
+        let agg_sig = &sig_capk + &sig;
+        assert!(agg_sig.verify_challenge(&commitment, &total_pubkey, &challenge, &factory, &mut rng));
+        assert_eq!(agg_sig, total_sig_capk);
     }
 
     /// Test that commitment signatures are linear, as in a multisignature construction
