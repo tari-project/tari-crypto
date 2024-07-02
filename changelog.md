@@ -1,7 +1,14 @@
 # Changelog
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
-### [0.21.2](https://github.com/tari-project/tari-crypto/compare/v0.21.1...v0.21.2) (2024-06-28)
+### [0.20.3](https://github.com/tari-project/tari-crypto/compare/v0.20.1...v0.20.3) (2024-07-02)
+
+
+### Features
+
+* Include Add CAPK and Schnorr signatures together
+
+### [0.20.2](https://github.com/tari-project/tari-crypto/compare/v0.20.1...v0.20.2) (2024-06-28)
 
 
 ### Features
@@ -9,7 +16,7 @@ All notable changes to this project will be documented in this file. See [standa
 * Adds public constructor for DHKE
 
 
-### [0.21.1](https://github.com/tari-project/tari-crypto/compare/v0.20.0...v0.21.1) (2024-05-09)
+### [0.20.1](https://github.com/tari-project/tari-crypto/compare/v0.20.0...v0.20.1) (2024-05-09)
 
 
 ### Features

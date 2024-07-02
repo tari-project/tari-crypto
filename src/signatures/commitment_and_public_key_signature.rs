@@ -16,6 +16,7 @@ use crate::{
     alloc::borrow::ToOwned,
     commitment::{HomomorphicCommitment, HomomorphicCommitmentFactory},
     keys::{PublicKey, SecretKey},
+    signatures::SchnorrSignature,
 };
 
 /// An error when creating a commitment signature
@@ -294,6 +295,60 @@ where
         let u_a_sum = self.u_a() + rhs.u_a();
         let u_x_sum = self.u_x() + rhs.u_x();
         let u_y_sum = self.u_y() + rhs.u_y();
+
+        CommitmentAndPublicKeySignature::new(
+            ephemeral_commitment_sum,
+            ephemeral_pubkey_sum_sum,
+            u_a_sum,
+            u_x_sum,
+            u_y_sum,
+        )
+    }
+}
+
+impl<'a, 'b, P, K> Add<&'b SchnorrSignature<P, K>> for &'a CommitmentAndPublicKeySignature<P, K>
+where
+    P: PublicKey<K = K>,
+    &'a HomomorphicCommitment<P>: Add<&'b HomomorphicCommitment<P>, Output = HomomorphicCommitment<P>>,
+    &'a P: Add<&'b P, Output = P>,
+    K: SecretKey,
+    &'a K: Add<&'b K, Output = K>,
+{
+    type Output = CommitmentAndPublicKeySignature<P, K>;
+
+    fn add(self, rhs: &'b SchnorrSignature<P, K>) -> CommitmentAndPublicKeySignature<P, K> {
+        let ephemeral_commitment_sum = self.ephemeral_commitment().clone();
+        let ephemeral_pubkey_sum_sum = self.ephemeral_pubkey() + rhs.get_public_nonce();
+        let u_a_sum = self.u_a().clone();
+        let u_x_sum = self.u_x().clone();
+        let u_y_sum = self.u_y() + rhs.get_signature();
+
+        CommitmentAndPublicKeySignature::new(
+            ephemeral_commitment_sum,
+            ephemeral_pubkey_sum_sum,
+            u_a_sum,
+            u_x_sum,
+            u_y_sum,
+        )
+    }
+}
+
+impl<'a, P, K> Add<SchnorrSignature<P, K>> for &'a CommitmentAndPublicKeySignature<P, K>
+where
+    P: PublicKey<K = K>,
+    for<'b> &'a HomomorphicCommitment<P>: Add<&'b HomomorphicCommitment<P>, Output = HomomorphicCommitment<P>>,
+    for<'b> &'a P: Add<&'b P, Output = P>,
+    K: SecretKey,
+    for<'b> &'a K: Add<&'b K, Output = K>,
+{
+    type Output = CommitmentAndPublicKeySignature<P, K>;
+
+    fn add(self, rhs: SchnorrSignature<P, K>) -> CommitmentAndPublicKeySignature<P, K> {
+        let ephemeral_commitment_sum = self.ephemeral_commitment().clone();
+        let ephemeral_pubkey_sum_sum = self.ephemeral_pubkey() + rhs.get_public_nonce();
+        let u_a_sum = self.u_a().clone();
+        let u_x_sum = self.u_x().clone();
+        let u_y_sum = self.u_y() + rhs.get_signature();
 
         CommitmentAndPublicKeySignature::new(
             ephemeral_commitment_sum,
