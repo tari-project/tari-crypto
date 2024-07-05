@@ -56,15 +56,17 @@ use crate::{
 /// - If the input is of variable length (determined by the type), a little-endian 64-bit encoding of the length
 /// - The input, encoded as bytes
 /// By doing so, we mitigate the risk of collision.
+/// 
+/// These are not exposed to the user; they are used internally only.
 #[repr(u8)]
 enum Flag {
-    /// An initial domain separator indicating the purpose of the hasher
+    /// An initial domain separator indicating the general purpose of the hasher
     DomainSeparator = 0,
     /// The version of the hasher, which MUST be a single byte
     Version,
-    /// A label that can be used to differentiate uses of the hasher
+    /// A label that can be used to differentiate specific uses of the hasher
     Label,
-    /// Arbitrary byte data to be added to the hasher
+    /// Arbitrary byte data to be added to the hasher, such as via `update` or `chain`
     Data,
 }
 
