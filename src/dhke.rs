@@ -18,7 +18,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 use crate::keys::PublicKey;
 
 /// The result of a Diffie-Hellman key exchange
-#[derive(PartialEq, Eq, Zeroize, ZeroizeOnDrop)]
+#[derive(Zeroize, ZeroizeOnDrop)]
 pub struct DiffieHellmanSharedSecret<P>(P)
 where P: PublicKey;
 
@@ -49,6 +49,16 @@ where P: PublicKey
 {
     fn ct_eq(&self, other: &DiffieHellmanSharedSecret<P>) -> Choice {
         self.0.ct_eq(&other.0)
+    }
+}
+
+impl<P> Eq for DiffieHellmanSharedSecret<P> where P: PublicKey {}
+
+impl<P> PartialEq for DiffieHellmanSharedSecret<P>
+where P: PublicKey
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.0.ct_eq(&other.0).into()
     }
 }
 
