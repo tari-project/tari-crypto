@@ -48,26 +48,27 @@ use crate::{
     keys::SecretKey,
 };
 
-/// An enumeration specifying flags used by hashers.
-/// Flags prepend anything included as hasher input.
+/// An enumeration specifying tags used by hashers.
+/// Tags prepend anything included as hasher input.
 ///
 /// The idea is that when putting input into a hasher, we include several things:
-/// - A flag indicating the input type, encoded as a byte
+/// - A tag indicating the input type, encoded as a byte
 /// - If the input is of variable length (determined by the type), a little-endian 64-bit encoding of the length
 /// - The input, encoded as bytes
+///
 /// By doing so, we mitigate the risk of collision.
-/// 
+///
 /// These are not exposed to the user; they are used internally only.
 #[repr(u8)]
-enum Flag {
+enum Tag {
     /// An initial domain separator indicating the general purpose of the hasher
     DomainSeparator = 0,
     /// The version of the hasher, which MUST be a single byte
-    Version,
+    Version = 1,
     /// A label that can be used to differentiate specific uses of the hasher
-    Label,
+    Label = 2,
     /// Arbitrary byte data to be added to the hasher, such as via `update` or `chain`
-    Data,
+    Data = 3,
 }
 
 /// The `DomainSeparation` trait is used to inject domain separation tags into the [`DomainSeparatedHasher`] in a
@@ -91,17 +92,17 @@ pub trait DomainSeparation {
         // Domain separator
         let domain_bytes = Self::domain().as_bytes();
         let domain_length = domain_bytes.len() as u64;
-        digest.update([Flag::DomainSeparator as u8]);
+        digest.update([Tag::DomainSeparator as u8]);
         digest.update(domain_length.to_le_bytes());
         digest.update(domain_bytes);
 
         // Version; this is of fixed length, so we don't need to use length prepending
-        digest.update([Flag::Version as u8]);
+        digest.update([Tag::Version as u8]);
         digest.update([Self::version()]);
 
         // Label
         let label_length = label.as_ref().len() as u64;
-        digest.update([Flag::Label as u8]);
+        digest.update([Tag::Label as u8]);
         digest.update(label_length.to_le_bytes());
         digest.update(label);
     }
@@ -245,6 +246,7 @@ impl<D: Digest, M: DomainSeparation> DomainSeparatedHasher<D, M> {
     }
 
     /// Create a new instance of [`DomainSeparatedHasher`] for the given label.
+    /// You can use the label to indicate a specific use case for a hasher.
     pub fn new_with_label(label: &'static str) -> Self {
         let mut inner = D::new();
         M::add_domain_separation_tag(&mut inner, label);
@@ -257,14 +259,24 @@ impl<D: Digest, M: DomainSeparation> DomainSeparatedHasher<D, M> {
 
     /// Adds the data to the digest function.
     /// This is done safely in a manner that prevents collisions.
+    ///
+    /// NOTE: The way this is done might not match what you expect.
+    /// In particular, chaining updates is not the same as a single update with concatenated data.
+    /// This is intentional, but could lead to unexpected behavior if you're not careful.
+    /// You should make sure that you don't rely on this, and always update the hasher the same way!
     pub fn update(&mut self, data: impl AsRef<[u8]>) {
         let data_length = (data.as_ref().len() as u64).to_le_bytes();
-        self.inner.update([Flag::Data as u8]);
+        self.inner.update([Tag::Data as u8]);
         self.inner.update(data_length);
         self.inner.update(data);
     }
 
     /// Does the same thing as [`Self::update`], but returns the hasher instance to support fluent syntax.
+    ///
+    /// NOTE: The way this is done might not match what you expect.
+    /// In particular, chaining updates is not the same as a single update with concatenated data.
+    /// This is intentional, but could lead to unexpected behavior if you're not careful.
+    /// You should make sure that you don't rely on this, and always update the hasher the same way!
     #[must_use]
     pub fn chain(mut self, data: impl AsRef<[u8]>) -> Self {
         self.update(data);
@@ -642,9 +654,7 @@ mod test {
     };
     use tari_utilities::hex::{from_hex, to_hex};
 
-    use crate::hashing::{
-        AsFixedBytes, DomainSeparatedHasher, DomainSeparation, Flag, Mac, MacDomain
-    };
+    use crate::hashing::{AsFixedBytes, DomainSeparatedHasher, DomainSeparation, Mac, MacDomain, Tag};
 
     mod util {
         use digest::Digest;
@@ -856,12 +866,12 @@ mod test {
         let label = "turtles";
         let hash = DomainSeparatedHasher::<Blake2b<U32>, MyDemoHasher>::new_with_label(label).finalize();
         let expected = Blake2b::<U32>::default()
-            .chain([Flag::DomainSeparator as u8])
+            .chain([Tag::DomainSeparator as u8])
             .chain((MyDemoHasher::domain().len() as u64).to_le_bytes())
             .chain(MyDemoHasher::domain())
-            .chain([Flag::Version as u8])
+            .chain([Tag::Version as u8])
             .chain([MyDemoHasher::version()])
-            .chain([Flag::Label as u8])
+            .chain([Tag::Label as u8])
             .chain((label.as_bytes().len() as u64).to_le_bytes())
             .chain(label.as_bytes())
             .finalize();
