@@ -87,8 +87,8 @@ pub trait DomainSeparation {
     /// Returns the category label for the metadata tag. For example, `tari_hmac`
     fn domain() -> &'static str;
 
-    /// Performs complete domain separation by including a domain separator, version, and label.
-    fn add_domain_separation_tag<S: AsRef<[u8]>, D: Digest>(digest: &mut D, label: S) {
+    /// Performs complete domain separation by including a domain separator, version, and (optional) label.
+    fn add_domain_separation_tag<S: AsRef<[u8]>, D: Digest>(digest: &mut D, label: Option<S>) {
         // Domain separator
         let domain_bytes = Self::domain().as_bytes();
         let domain_length = domain_bytes.len() as u64;
@@ -100,11 +100,13 @@ pub trait DomainSeparation {
         digest.update([Tag::Version as u8]);
         digest.update([Self::version()]);
 
-        // Label
-        let label_length = label.as_ref().len() as u64;
-        digest.update([Tag::Label as u8]);
-        digest.update(label_length.to_le_bytes());
-        digest.update(label);
+        // Optional label
+        if let Some(label) = label {
+            let label_length = label.as_ref().len() as u64;
+            digest.update([Tag::Label as u8]);
+            digest.update(label_length.to_le_bytes());
+            digest.update(label);
+        }
     }
 }
 
@@ -235,19 +237,26 @@ impl<D: Digest> AsRef<[u8]> for DomainSeparatedHash<D> {
 #[derive(Debug, Clone, Default)]
 pub struct DomainSeparatedHasher<D, M> {
     inner: D,
-    label: &'static str,
+    label: Option<&'static str>,
     _dst: PhantomData<M>,
 }
 
 impl<D: Digest, M: DomainSeparation> DomainSeparatedHasher<D, M> {
     /// Create a new instance of [`DomainSeparatedHasher`] without an additional label (to correspond to 'D::new()').
+    /// If you want a label, use `new_with_label` instead.
     pub fn new() -> Self {
-        Self::new_with_label("")
+        Self::new_internal(None)
     }
 
     /// Create a new instance of [`DomainSeparatedHasher`] for the given label.
     /// You can use the label to indicate a specific use case for a hasher.
+    /// If you don't want a label, don't simply pass an empty string; use `new` instead, which is safer.
     pub fn new_with_label(label: &'static str) -> Self {
+        Self::new_internal(Some(label))
+    }
+
+    // Helper function that actually instantiates the hasher, handling the optional label.
+    fn new_internal(label: Option<&'static str>) -> Self {
         let mut inner = D::new();
         M::add_domain_separation_tag(&mut inner, label);
         Self {
