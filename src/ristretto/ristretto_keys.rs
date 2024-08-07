@@ -644,7 +644,7 @@ mod test {
         let pk = RistrettoPublicKey::new_generator("test");
         assert_eq!(
             pk.unwrap().to_hex(),
-            "c23db69dabfbd30f3a6c8f0dcea712e01382b998f5aa232183cf833287921371".to_string()
+            "ce743817219a8357cdea4d407da9ca0567e877ee4b3ecf3d7f61d5a683c6b22b".to_string()
         );
     }
 
@@ -1008,11 +1008,11 @@ mod test {
         let derived2 = RistrettoKdf::generate::<Blake2b<U64>>(key.as_bytes(), b"derived2", "test").unwrap();
         assert_eq!(
             derived1.to_hex(),
-            "22deb0c38ec2dc9f741912f6e3c2cd3f76a5b33142a289da15eecdcd882bda06"
+            "e7b973f6739e116a7b9ef8e509874d5ae925858adf744b4530cbd4ef2ac9a205"
         );
         assert_eq!(
             derived2.to_hex(),
-            "fcca9ca5c993d817581ab6040d92feef4c78529b5a485b51d0e11af427944207"
+            "099b991df4adbd366d53f66f242db9fe9b836865837782f4d4636aa6e1a3550a"
         );
     }
 
