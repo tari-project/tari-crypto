@@ -60,7 +60,7 @@ use crate::{
 ///
 /// These are not exposed to the user; they are used internally only.
 #[repr(u8)]
-enum Tag {
+pub(crate) enum Tag {
     /// An initial domain separator indicating the general purpose of the hasher
     DomainSeparator = 0,
     /// The version of the hasher, which MUST be a single byte
@@ -186,8 +186,6 @@ impl<D: Digest> AsRef<[u8]> for DomainSeparatedHash<D> {
 ///         .finalize()
 /// }
 ///
-/// assert_eq!(CardHashDomain::domain_separation_tag(""), "com.cards.v1");
-/// assert_eq!(CardHashDomain::domain_separation_tag("card_id"), "com.cards.v1.card_id");
 /// let card = Card {
 ///     name: "Rincewind",
 ///     strength: 8,
@@ -196,7 +194,7 @@ impl<D: Digest> AsRef<[u8]> for DomainSeparatedHash<D> {
 /// let id = card_id(&card);
 /// assert_eq!(
 ///     to_hex(id.as_ref()),
-///     "b6d1ccd5e6e7eacedd5f3382b8567878419163257f4910f1f9f6265281b836ec"
+///     "8968daaf0f0db9e188e3c66d57d0c9ca5ea44d06255ea75cb933660681503b9e"
 /// );
 /// ```
 ///
@@ -224,14 +222,10 @@ impl<D: Digest> AsRef<[u8]> for DomainSeparatedHash<D> {
 ///         .finalize()
 /// }
 ///
-/// assert_eq!(
-///     CardHashDomain::domain_separation_tag("schnorr_challenge"),
-///     "com.cards.v1.schnorr_challenge"
-/// );
 /// let challenge = calculate_challenge("All is well.");
 /// assert_eq!(
 ///     to_hex(challenge.as_ref()),
-///     "c84b95fd7134ef3e717fe9aece1de46fa88e13ee9f1eaa2e473263d27137bc87"
+///     "32b5ac2028e78436e5e0d4c018a722b7ca24f80e2e1746c7ff115c4bdd1fadae"
 /// );
 /// ```
 #[derive(Debug, Clone, Default)]
@@ -472,14 +466,10 @@ impl DomainSeparation for MacDomain {
 ///     Mac::<Sha3_256>::generate(key, msg, "api.auth")
 /// }
 ///
-/// assert_eq!(
-///     MacDomain::domain_separation_tag("api.auth"),
-///     "com.tari.mac.v1.api.auth"
-/// );
 /// let mac = generate_api_hmac(b"a secret shared key", b"a message");
 /// assert_eq!(
 ///     to_hex(mac.as_ref()),
-///     "796eb496b6672b1b7c4021e603d6b833121d35cd282a1555e3f9dd2eda5658b8"
+///     "a4e346537b3df848a697f017fb2aa596b2ab82039cae1120a8204c4db0519a51"
 /// );
 /// ```
 pub struct Mac<D: Digest> {
@@ -560,12 +550,12 @@ impl<D: Digest> Deref for Mac<D> {
 /// let key_1 = wallet_keys(&key, 1).unwrap();
 /// assert_eq!(
 ///     key_1.to_hex(),
-///     "08106b88a2ff4c52d1d8b458cf34802df8655ba989a7d91351e3504e087a2e0c"
+///     "a589bdc3f60762030126dc43f02fb5ef3651f04d5d0dbb9c94cbf6f5a6c1b20c"
 /// );
 /// let key_64 = wallet_keys(&key, 64).unwrap();
 /// assert_eq!(
 ///     key_64.to_hex(),
-///     "2c2206dadd2a21e71b6c52dd321572cde0f2b00e7116e1123fb580b09ed1b70e"
+///     "7c4f938db7dc6643ba11ab37802f35e6ff551219786e86594ff79f4e97557305"
 /// );
 /// ```
 pub trait DerivedKeyDomain: DomainSeparation {
@@ -691,7 +681,7 @@ mod test {
             util::hash_from_digest(
                 MyDemoHasher::new(),
                 &[0, 0, 0],
-                "7f018785a03c826fe26be7a1d4c90cf99db0d8e313c3dd6d53eeb6233827e8e3",
+                "d4c42a7baf9c01a30c73c00481bf26ea48813654db4b60c9061714e292ee0caa",
             );
         }
         {
@@ -700,7 +690,7 @@ mod test {
             util::hash_from_digest(
                 MyDemoHasher2::new(),
                 &[0, 0, 0],
-                "7f018785a03c826fe26be7a1d4c90cf99db0d8e313c3dd6d53eeb6233827e8e3",
+                "d4c42a7baf9c01a30c73c00481bf26ea48813654db4b60c9061714e292ee0caa",
             );
         }
     }
@@ -777,7 +767,7 @@ mod test {
         assert_eq!(MyDemoHasher::version(), 1);
         util::hash_test::<DomainSeparatedHasher<Blake2b<U32>, MyDemoHasher>>(
             &[0, 0, 0],
-            "d4cbf5b6b97485a991973db8a6ce4d3fc660db5dff5f55f2b0cb363fca34b0a2",
+            "d4c42a7baf9c01a30c73c00481bf26ea48813654db4b60c9061714e292ee0caa",
         );
 
         let mut hasher = DomainSeparatedHasher::<Blake2b<U32>, MyDemoHasher>::new();
@@ -785,7 +775,7 @@ mod test {
         let hash = hasher.finalize();
         assert_eq!(
             to_hex(hash.as_ref()),
-            "d4cbf5b6b97485a991973db8a6ce4d3fc660db5dff5f55f2b0cb363fca34b0a2"
+            "d4c42a7baf9c01a30c73c00481bf26ea48813654db4b60c9061714e292ee0caa"
         );
 
         let mut hasher = DomainSeparatedHasher::<Blake2b<U32>, MyDemoHasher>::new_with_label("");
@@ -793,7 +783,7 @@ mod test {
         let hash = hasher.finalize();
         assert_eq!(
             to_hex(hash.as_ref()),
-            "d4cbf5b6b97485a991973db8a6ce4d3fc660db5dff5f55f2b0cb363fca34b0a2"
+            "7f018785a03c826fe26be7a1d4c90cf99db0d8e313c3dd6d53eeb6233827e8e3"
         );
     }
 
@@ -805,7 +795,7 @@ mod test {
         assert_eq!(MyDemoHasher::version(), 1);
         util::hash_test::<DomainSeparatedHasher<Blake2b<U32>, MyDemoHasher>>(
             &[0, 0, 0],
-            "d4cbf5b6b97485a991973db8a6ce4d3fc660db5dff5f55f2b0cb363fca34b0a2",
+            "d4c42a7baf9c01a30c73c00481bf26ea48813654db4b60c9061714e292ee0caa",
         );
 
         hash_domain!(MyDemoHasher2, "com.macro.test", 2);
@@ -813,7 +803,7 @@ mod test {
         assert_eq!(MyDemoHasher2::version(), 2);
         util::hash_test::<DomainSeparatedHasher<Blake2b<U32>, MyDemoHasher2>>(
             &[0, 0, 0],
-            "ce327b02271d035bad4dcc1e69bc292392ee4ee497f1f8467d54bf4b4c72639a",
+            "ede2d458422fbeb170d9f3e5336469e8fa2ad433b8bc42edecb14948945274dc",
         );
 
         hash_domain!(TariHasher, "com.tari.hasher");
@@ -821,7 +811,7 @@ mod test {
         assert_eq!(TariHasher::version(), 1);
         util::hash_test::<DomainSeparatedHasher<Blake2b<U32>, TariHasher>>(
             &[0, 0, 0],
-            "ae359f05bb76c646c6767d25f53893fc38b0c7b56f8a74a1cbb008ea3ffc183f",
+            "f5d43f7f3d9ce8b245d1628451c298c6ffc9cc7de51b3cb0932d2a898ef2f833",
         );
     }
 
@@ -842,19 +832,23 @@ mod test {
 
     #[test]
     fn deconstruction() {
-        hash_domain!(TestDomain, "com.tari.generic");
+        hash_domain!(TestDomain, "domain");
         // Illustrate exactly what gets hashed and how we try and avoid collisions
-        let hash = DomainSeparatedHasher::<Blake2b<U32>, TestDomain>::new_with_label("mytest")
-            .chain("rincewind")
-            .chain("hex")
+        let hash = DomainSeparatedHasher::<Blake2b<U32>, TestDomain>::new_with_label("test")
+            .chain("jabberwocky")
             .finalize();
         let expected = Blake2b::<U32>::new()
-            .chain(26u64.to_le_bytes())
-            .chain("com.tari.generic.v1.mytest".as_bytes())
-            .chain(9u64.to_le_bytes())
-            .chain("rincewind".as_bytes())
-            .chain(3u64.to_le_bytes())
-            .chain("hex".as_bytes())
+            .chain([Tag::DomainSeparator as u8])
+            .chain(("domain".len() as u64).to_le_bytes())
+            .chain("domain".as_bytes())
+            .chain([Tag::Version as u8])
+            .chain([1u8])
+            .chain([Tag::Label as u8])
+            .chain(("test".len() as u64).to_le_bytes())
+            .chain("test".as_bytes())
+            .chain([Tag::Data as u8])
+            .chain(("jabberwocky".len() as u64).to_le_bytes())
+            .chain("jabberwocky".as_bytes())
             .finalize();
         assert_eq!(hash.as_ref(), expected.as_slice());
     }
@@ -903,7 +897,7 @@ mod test {
         let hash = DomainSeparatedHasher::<Blake2b<U64>, MyDemoHasher>::new_with_label("turtles")
             .chain("elephants")
             .finalize();
-        assert_eq!(to_hex(hash.as_ref()), "64a89c7160a1076a725fac97d3f67803abd0991d82518a595072fa62df4c870bddee9160f591231c381087831bf6925616013de317ce0b02846585caf41942ac");
+        assert_eq!(to_hex(hash.as_ref()), "49ba282306d7e63de5f8948d76b364b99dfe76c495694474a9c788e17cf7a8dc89be932da9a875210c9bcb6c760bdccfc09fe8e3ddf8b0862996e854f4e372bc");
     }
 
     #[test]
@@ -916,7 +910,7 @@ mod test {
         let mac = Mac::<Blake2b<U32>>::generate(key, "test message", "test");
         assert_eq!(
             to_hex(mac.as_ref()),
-            "9bcfbe2bad73b14ac42f673ddca34e82ce03cbbac69d34526004f5d108dff061"
+            "42d9ea20e3dd4be2af2614f99688116529caeb22335144026d03a4245a41b059"
         )
     }
 }
