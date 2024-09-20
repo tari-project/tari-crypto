@@ -343,10 +343,13 @@ impl RistrettoPublicKey {
 impl Zeroize for RistrettoPublicKey {
     /// Zeroizes both the point and (if it exists) the compressed point
     fn zeroize(&mut self) {
-        self.point.zeroize();
+        // This destructuring is to trigger a compiler error on future updates!
+        let Self { point, compressed } = self;
+
+        point.zeroize();
 
         // Need to empty the cell
-        if let Some(mut compressed) = self.compressed.take() {
+        if let Some(mut compressed) = compressed.take() {
             compressed.zeroize();
         }
     }
