@@ -1,6 +1,15 @@
 # Changelog
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+
+## [0.21.0](https://github.com/tari-project/tari-crypto/compare/v0.20.3...v0.21.0) (2024-10-10)
+
+
+### Features
+
+* use constant-time equality checking for DHKE ([#232](https://github.com/tari-project/tari-crypto/issues/232)) ([2a1715a](https://github.com/tari-project/tari-crypto/commit/2a1715a588953b2d21030f4019bf5565272a51d8))
+* upgrade dependencies tari utilities to 0.8 and borsh to 1.5
+
 ### [0.20.3](https://github.com/tari-project/tari-crypto/compare/v0.20.1...v0.20.3) (2024-07-02)
 
 
