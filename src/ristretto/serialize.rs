@@ -42,7 +42,7 @@ impl<'de> Deserialize<'de> for RistrettoPublicKey {
     where D: Deserializer<'de> {
         struct RistrettoPubKeyVisitor;
 
-        impl<'de> Visitor<'de> for RistrettoPubKeyVisitor {
+        impl Visitor<'_> for RistrettoPubKeyVisitor {
             type Value = RistrettoPublicKey;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -80,7 +80,7 @@ impl<'de> Deserialize<'de> for RistrettoSecretKey {
     where D: Deserializer<'de> {
         struct RistrettoVisitor;
 
-        impl<'de> Visitor<'de> for RistrettoVisitor {
+        impl Visitor<'_> for RistrettoVisitor {
             type Value = RistrettoSecretKey;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

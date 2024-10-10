@@ -50,3 +50,7 @@ warn = [
     'clippy::uninlined_format_args',
     'clippy::too_many_arguments',
 ]
+
+allow = [
+    'clippy::too_long_first_doc_paragraph',
+]

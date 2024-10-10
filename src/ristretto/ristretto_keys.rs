@@ -176,13 +176,13 @@ impl RistrettoSecretKey {
     }
 }
 
-impl<'a> fmt::Display for RevealedSecretKey<'a> {
+impl fmt::Display for RevealedSecretKey<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.secret.to_hex())
     }
 }
 
-impl<'a> fmt::Debug for RevealedSecretKey<'a> {
+impl fmt::Debug for RevealedSecretKey<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_tuple("RistrettoSecretKey")
             .field(&self.secret.to_hex())
@@ -192,7 +192,7 @@ impl<'a> fmt::Debug for RevealedSecretKey<'a> {
 
 //----------------------------------   RistrettoSecretKey Mul / Add / Sub --------------------------------------------//
 
-impl<'a, 'b> Mul<&'b RistrettoPublicKey> for &'a RistrettoSecretKey {
+impl<'b> Mul<&'b RistrettoPublicKey> for &RistrettoSecretKey {
     type Output = RistrettoPublicKey;
 
     fn mul(self, rhs: &'b RistrettoPublicKey) -> RistrettoPublicKey {
@@ -201,7 +201,7 @@ impl<'a, 'b> Mul<&'b RistrettoPublicKey> for &'a RistrettoSecretKey {
     }
 }
 
-impl<'a, 'b> Add<&'b RistrettoSecretKey> for &'a RistrettoSecretKey {
+impl<'b> Add<&'b RistrettoSecretKey> for &RistrettoSecretKey {
     type Output = RistrettoSecretKey;
 
     fn add(self, rhs: &'b RistrettoSecretKey) -> RistrettoSecretKey {
@@ -210,7 +210,7 @@ impl<'a, 'b> Add<&'b RistrettoSecretKey> for &'a RistrettoSecretKey {
     }
 }
 
-impl<'a, 'b> Sub<&'b RistrettoSecretKey> for &'a RistrettoSecretKey {
+impl<'b> Sub<&'b RistrettoSecretKey> for &RistrettoSecretKey {
     type Output = RistrettoSecretKey;
 
     fn sub(self, rhs: &'b RistrettoSecretKey) -> RistrettoSecretKey {
@@ -245,7 +245,7 @@ impl From<u64> for RistrettoSecretKey {
 
 //---------------------------------------------      Borrow impl     -------------------------------------------------//
 
-impl<'a> Borrow<Scalar> for &'a RistrettoSecretKey {
+impl Borrow<Scalar> for &RistrettoSecretKey {
     fn borrow(&self) -> &Scalar {
         &self.0
     }
@@ -536,16 +536,16 @@ impl ByteArray for RistrettoPublicKey {
 
 //----------------------------------         PublicKey Add / Sub / Mul   ---------------------------------------------//
 
-impl<'a, 'b> Add<&'b RistrettoPublicKey> for &'a RistrettoPublicKey {
+impl<'a> Add<&'a RistrettoPublicKey> for &RistrettoPublicKey {
     type Output = RistrettoPublicKey;
 
-    fn add(self, rhs: &'b RistrettoPublicKey) -> RistrettoPublicKey {
+    fn add(self, rhs: &'a RistrettoPublicKey) -> RistrettoPublicKey {
         let p_sum = self.point + rhs.point;
         RistrettoPublicKey::new_from_pk(p_sum)
     }
 }
 
-impl<'a, 'b> Sub<&'b RistrettoPublicKey> for &'a RistrettoPublicKey {
+impl Sub<&RistrettoPublicKey> for &RistrettoPublicKey {
     type Output = RistrettoPublicKey;
 
     fn sub(self, rhs: &RistrettoPublicKey) -> RistrettoPublicKey {
@@ -554,19 +554,19 @@ impl<'a, 'b> Sub<&'b RistrettoPublicKey> for &'a RistrettoPublicKey {
     }
 }
 
-impl<'a, 'b> Mul<&'b RistrettoSecretKey> for &'a RistrettoPublicKey {
+impl<'a> Mul<&'a RistrettoSecretKey> for &RistrettoPublicKey {
     type Output = RistrettoPublicKey;
 
-    fn mul(self, rhs: &'b RistrettoSecretKey) -> RistrettoPublicKey {
+    fn mul(self, rhs: &'a RistrettoSecretKey) -> RistrettoPublicKey {
         let p = rhs.0 * self.point;
         RistrettoPublicKey::new_from_pk(p)
     }
 }
 
-impl<'a, 'b> Mul<&'b RistrettoSecretKey> for &'a RistrettoSecretKey {
+impl<'a> Mul<&'a RistrettoSecretKey> for &RistrettoSecretKey {
     type Output = RistrettoSecretKey;
 
-    fn mul(self, rhs: &'b RistrettoSecretKey) -> RistrettoSecretKey {
+    fn mul(self, rhs: &'a RistrettoSecretKey) -> RistrettoSecretKey {
         let p = &rhs.0 * &self.0;
         RistrettoSecretKey(p)
     }
