@@ -1,6 +1,6 @@
 // Copyright 2022. The Tari Project
 // SPDX-License-Identifier: BSD-3-Clause
-
+#![allow(missing_docs)]
 use std::time::Duration;
 
 use criterion::{criterion_group, BatchSize, Criterion};
