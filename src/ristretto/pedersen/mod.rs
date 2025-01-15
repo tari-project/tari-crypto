@@ -4,6 +4,7 @@
 //! Pederson commitments utilities
 
 use core::{borrow::Borrow, iter::Sum};
+use std::sync::OnceLock;
 
 #[cfg(feature = "precomputed_tables")]
 use curve25519_dalek::{constants::RISTRETTO_BASEPOINT_TABLE, scalar::Scalar};
@@ -11,7 +12,6 @@ use curve25519_dalek::{
     constants::{RISTRETTO_BASEPOINT_COMPRESSED, RISTRETTO_BASEPOINT_POINT},
     ristretto::{CompressedRistretto, RistrettoPoint},
 };
-use once_cell::sync::OnceCell;
 
 #[cfg(feature = "precomputed_tables")]
 use crate::ristretto::constants::ristretto_nums_table_0;
@@ -32,12 +32,12 @@ pub const RISTRETTO_PEDERSEN_G: RistrettoPoint = RISTRETTO_BASEPOINT_POINT;
 pub const RISTRETTO_PEDERSEN_G_COMPRESSED: CompressedRistretto = RISTRETTO_BASEPOINT_COMPRESSED;
 /// The default generator on a Pedersen commitment used for the value
 pub fn ristretto_pedersen_h() -> &'static RistrettoPoint {
-    static INSTANCE: OnceCell<RistrettoPoint> = OnceCell::new();
+    static INSTANCE: OnceLock<RistrettoPoint> = OnceLock::new();
     INSTANCE.get_or_init(|| ristretto_nums_points()[0])
 }
 /// The default generator on a Pedersen commitment used for the value in a compressed form
 pub fn ristretto_pedersen_h_compressed() -> &'static CompressedRistretto {
-    static INSTANCE: OnceCell<CompressedRistretto> = OnceCell::new();
+    static INSTANCE: OnceLock<CompressedRistretto> = OnceLock::new();
     INSTANCE.get_or_init(|| RISTRETTO_NUMS_POINTS_COMPRESSED[0])
 }
 

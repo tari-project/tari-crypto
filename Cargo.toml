@@ -19,7 +19,6 @@ curve25519-dalek = { version = "4", default-features = false, features = [ "allo
 digest = { version = "0.10", default-features = false }
 log = { version = "0.4" , default-features = false}
 merlin = { version = "3", default-features = false }
-once_cell = { version = "1.8", default-features = false, features = ["critical-section"] }
 rand_chacha = { version = "0.3", default-features = false }
 rand_core = { version = "0.6" , default-features = false}
 serde = { version = "1.0", optional = true }
@@ -45,7 +44,6 @@ std = [
     "digest/std",
     "log/std",
     "merlin/std",
-    "once_cell/std",
     "rand_chacha/std",
     "rand_core/std",
     "serde?/std",

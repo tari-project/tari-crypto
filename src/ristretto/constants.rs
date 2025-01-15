@@ -5,8 +5,9 @@
 //! Generates a precomputation table for the first of these points for use in commitments.
 //! Tests the correctness of the NUMS construction.
 
+use std::sync::OnceLock;
+
 use curve25519_dalek::ristretto::{CompressedRistretto, RistrettoBasepointTable, RistrettoPoint};
-use once_cell::sync::OnceCell;
 
 const NUMBER_NUMS_POINTS: usize = 10;
 
@@ -59,7 +60,7 @@ pub const RISTRETTO_NUMS_POINTS_COMPRESSED: [CompressedRistretto; NUMBER_NUMS_PO
 
 /// A static array of pre-generated NUMS points
 pub fn ristretto_nums_points() -> &'static [RistrettoPoint; NUMBER_NUMS_POINTS] {
-    static INSTANCE: OnceCell<[RistrettoPoint; NUMBER_NUMS_POINTS]> = OnceCell::new();
+    static INSTANCE: OnceLock<[RistrettoPoint; NUMBER_NUMS_POINTS]> = OnceLock::new();
     INSTANCE.get_or_init(|| {
         let mut arr = [RistrettoPoint::default(); NUMBER_NUMS_POINTS];
         for i in 0..NUMBER_NUMS_POINTS {
@@ -71,7 +72,7 @@ pub fn ristretto_nums_points() -> &'static [RistrettoPoint; NUMBER_NUMS_POINTS] 
 
 /// Precomputation table for the first point, which is used as the default commitment generator
 pub fn ristretto_nums_table_0() -> &'static RistrettoBasepointTable {
-    static INSTANCE: OnceCell<RistrettoBasepointTable> = OnceCell::new();
+    static INSTANCE: OnceLock<RistrettoBasepointTable> = OnceLock::new();
     INSTANCE.get_or_init(|| RistrettoBasepointTable::create(&ristretto_nums_points()[0]))
 }
 
