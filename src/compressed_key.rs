@@ -26,7 +26,7 @@ pub struct CompressedKey<T> {
     phantom_data: PhantomData<T>,
 }
 
-#[allow(dead_code)]
+
 impl<T: PublicKey> CompressedKey<T> {
     pub fn new_from_pk(pk: &T) -> Self {
         Self::new(pk.as_bytes())

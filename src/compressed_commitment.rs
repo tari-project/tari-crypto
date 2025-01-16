@@ -51,7 +51,7 @@ impl<P: borsh::BorshSerialize> borsh::BorshSerialize for CompressedCommitment<P>
     }
 }
 
-#[allow(dead_code)]
+
 impl<P> CompressedCommitment<P>
 where P: PublicKey
 {
