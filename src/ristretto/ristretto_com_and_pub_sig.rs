@@ -5,6 +5,7 @@ use crate::{
     ristretto::{RistrettoPublicKey, RistrettoSecretKey},
     signatures::CommitmentAndPublicKeySignature,
 };
+use crate::signatures::CompressedCommitmentAndPublicKeySignature;
 
 /// # A commitment and public key (CAPK) signature implementation on Ristretto
 ///
@@ -77,6 +78,7 @@ use crate::{
 /// assert!(sig.verify_challenge(&commitment, &pubkey, &e, &factory, &mut rng));
 /// ```
 pub type RistrettoComAndPubSig = CommitmentAndPublicKeySignature<RistrettoPublicKey, RistrettoSecretKey>;
+pub type CompressedRistrettoComAndPubSig = CompressedCommitmentAndPublicKeySignature<RistrettoPublicKey, RistrettoSecretKey>;
 
 #[cfg(test)]
 mod test {

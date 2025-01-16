@@ -22,6 +22,7 @@ use crate::{
         RistrettoPublicKey,
     },
 };
+use crate::compressed_commitment::CompressedCommitment;
 
 pub mod commitment_factory;
 pub mod extended_commitment_factory;
@@ -43,6 +44,7 @@ pub fn ristretto_pedersen_h_compressed() -> &'static CompressedRistretto {
 
 /// The Pedersen commitment
 pub type PedersenCommitment = HomomorphicCommitment<RistrettoPublicKey>;
+pub type CompressedPedersenCommitment = CompressedCommitment<RistrettoPublicKey>;
 
 impl<T> Sum<T> for PedersenCommitment
 where T: Borrow<PedersenCommitment>
