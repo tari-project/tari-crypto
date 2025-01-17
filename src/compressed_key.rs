@@ -11,11 +11,12 @@ use std::{
 
 use blake2::Blake2b;
 use digest::{consts::U64, Digest};
+use rand_core::{CryptoRng, RngCore};
 use subtle::ConstantTimeEq;
 use tari_utilities::{hex::Hex, ByteArray, ByteArrayError, Hashable};
 use zeroize::Zeroize;
 
-use crate::keys::PublicKey;
+use crate::keys::{PublicKey, SecretKey};
 
 /// This stores a public key in compressed form, keeping it in compressed form until the point is needed, only then
 /// decompressing it back down to a public key
@@ -26,7 +27,6 @@ pub struct CompressedKey<T> {
     phantom_data: PhantomData<T>,
 }
 
-
 impl<T: PublicKey> CompressedKey<T> {
     pub fn new_from_pk(pk: &T) -> Self {
         Self::new(pk.as_bytes())
@@ -34,6 +34,16 @@ impl<T: PublicKey> CompressedKey<T> {
 
     pub fn to_public_key(&self) -> Result<T, ByteArrayError> {
         T::from_canonical_bytes(&self.key)
+    }
+
+    pub fn from_secret_key(sk: &T::K) -> Self {
+        Self::new(&T::from_secret_key(sk).as_bytes())
+    }
+
+    pub fn random_keypair<R: RngCore + CryptoRng>(rng: &mut R) -> (T::K, Self) {
+        let k = T::K::random(rng);
+        let pk = Self::from_secret_key(&k);
+        (k, pk)
     }
 }
 

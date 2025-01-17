@@ -17,12 +17,12 @@ use curve25519_dalek::{
 use crate::ristretto::constants::ristretto_nums_table_0;
 use crate::{
     commitment::HomomorphicCommitment,
+    compressed_commitment::CompressedCommitment,
     ristretto::{
         constants::{ristretto_nums_points, RISTRETTO_NUMS_POINTS_COMPRESSED},
         RistrettoPublicKey,
     },
 };
-use crate::compressed_commitment::CompressedCommitment;
 
 pub mod commitment_factory;
 pub mod extended_commitment_factory;

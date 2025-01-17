@@ -3,9 +3,8 @@
 
 use crate::{
     ristretto::{RistrettoPublicKey, RistrettoSecretKey},
-    signatures::{SchnorrSigChallenge, SchnorrSignature},
+    signatures::{CompressedSchnorrSignature, SchnorrSigChallenge, SchnorrSignature},
 };
-use crate::signatures::CompressedSchnorrSignature;
 
 /// # A Schnorr signature implementation on Ristretto
 ///
@@ -89,7 +88,8 @@ use crate::signatures::CompressedSchnorrSignature;
 /// assert!(sig.verify(&P, msg));
 /// ```
 pub type RistrettoSchnorr = SchnorrSignature<RistrettoPublicKey, RistrettoSecretKey, SchnorrSigChallenge>;
-pub type CompressedRistrettoSchnorr = CompressedSchnorrSignature<RistrettoPublicKey, RistrettoSecretKey, SchnorrSigChallenge>;
+pub type CompressedRistrettoSchnorr =
+    CompressedSchnorrSignature<RistrettoPublicKey, RistrettoSecretKey, SchnorrSigChallenge>;
 
 /// # A Schnorr signature implementation on Ristretto with a custom domain separation tag
 ///

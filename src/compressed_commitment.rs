@@ -51,7 +51,6 @@ impl<P: borsh::BorshSerialize> borsh::BorshSerialize for CompressedCommitment<P>
     }
 }
 
-
 impl<P> CompressedCommitment<P>
 where P: PublicKey
 {
