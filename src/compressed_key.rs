@@ -45,6 +45,10 @@ impl<T: PublicKey> CompressedKey<T> {
         let pk = Self::from_secret_key(&k);
         (k, pk)
     }
+
+    pub fn key_length() -> usize {
+    T::KEY_LEN
+    }
 }
 
 impl<T> CompressedKey<T> {
