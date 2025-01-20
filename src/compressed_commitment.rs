@@ -68,6 +68,10 @@ where P: PublicKey
         let compressed_key = CompressedKey::new_from_pk(p);
         CompressedCommitment(compressed_key)
     }
+
+    pub fn from_compressed_key(compressed_key: CompressedKey<P>) -> Self {
+        Self(compressed_key)
+    }
 }
 
 impl<P> ByteArray for CompressedCommitment<P>
