@@ -3,11 +3,11 @@
 use alloc::vec::Vec;
 use core::fmt;
 use std::{
-    cell::OnceCell,
     cmp::Ordering,
     hash::{Hash, Hasher},
     marker::PhantomData,
     prelude::rust_2015::{String, ToString},
+    sync::OnceLock,
 };
 
 use blake2::Blake2b;
@@ -28,14 +28,14 @@ use crate::keys::{PublicKey, SecretKey};
 #[derive(Clone)]
 pub struct CompressedKey<T> {
     key: Vec<u8>,
-    public_key: OnceCell<T>,
+    public_key: OnceLock<T>,
 }
 
 impl<T: PublicKey> CompressedKey<T> {
     pub fn new_from_pk(pk: &T) -> Self {
         Self {
             key: pk.as_bytes().to_vec(),
-            public_key: (pk.clone()).into(),
+            public_key: pk.clone().into(),
         }
     }
 
@@ -74,7 +74,7 @@ impl<T> CompressedKey<T> {
     pub fn new(key: &[u8]) -> CompressedKey<T> {
         Self {
             key: key.to_vec(),
-            public_key: OnceCell::new(),
+            public_key: OnceLock::new(),
         }
     }
 
