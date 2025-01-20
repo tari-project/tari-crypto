@@ -3,15 +3,20 @@
 use alloc::vec::Vec;
 use core::fmt;
 use std::{
+    cell::OnceCell,
     cmp::Ordering,
     hash::{Hash, Hasher},
     marker::PhantomData,
-    prelude::rust_2015::ToString,
+    prelude::rust_2015::{String, ToString},
 };
 
 use blake2::Blake2b;
 use digest::{consts::U64, Digest};
 use rand_core::{CryptoRng, RngCore};
+#[cfg(feature = "serde")]
+use serde::de::Visitor;
+#[cfg(feature = "serde")]
+use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use subtle::ConstantTimeEq;
 use tari_utilities::{hex::Hex, ByteArray, ByteArrayError, Hashable};
 use zeroize::Zeroize;
@@ -21,23 +26,36 @@ use crate::keys::{PublicKey, SecretKey};
 /// This stores a public key in compressed form, keeping it in compressed form until the point is needed, only then
 /// decompressing it back down to a public key
 #[derive(Clone)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CompressedKey<T> {
     key: Vec<u8>,
-    phantom_data: PhantomData<T>,
+    public_key: OnceCell<T>,
 }
 
 impl<T: PublicKey> CompressedKey<T> {
     pub fn new_from_pk(pk: &T) -> Self {
-        Self::new(pk.as_bytes())
+        Self {
+            key: pk.as_bytes().to_vec(),
+            public_key: (pk.clone()).into(),
+        }
     }
 
     pub fn to_public_key(&self) -> Result<T, ByteArrayError> {
-        T::from_canonical_bytes(&self.key)
+        match self.public_key.get() {
+            Some(pk) => Ok(pk.clone()),
+            None => {
+                let pk = T::from_canonical_bytes(&self.key)?;
+                let _ = self.public_key.set(pk.clone());
+                Ok(pk)
+            },
+        }
     }
 
     pub fn from_secret_key(sk: &T::K) -> Self {
-        Self::new(&T::from_secret_key(sk).as_bytes())
+        let pk = T::from_secret_key(sk);
+        Self {
+            key: pk.as_bytes().to_vec(),
+            public_key: pk.into(),
+        }
     }
 
     pub fn random_keypair<R: RngCore + CryptoRng>(rng: &mut R) -> (T::K, Self) {
@@ -47,7 +65,7 @@ impl<T: PublicKey> CompressedKey<T> {
     }
 
     pub fn key_length() -> usize {
-    T::KEY_LEN
+        T::KEY_LEN
     }
 }
 
@@ -56,7 +74,7 @@ impl<T> CompressedKey<T> {
     pub fn new(key: &[u8]) -> CompressedKey<T> {
         Self {
             key: key.to_vec(),
-            phantom_data: PhantomData,
+            public_key: OnceCell::new(),
         }
     }
 
@@ -196,5 +214,47 @@ impl<T> Zeroize for CompressedKey<T> {
     /// Zeroizes both the point and (if it exists) the compressed point
     fn zeroize(&mut self) {
         self.key.zeroize();
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de, T> Deserialize<'de> for CompressedKey<T> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where D: Deserializer<'de> {
+        struct CompressedKeyVisitor<T> {
+            phantom: PhantomData<T>,
+        }
+
+        impl<T> Visitor<'_> for CompressedKeyVisitor<T> {
+            type Value = CompressedKey<T>;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a public key in binary format")
+            }
+
+            fn visit_bytes<E>(self, v: &[u8]) -> Result<CompressedKey<T>, E>
+            where E: de::Error {
+                CompressedKey::from_canonical_bytes(v).map_err(E::custom)
+            }
+        }
+
+        if deserializer.is_human_readable() {
+            let s = String::deserialize(deserializer)?;
+            CompressedKey::from_hex(&s).map_err(de::Error::custom)
+        } else {
+            deserializer.deserialize_bytes(CompressedKeyVisitor { phantom: PhantomData })
+        }
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<T> Serialize for CompressedKey<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where S: Serializer {
+        if serializer.is_human_readable() {
+            self.to_hex().serialize(serializer)
+        } else {
+            serializer.serialize_bytes(self.as_bytes())
+        }
     }
 }
