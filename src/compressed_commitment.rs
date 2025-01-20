@@ -72,6 +72,10 @@ where P: PublicKey
     pub fn from_compressed_key(compressed_key: CompressedKey<P>) -> Self {
         Self(compressed_key)
     }
+
+    pub fn from_commitment(commitment: HomomorphicCommitment<P>) -> Self {
+        Self(CompressedKey::new_from_pk(commitment.as_public_key()))
+    }
 }
 
 impl<P> ByteArray for CompressedCommitment<P>
