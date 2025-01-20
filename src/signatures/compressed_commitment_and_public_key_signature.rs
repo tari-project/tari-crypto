@@ -7,7 +7,7 @@ use core::{
     hash::{Hash, Hasher},
 };
 
-use tari_utilities::ByteArray;
+use tari_utilities::{ByteArray, ByteArrayError};
 
 use crate::{
     compressed_commitment::CompressedCommitment,
@@ -66,6 +66,18 @@ where
             u_x: u_x.clone(),
             u_y: u_y.clone(),
         }
+    }
+
+    pub fn to_capk_signature(&self) -> Result<CommitmentAndPublicKeySignature<P, K>, ByteArrayError> {
+        let ephemeral_commitment = self.ephemeral_commitment.to_commitment()?;
+        let ephemeral_pubkey = self.ephemeral_pubkey.to_public_key()?;
+        Ok(CommitmentAndPublicKeySignature::new(
+            ephemeral_commitment,
+            ephemeral_pubkey,
+            self.u_a.clone(),
+            self.u_x.clone(),
+            self.u_y.clone(),
+        ))
     }
 
     /// Get the signature tuple `(ephemeral_commitment, ephemeral_pubkey, u_a, u_x, u_y)`
