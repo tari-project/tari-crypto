@@ -63,6 +63,10 @@ where P: PublicKey
         Ok(HomomorphicCommitment(self.to_public_key()?))
     }
 
+    pub fn to_compressed_key(&self) -> CompressedKey<P> {
+        self.0.clone()
+    }
+
     /// Converts a public key into a commitment
     pub fn from_public_key(p: &P) -> CompressedCommitment<P> {
         let compressed_key = CompressedKey::new_from_pk(p);
