@@ -37,8 +37,9 @@ where
 
     /// Creates a new [CompressedCommitment]
     pub fn new_from_commitment_signature(sig: CommitmentSignature<P, K>) -> Self {
-        let public_nonce = CompressedCommitment::from_public_key(sig.public_nonce().as_public_key());
-        CompressedCommitmentSignature::new(public_nonce, sig.u().clone(), sig.v().clone())
+        let CommitmentSignature { public_nonce, u, v } = sig;
+        let public_nonce = CompressedCommitment::from_commitment(public_nonce);
+        CompressedCommitmentSignature::new(public_nonce, u, v)
     }
 
     /// This function returns the complete signature tuple (R, u, v)

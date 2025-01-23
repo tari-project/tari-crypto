@@ -57,14 +57,14 @@ where
             u_x,
             u_y,
         } = capk_signature;
-        let commitment = CompressedCommitment::from_public_key(ephemeral_commitment.as_public_key());
-        let public_key = CompressedKey::new_from_pk(&ephemeral_pubkey);
+        let commitment = CompressedCommitment::from_commitment(ephemeral_commitment);
+        let public_key = CompressedKey::new_from_pk(ephemeral_pubkey);
         CompressedCommitmentAndPublicKeySignature {
             ephemeral_commitment: commitment,
             ephemeral_pubkey: public_key,
-            u_a: u_a.clone(),
-            u_x: u_x.clone(),
-            u_y: u_y.clone(),
+            u_a,
+            u_x,
+            u_y,
         }
     }
 

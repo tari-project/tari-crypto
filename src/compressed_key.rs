@@ -32,10 +32,10 @@ pub struct CompressedKey<T> {
 }
 
 impl<T: PublicKey> CompressedKey<T> {
-    pub fn new_from_pk(pk: &T) -> Self {
+    pub fn new_from_pk(pk: T) -> Self {
         Self {
             key: pk.as_bytes().to_vec(),
-            public_key: pk.clone().into(),
+            public_key: pk.into(),
         }
     }
 
@@ -133,10 +133,10 @@ impl<T> Hash for CompressedKey<T> {
     }
 }
 
-impl<T: Default + ByteArray> Default for CompressedKey<T> {
+impl<T: Default + ByteArray + PublicKey> Default for CompressedKey<T> {
     fn default() -> Self {
         let key = T::default();
-        Self::new(key.as_bytes())
+        Self::new_from_pk(key)
     }
 }
 

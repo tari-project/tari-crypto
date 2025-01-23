@@ -30,7 +30,7 @@ use crate::{commitment::HomomorphicCommitment, compressed_key::CompressedKey, ke
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CompressedCommitment<P>(pub(crate) CompressedKey<P>);
 
-impl<P: Default + ByteArray> Default for CompressedCommitment<P> {
+impl<P: Default + ByteArray + PublicKey> Default for CompressedCommitment<P> {
     fn default() -> Self {
         Self(CompressedKey::default())
     }
@@ -68,7 +68,7 @@ where P: PublicKey
     }
 
     /// Converts a public key into a commitment
-    pub fn from_public_key(p: &P) -> CompressedCommitment<P> {
+    pub fn from_public_key(p: P) -> CompressedCommitment<P> {
         let compressed_key = CompressedKey::new_from_pk(p);
         CompressedCommitment(compressed_key)
     }
@@ -78,7 +78,7 @@ where P: PublicKey
     }
 
     pub fn from_commitment(commitment: HomomorphicCommitment<P>) -> Self {
-        Self(CompressedKey::new_from_pk(commitment.as_public_key()))
+        Self(CompressedKey::new_from_pk(commitment.0))
     }
 }
 
