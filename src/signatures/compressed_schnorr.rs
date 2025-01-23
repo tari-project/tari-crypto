@@ -63,6 +63,7 @@ where
         }
     }
 
+    /// Converts the compressed signature into a SchnorrSignature.
     pub fn to_schnorr_signature(&self) -> Result<SchnorrSignature<P, K, H>, ByteArrayError> {
         let key = self.public_nonce.to_public_key()?;
         Ok(SchnorrSignature::new(key, self.signature.clone()))

@@ -1,6 +1,8 @@
 // Copyright 2021. The Tari Project
 // SPDX-License-Identifier: BSD-3-Clause
 
+//! This stores a Commitment And PublicKey Signature in compressed form, keeping it in compressed form until the point
+//! is needed, only then decompressing it back down to a Commitment And PublicKey Signature
 use alloc::vec::Vec;
 use core::{
     cmp::Ordering,
@@ -16,6 +18,8 @@ use crate::{
     signatures::CommitmentAndPublicKeySignature,
 };
 
+/// This stores a Commitment And PublicKey Signature in compressed form, keeping it in compressed form until the point
+/// is needed, only then decompressing it back down to a Commitment And PublicKey Signature
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize, borsh::BorshDeserialize))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -49,6 +53,7 @@ where
         }
     }
 
+    /// Creates a new [CommitmentSignature]
     pub fn new_from_capk_signature(capk_signature: CommitmentAndPublicKeySignature<P, K>) -> Self {
         let CommitmentAndPublicKeySignature {
             ephemeral_commitment,
@@ -68,6 +73,7 @@ where
         }
     }
 
+    /// Converts a commitment signature into a commitment and public key signature
     pub fn to_capk_signature(&self) -> Result<CommitmentAndPublicKeySignature<P, K>, ByteArrayError> {
         let ephemeral_commitment = self.ephemeral_commitment.to_commitment()?;
         let ephemeral_pubkey = self.ephemeral_pubkey.to_public_key()?;

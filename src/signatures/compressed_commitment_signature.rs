@@ -1,6 +1,7 @@
 // Copyright 2025. The Tari Project
 // SPDX-License-Identifier: BSD-3-Clause
-
+//! This stores a Commitment Signature in compressed form, keeping it in compressed form until the point is needed, only
+//! then decompressing it back down to a Commitment Signature
 use alloc::vec::Vec;
 use core::{
     cmp::Ordering,
@@ -15,6 +16,8 @@ use crate::{
     signatures::CommitmentSignature,
 };
 
+/// This stores a Commitment Signature in compressed form, keeping it in compressed form until the point is needed, only
+/// then decompressing it back down to a Commitment Signature
 #[allow(non_snake_case)]
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "borsh", derive(borsh::BorshDeserialize, borsh::BorshSerialize))]

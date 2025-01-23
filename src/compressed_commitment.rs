@@ -59,10 +59,12 @@ where P: PublicKey
         self.0.to_public_key()
     }
 
+    /// Get this compressed commitment as a homomorphic commitment
     pub fn to_commitment(&self) -> Result<HomomorphicCommitment<P>, ByteArrayError> {
         Ok(HomomorphicCommitment(self.to_public_key()?))
     }
 
+    /// Get this compressed commitment as a compressed key
     pub fn to_compressed_key(&self) -> CompressedKey<P> {
         self.0.clone()
     }
@@ -73,10 +75,12 @@ where P: PublicKey
         CompressedCommitment(compressed_key)
     }
 
+    /// Converts a compressed key into a commitment
     pub fn from_compressed_key(compressed_key: CompressedKey<P>) -> Self {
         Self(compressed_key)
     }
 
+    /// Converts a commitment into a compressed commitment
     pub fn from_commitment(commitment: HomomorphicCommitment<P>) -> Self {
         Self(CompressedKey::new_from_pk(commitment.0))
     }

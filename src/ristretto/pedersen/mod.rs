@@ -44,6 +44,7 @@ pub fn ristretto_pedersen_h_compressed() -> &'static CompressedRistretto {
 
 /// The Pedersen commitment
 pub type PedersenCommitment = HomomorphicCommitment<RistrettoPublicKey>;
+/// The compressed Pedersen commitment
 pub type CompressedPedersenCommitment = CompressedCommitment<RistrettoPublicKey>;
 
 impl<T> Sum<T> for PedersenCommitment

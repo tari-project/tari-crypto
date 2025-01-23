@@ -1,5 +1,8 @@
 // Copyright 2025. The Tari Project
 // SPDX-License-Identifier: BSD-3-Clause
+
+//! This stores a public key in compressed form, keeping it in compressed form until the point is needed, only then
+//! decompressing it back down to a public key
 use alloc::vec::Vec;
 use core::fmt;
 use std::{
@@ -32,6 +35,7 @@ pub struct CompressedKey<T> {
 }
 
 impl<T: PublicKey> CompressedKey<T> {
+    /// Create a new compressed key from a public key
     pub fn new_from_pk(pk: T) -> Self {
         Self {
             key: pk.as_bytes().to_vec(),
@@ -39,17 +43,19 @@ impl<T: PublicKey> CompressedKey<T> {
         }
     }
 
+    /// Return the public key
     pub fn to_public_key(&self) -> Result<T, ByteArrayError> {
         match self.public_key.get() {
             Some(pk) => Ok(pk.clone()),
             None => {
                 let pk = T::from_canonical_bytes(&self.key)?;
-                let _ = self.public_key.set(pk.clone());
+                let _unused = self.public_key.set(pk.clone());
                 Ok(pk)
             },
         }
     }
 
+    /// Create a new compressed key from a secret key
     pub fn from_secret_key(sk: &T::K) -> Self {
         let pk = T::from_secret_key(sk);
         Self {
@@ -58,12 +64,14 @@ impl<T: PublicKey> CompressedKey<T> {
         }
     }
 
+    /// Create a new cnew random compressed key and secret key
     pub fn random_keypair<R: RngCore + CryptoRng>(rng: &mut R) -> (T::K, Self) {
         let k = T::K::random(rng);
         let pk = Self::from_secret_key(&k);
         (k, pk)
     }
 
+    /// returns the length of the key
     pub fn key_length() -> usize {
         T::KEY_LEN
     }
@@ -201,7 +209,7 @@ impl<T> ByteArray for CompressedKey<T> {
         if bytes.len() != 32 {
             return Err(ByteArrayError::IncorrectLength {});
         }
-        Ok(Self::new(&bytes))
+        Ok(Self::new(bytes))
     }
 
     /// Return the little-endian byte array representation of the compressed public key
