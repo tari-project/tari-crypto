@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 //! Tari-Crypto
-#![no_std]
 
 #[allow(unused_imports)]
 #[macro_use]

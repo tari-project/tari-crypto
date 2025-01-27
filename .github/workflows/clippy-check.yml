@@ -27,8 +27,5 @@ jobs:
         run: cargo +stable check --release --all-targets
       - name: Check code (no default features)
         run: cargo +stable check --release --no-default-features
-      # This check here is to ensure that it builds for no-std rust targets
-      - name: Check code (no-std)
-        run: cargo +nightly check --no-default-features --target=thumbv8m.main-none-eabi -Zavoid-dev-deps
       - name: Check benchmarks
         run: cargo +nightly check --benches

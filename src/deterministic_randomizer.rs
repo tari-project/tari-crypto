@@ -142,7 +142,7 @@ where
     /// Choose a random bounded 64-bit unsigned integer with exclusive upper bound
     pub fn next_bounded_u64(&mut self, upper: u64) -> Result<u64, RandomizerError> {
         // We can't get a `u128` directly from the generator
-        let x = u128::from(self.prng.next_u64()) << 64 | u128::from(self.prng.next_u64());
+        let x = (u128::from(self.prng.next_u64()) << 64) | u128::from(self.prng.next_u64());
 
         u64::try_from(x % u128::from(upper)).map_err(|_| RandomizerError)
     }

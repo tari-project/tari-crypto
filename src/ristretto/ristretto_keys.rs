@@ -5,6 +5,7 @@
 use alloc::{string::ToString, vec::Vec};
 use core::{
     borrow::Borrow,
+    cell::OnceCell,
     cmp::Ordering,
     fmt,
     hash::{Hash, Hasher},
@@ -19,7 +20,6 @@ use curve25519_dalek::{
     traits::MultiscalarMul,
 };
 use digest::{consts::U64, Digest};
-use once_cell::sync::OnceCell;
 use rand_core::{CryptoRng, RngCore};
 use subtle::ConstantTimeEq;
 use tari_utilities::{hex::Hex, ByteArray, ByteArrayError, Hashable};
