@@ -50,9 +50,9 @@ pub enum CommitmentSignatureError {
 #[cfg_attr(feature = "borsh", derive(borsh::BorshDeserialize, borsh::BorshSerialize))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CommitmentSignature<P, K> {
-    public_nonce: HomomorphicCommitment<P>,
-    u: K,
-    v: K,
+    pub(crate) public_nonce: HomomorphicCommitment<P>,
+    pub(crate) u: K,
+    pub(crate) v: K,
 }
 
 impl<P, K> CommitmentSignature<P, K>

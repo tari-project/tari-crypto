@@ -5,12 +5,12 @@
 use alloc::{string::ToString, vec::Vec};
 use core::{
     borrow::Borrow,
-    cell::OnceCell,
     cmp::Ordering,
     fmt,
     hash::{Hash, Hasher},
     ops::{Add, Mul, Sub},
 };
+use std::sync::OnceLock;
 
 use blake2::Blake2b;
 use curve25519_dalek::{
@@ -281,7 +281,7 @@ impl Borrow<Scalar> for &RistrettoSecretKey {
 #[derive(Clone)]
 pub struct RistrettoPublicKey {
     point: RistrettoPoint,
-    compressed: OnceCell<CompressedRistretto>,
+    compressed: OnceLock<CompressedRistretto>,
 }
 
 #[cfg(feature = "borsh")]
@@ -306,7 +306,7 @@ impl RistrettoPublicKey {
     pub(super) fn new_from_pk(pk: RistrettoPoint) -> Self {
         Self {
             point: pk,
-            compressed: OnceCell::new(),
+            compressed: OnceLock::new(),
         }
     }
 

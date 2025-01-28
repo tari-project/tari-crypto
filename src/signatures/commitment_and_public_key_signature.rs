@@ -60,11 +60,11 @@ pub enum CommitmentAndPublicKeySignatureError {
 #[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize, borsh::BorshDeserialize))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CommitmentAndPublicKeySignature<P, K> {
-    ephemeral_commitment: HomomorphicCommitment<P>,
-    ephemeral_pubkey: P,
-    u_a: K,
-    u_x: K,
-    u_y: K,
+    pub(crate) ephemeral_commitment: HomomorphicCommitment<P>,
+    pub(crate) ephemeral_pubkey: P,
+    pub(crate) u_a: K,
+    pub(crate) u_x: K,
+    pub(crate) u_y: K,
 }
 
 impl<P, K> CommitmentAndPublicKeySignature<P, K>

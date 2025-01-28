@@ -48,8 +48,8 @@ pub enum SchnorrSignatureError {
 #[cfg_attr(feature = "borsh", derive(borsh::BorshSerialize, borsh::BorshDeserialize))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SchnorrSignature<P, K, H = SchnorrSigChallenge> {
-    public_nonce: P,
-    signature: K,
+    pub(crate) public_nonce: P,
+    pub(crate) signature: K,
     #[cfg_attr(feature = "serde", serde(skip))]
     _phantom: PhantomData<H>,
 }

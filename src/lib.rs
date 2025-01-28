@@ -26,6 +26,8 @@ pub mod signatures;
 #[allow(clippy::op_ref)]
 pub mod ristretto;
 
+pub mod compressed_commitment;
+pub mod compressed_key;
 pub mod errors;
 #[cfg(feature = "bulletproofs_plus")]
 pub mod extended_range_proof;

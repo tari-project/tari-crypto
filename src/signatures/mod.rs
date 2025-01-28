@@ -6,8 +6,14 @@
 
 mod commitment_and_public_key_signature;
 mod commitment_signature;
+mod compressed_commitment_and_public_key_signature;
+mod compressed_commitment_signature;
+mod compressed_schnorr;
 mod schnorr;
 
 pub use commitment_and_public_key_signature::*;
 pub use commitment_signature::*;
+pub use compressed_commitment_and_public_key_signature::*;
+pub use compressed_commitment_signature::*;
+pub use compressed_schnorr::*;
 pub use schnorr::*;

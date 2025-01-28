@@ -17,6 +17,7 @@ use curve25519_dalek::{
 use crate::ristretto::constants::ristretto_nums_table_0;
 use crate::{
     commitment::HomomorphicCommitment,
+    compressed_commitment::CompressedCommitment,
     ristretto::{
         constants::{ristretto_nums_points, RISTRETTO_NUMS_POINTS_COMPRESSED},
         RistrettoPublicKey,
@@ -43,6 +44,8 @@ pub fn ristretto_pedersen_h_compressed() -> &'static CompressedRistretto {
 
 /// The Pedersen commitment
 pub type PedersenCommitment = HomomorphicCommitment<RistrettoPublicKey>;
+/// The compressed Pedersen commitment
+pub type CompressedPedersenCommitment = CompressedCommitment<RistrettoPublicKey>;
 
 impl<T> Sum<T> for PedersenCommitment
 where T: Borrow<PedersenCommitment>
