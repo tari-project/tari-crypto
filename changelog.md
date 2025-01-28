@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.22.0](https://github.com/tari-project/tari-crypto/compare/v0.21.0...v0.22.0) (2025-01-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* compressed keys (#239)
+* remove onecell (#238)
+
+### Features
+
+* compressed keys ([#239](https://github.com/tari-project/tari-crypto/issues/239)) ([697d61f](https://github.com/tari-project/tari-crypto/commit/697d61f794306acb56778b2b0aa0e93795fdbcf3))
+* remove onecell ([#238](https://github.com/tari-project/tari-crypto/issues/238)) ([0458d45](https://github.com/tari-project/tari-crypto/commit/0458d451a2924977307632ddbda7959aecf71ec4))
+
 ## [0.21.0](https://github.com/tari-project/tari-crypto/compare/v0.20.3...v0.21.0) (2024-10-10)
 
 
