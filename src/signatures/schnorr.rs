@@ -362,9 +362,6 @@ mod test {
     #[test]
     fn schnorr_hash_domain() {
         assert_eq!(SchnorrSigChallenge::domain(), "com.tari.schnorr_signature");
-        assert_eq!(
-            SchnorrSigChallenge::domain_separation_tag("test"),
-            "com.tari.schnorr_signature.v1.test"
-        );
+        assert_eq!(SchnorrSigChallenge::version(), 1);
     }
 }
