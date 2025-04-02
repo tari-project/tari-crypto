@@ -78,8 +78,8 @@ impl<T: PublicKey> CompressedKey<T> {
 }
 
 impl<T> CompressedKey<T> {
-    /// Create a new compressed key
-    pub fn new(key: &[u8]) -> CompressedKey<T> {
+    /// Create a new compressed key. NOTE: does not check the key length for T
+    fn new(key: &[u8]) -> CompressedKey<T> {
         Self {
             key: key.to_vec(),
             public_key: OnceLock::new(),
@@ -198,15 +198,15 @@ impl<T> Ord for CompressedKey<T> {
     }
 }
 
-impl<T> ByteArray for CompressedKey<T> {
+impl<T: PublicKey> ByteArray for CompressedKey<T> {
     /// Create a new `RistrettoPublicKey` instance form the given byte array. The constructor returns errors under
     /// the following circumstances:
     /// * The byte array is not exactly 32 bytes
     /// * The byte array does not represent a valid (compressed) point on the ristretto255 curve
     fn from_canonical_bytes(bytes: &[u8]) -> Result<CompressedKey<T>, ByteArrayError>
     where Self: Sized {
-        // Check the length here, because The Ristretto constructor panics rather than returning an error
-        if bytes.len() != 32 {
+        // Check the length here, because the new function does not
+        if bytes.len() != T::KEY_LEN {
             return Err(ByteArrayError::IncorrectLength {});
         }
         Ok(Self::new(bytes))

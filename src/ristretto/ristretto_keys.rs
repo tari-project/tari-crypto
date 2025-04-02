@@ -517,7 +517,7 @@ impl ByteArray for RistrettoPublicKey {
     fn from_canonical_bytes(bytes: &[u8]) -> Result<RistrettoPublicKey, ByteArrayError>
     where Self: Sized {
         // Check the length here, because The Ristretto constructor panics rather than returning an error
-        if bytes.len() != 32 {
+        if bytes.len() != Self::KEY_LEN {
             return Err(ByteArrayError::IncorrectLength {});
         }
         let compressed = CompressedRistretto::from_slice(bytes).map_err(|_| ByteArrayError::ConversionError {
