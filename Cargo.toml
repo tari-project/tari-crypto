@@ -7,14 +7,14 @@ categories = ["cryptography"]
 homepage = "https://tari.com"
 readme = "README.md"
 license = "BSD-3-Clause"
-version = "0.22.0"
+version = "0.22.1"
 edition = "2018"
 
 [dependencies]
 tari_utilities = { version = "0.8", default-features = false }
 blake2 = { version = "0.10", default-features = false  }
 borsh = { version = "1.5" , optional = true , default-features = false, features = ["derive"]}
-bulletproofs_plus = { git="https://github.com/tari-project/bulletproofs-plus.git", package="tari_bulletproofs_plus", branch="st-increase-entropy", optional = true }
+bulletproofs_plus = { version = "0.4.1", package="tari_bulletproofs_plus", optional = true }
 curve25519-dalek = { version = "4", default-features = false, features = [ "alloc", "rand_core", "precomputed-tables", "zeroize"] }
 digest = { version = "0.10", default-features = false }
 log = { version = "0.4" , default-features = false}
