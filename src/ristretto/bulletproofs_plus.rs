@@ -263,7 +263,7 @@ impl RangeProofService for BulletproofsPlusService {
                                 rp.extension_degree()
                             );
                         }
-                        error!(target: LOG_TARGET, "Internal range proof error ({})", e.to_string());
+                        error!(target: LOG_TARGET, "Internal range proof error ({e})");
                         false
                     },
                 }
@@ -271,8 +271,7 @@ impl RangeProofService for BulletproofsPlusService {
             Err(e) => {
                 error!(
                     target: LOG_TARGET,
-                    "Range proof could not be deserialized ({})",
-                    e.to_string()
+                    "Range proof could not be deserialized ({e})"
                 );
                 false
             },
