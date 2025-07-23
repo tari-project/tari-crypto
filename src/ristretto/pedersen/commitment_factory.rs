@@ -243,7 +243,7 @@ mod test {
     #[allow(clippy::redundant_clone)]
     fn derived_methods() {
         let factory = PedersenCommitmentFactory::default();
-        let k = RistrettoSecretKey::from(1024);
+        let k = RistrettoSecretKey::from(1024u64);
         let value = 2048;
         let c1 = factory.commit_value(&k, value);
 
