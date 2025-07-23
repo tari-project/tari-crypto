@@ -598,7 +598,7 @@ mod test {
     #[allow(clippy::redundant_clone)]
     fn derived_methods_singular() {
         let factory = ExtendedPedersenCommitmentFactory::default();
-        let k = RistrettoSecretKey::from(1024);
+        let k = RistrettoSecretKey::from(1024u64);
         let value = 2048;
         let c1 = factory.commit_value(&k, value);
 
@@ -651,7 +651,7 @@ mod test {
     fn derived_methods_extended() {
         for extension_degree in EXTENSION_DEGREE {
             let factory = ExtendedPedersenCommitmentFactory::new_with_extension_degree(extension_degree).unwrap();
-            let k_vec = vec![RistrettoSecretKey::from(1024); extension_degree as usize];
+            let k_vec = vec![RistrettoSecretKey::from(1024u64); extension_degree as usize];
             let value = 2048;
             let c1 = factory.commit_value_extended(&k_vec, value).unwrap();
 
