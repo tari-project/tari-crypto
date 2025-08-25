@@ -1,5 +1,17 @@
+---
 name: Formatting, lints, and code checks
-on: [push, pull_request]
+
+'on':
+  workflow_dispatch:
+  push:
+    branches:
+      - "ci-*"
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+  merge_group:
 
 jobs:
   clippy_check:
@@ -29,3 +41,11 @@ jobs:
         run: cargo +stable check --release --no-default-features
       - name: Check benchmarks
         run: cargo +nightly check --benches
+      - name: cargo machete
+        run: |
+          cargo install cargo-machete@0.7.0
+          cargo machete
+      - name: cargo vet
+        run: |
+          cargo install cargo-vet@0.10.0 --locked
+          cargo vet
