@@ -19,8 +19,8 @@ use crate::{
     commitment::HomomorphicCommitment,
     compressed_commitment::CompressedCommitment,
     ristretto::{
-        constants::{ristretto_nums_points, RISTRETTO_NUMS_POINTS_COMPRESSED},
         RistrettoPublicKey,
+        constants::{RISTRETTO_NUMS_POINTS_COMPRESSED, ristretto_nums_points},
     },
 };
 
@@ -75,15 +75,15 @@ mod test {
         commitment::{ExtendedHomomorphicCommitmentFactory, ExtensionDegree, HomomorphicCommitmentFactory},
         keys::{PublicKey, SecretKey},
         ristretto::{
+            RistrettoPublicKey,
+            RistrettoSecretKey,
             pedersen::{
+                PedersenCommitment,
+                RISTRETTO_PEDERSEN_G,
                 commitment_factory::PedersenCommitmentFactory,
                 extended_commitment_factory::ExtendedPedersenCommitmentFactory,
                 ristretto_pedersen_h,
-                PedersenCommitment,
-                RISTRETTO_PEDERSEN_G,
             },
-            RistrettoPublicKey,
-            RistrettoSecretKey,
         },
     };
 

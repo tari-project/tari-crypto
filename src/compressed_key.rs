@@ -14,14 +14,14 @@ use std::{
 };
 
 use blake2::Blake2b;
-use digest::{consts::U64, Digest};
+use digest::{Digest, consts::U64};
 use rand_core::{CryptoRng, Rng};
 #[cfg(feature = "serde")]
 use serde::de::Visitor;
 #[cfg(feature = "serde")]
-use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
 use subtle::ConstantTimeEq;
-use tari_utilities::{hex::Hex, ByteArray, ByteArrayError, Hashable};
+use tari_utilities::{ByteArray, ByteArrayError, Hashable, hex::Hex};
 use zeroize::Zeroize;
 
 use crate::keys::{PublicKey, SecretKey};

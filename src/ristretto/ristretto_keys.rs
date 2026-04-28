@@ -19,10 +19,10 @@ use curve25519_dalek::{
     scalar::Scalar,
     traits::MultiscalarMul,
 };
-use digest::{consts::U64, Digest};
+use digest::{Digest, consts::U64};
 use rand_core::{CryptoRng, Rng};
 use subtle::ConstantTimeEq;
-use tari_utilities::{hex::Hex, ByteArray, ByteArrayError, Hashable};
+use tari_utilities::{ByteArray, ByteArrayError, Hashable, hex::Hex};
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 use crate::{
@@ -42,7 +42,7 @@ use crate::{
 /// ```edition2018
 /// use rand;
 /// use tari_crypto::{keys::SecretKey, ristretto::RistrettoSecretKey};
-/// use tari_utilities::{hex::Hex, ByteArray};
+/// use tari_utilities::{ByteArray, hex::Hex};
 ///
 /// let mut rng = rand::rng();
 /// let _k1 = RistrettoSecretKey::from_canonical_bytes(&[
@@ -265,7 +265,7 @@ impl Borrow<Scalar> for &RistrettoSecretKey {
 ///     keys::{PublicKey, SecretKey},
 ///     ristretto::{RistrettoPublicKey, RistrettoSecretKey},
 /// };
-/// use tari_utilities::{hex::Hex, ByteArray};
+/// use tari_utilities::{ByteArray, hex::Hex};
 ///
 /// let mut rng = rand::rng();
 /// let _p1 = RistrettoPublicKey::from_canonical_bytes(&[
@@ -1077,7 +1077,7 @@ mod test {
 
         use borsh::{BorshDeserialize, BorshSerialize};
 
-        use crate::ristretto::{test_common::get_keypair, RistrettoPublicKey, RistrettoSecretKey};
+        use crate::ristretto::{RistrettoPublicKey, RistrettoSecretKey, test_common::get_keypair};
 
         #[test]
         fn test_serialize_secret_key() {

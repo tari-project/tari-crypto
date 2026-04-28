@@ -3,8 +3,8 @@
 #![allow(missing_docs)]
 use std::time::Duration;
 
-use criterion::{criterion_group, BatchSize, Criterion};
-use rand::{rng, Rng};
+use criterion::{BatchSize, Criterion, criterion_group};
+use rand::{Rng, rng};
 use tari_crypto::{
     keys::{PublicKey, SecretKey},
     ristretto::{RistrettoPublicKey, RistrettoSchnorr, RistrettoSecretKey},

@@ -84,7 +84,7 @@ pub type CompressedRistrettoComAndPubSig =
 #[cfg(test)]
 mod test {
     use blake2::Blake2b;
-    use digest::{consts::U64, Digest};
+    use digest::{Digest, consts::U64};
     use rand_core::Rng;
     use tari_utilities::ByteArray;
 
@@ -92,11 +92,11 @@ mod test {
         commitment::{HomomorphicCommitment, HomomorphicCommitmentFactory},
         keys::{PublicKey, SecretKey},
         ristretto::{
-            pedersen::{commitment_factory::PedersenCommitmentFactory, PedersenCommitment},
             RistrettoComAndPubSig,
             RistrettoPublicKey,
             RistrettoSchnorr,
             RistrettoSecretKey,
+            pedersen::{PedersenCommitment, commitment_factory::PedersenCommitmentFactory},
         },
     };
 

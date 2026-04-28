@@ -3,12 +3,12 @@
 #![allow(missing_docs)]
 use std::time::Duration;
 
-use criterion::{criterion_group, Criterion};
+use criterion::{Criterion, criterion_group};
 use rand::rng;
 use tari_crypto::{
     commitment::HomomorphicCommitmentFactory,
     keys::SecretKey,
-    ristretto::{pedersen::commitment_factory::PedersenCommitmentFactory, RistrettoSecretKey},
+    ristretto::{RistrettoSecretKey, pedersen::commitment_factory::PedersenCommitmentFactory},
 };
 
 pub fn commit_default(c: &mut Criterion) {

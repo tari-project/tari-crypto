@@ -127,20 +127,20 @@ pub type RistrettoSchnorrWithDomain<H> = SchnorrSignature<RistrettoPublicKey, Ri
 #[cfg(test)]
 mod test {
     use blake2::Blake2b;
-    use digest::{consts::U64, Digest};
+    use digest::{Digest, consts::U64};
     use tari_utilities::{
-        hex::{to_hex, Hex},
         ByteArray,
+        hex::{Hex, to_hex},
     };
 
     use crate::{
         hash_domain,
         keys::{PublicKey, SecretKey},
         ristretto::{
-            ristretto_sig::RistrettoSchnorrWithDomain,
             RistrettoPublicKey,
             RistrettoSchnorr,
             RistrettoSecretKey,
+            ristretto_sig::RistrettoSchnorrWithDomain,
         },
         signatures::{SchnorrSigChallenge, SchnorrSignature},
     };

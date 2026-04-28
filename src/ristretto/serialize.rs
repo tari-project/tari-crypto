@@ -26,11 +26,11 @@ use alloc::string::String;
 use core::fmt;
 
 use serde::{
-    de::{self, Visitor},
     Deserialize,
     Deserializer,
     Serialize,
     Serializer,
+    de::{self, Visitor},
 };
 use tari_utilities::{byte_array::ByteArray, hex::Hex};
 use zeroize::Zeroize;

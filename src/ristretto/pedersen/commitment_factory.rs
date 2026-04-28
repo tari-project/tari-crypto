@@ -13,9 +13,9 @@ use crate::ristretto::pedersen::scalar_mul_with_pre_computation_tables;
 use crate::{
     commitment::{HomomorphicCommitment, HomomorphicCommitmentFactory},
     ristretto::{
-        pedersen::{ristretto_pedersen_h, PedersenCommitment, RISTRETTO_PEDERSEN_G},
         RistrettoPublicKey,
         RistrettoSecretKey,
+        pedersen::{PedersenCommitment, RISTRETTO_PEDERSEN_G, ristretto_pedersen_h},
     },
 };
 

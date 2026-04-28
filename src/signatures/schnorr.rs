@@ -13,7 +13,7 @@ use core::{
 };
 
 use blake2::Blake2b;
-use digest::{consts::U64, Digest};
+use digest::{Digest, consts::U64};
 use rand_core::{CryptoRng, Rng};
 use snafu::prelude::*;
 use tari_utilities::ByteArray;

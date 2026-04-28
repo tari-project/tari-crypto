@@ -8,6 +8,8 @@ use std::convert::TryFrom;
 
 pub use bulletproofs_plus::ristretto::RistrettoRangeProof;
 use bulletproofs_plus::{
+    PedersenGens,
+    Transcript,
     commitment_opening::CommitmentOpening,
     extended_mask::ExtendedMask as BulletproofsExtendedMask,
     generators::pedersen_gens::ExtensionDegree as BulletproofsExtensionDegree,
@@ -15,11 +17,9 @@ use bulletproofs_plus::{
     range_proof::{RangeProof, VerifyAction},
     range_statement::RangeStatement,
     range_witness::RangeWitness,
-    PedersenGens,
 };
 use curve25519_dalek::{ristretto::RistrettoPoint, scalar::Scalar};
 use log::*;
-use bulletproofs_plus::Transcript;
 
 use crate::{
     alloc::string::ToString,
@@ -35,9 +35,9 @@ use crate::{
     },
     range_proof::RangeProofService,
     ristretto::{
-        pedersen::extended_commitment_factory::ExtendedPedersenCommitmentFactory,
         RistrettoPublicKey,
         RistrettoSecretKey,
+        pedersen::extended_commitment_factory::ExtendedPedersenCommitmentFactory,
     },
 };
 
@@ -405,7 +405,7 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
             Err(e) => {
                 return Err(RangeProofError::InvalidRangeProof {
                     reason: format!("Internal range proof(s) error ({e})"),
-                })
+                });
             },
         };
         Ok(recovered_extended_masks)
@@ -581,6 +581,7 @@ mod test {
         extended_range_proof::ExtendedRangeProofService,
         range_proof::RangeProofService,
         ristretto::{
+            RistrettoSecretKey,
             bulletproofs_plus::{
                 BulletproofsPlusService,
                 RistrettoAggregatedPrivateStatement,
@@ -590,7 +591,6 @@ mod test {
                 RistrettoStatement,
             },
             pedersen::extended_commitment_factory::ExtendedPedersenCommitmentFactory,
-            RistrettoSecretKey,
         },
     };
 
@@ -759,13 +759,15 @@ mod test {
                         assert_eq!(private_masks[i], recovered_private_mask);
                         for statement in &statements_private[i].statements {
                             if let Some(this_mask) = recovered_private_mask.clone() {
-                                assert!(bulletproofs_plus_service
-                                    .verify_extended_mask(
-                                        &statement.commitment,
-                                        &this_mask,
-                                        *commitment_value_map_private.get(&statement.commitment).unwrap()
-                                    )
-                                    .unwrap());
+                                assert!(
+                                    bulletproofs_plus_service
+                                        .verify_extended_mask(
+                                            &statement.commitment,
+                                            &this_mask,
+                                            *commitment_value_map_private.get(&statement.commitment).unwrap()
+                                        )
+                                        .unwrap()
+                                );
                             }
                         }
                     }
@@ -780,31 +782,37 @@ mod test {
                         for statement in &aggregated_statement.statements {
                             if let Some(this_mask) = recovered_private_masks[index].clone() {
                                 // Verify the recovered mask
-                                assert!(bulletproofs_plus_service
-                                    .verify_extended_mask(
-                                        &statement.commitment,
-                                        &this_mask,
-                                        *commitment_value_map_private.get(&statement.commitment).unwrap()
-                                    )
-                                    .unwrap());
+                                assert!(
+                                    bulletproofs_plus_service
+                                        .verify_extended_mask(
+                                            &statement.commitment,
+                                            &this_mask,
+                                            *commitment_value_map_private.get(&statement.commitment).unwrap()
+                                        )
+                                        .unwrap()
+                                );
 
                                 // Also verify that the extended commitment factory can open the commitment
-                                assert!(factory
-                                    .open_value_extended(
-                                        &this_mask.secrets(),
-                                        *commitment_value_map_private.get(&statement.commitment).unwrap(),
-                                        &statement.commitment,
-                                    )
-                                    .unwrap());
+                                assert!(
+                                    factory
+                                        .open_value_extended(
+                                            &this_mask.secrets(),
+                                            *commitment_value_map_private.get(&statement.commitment).unwrap(),
+                                            &statement.commitment,
+                                        )
+                                        .unwrap()
+                                );
                             }
                         }
                     }
 
                     // // 7. Verify the entire batch as public entity
                     let statements_ref = statements_public.iter().collect::<Vec<_>>();
-                    assert!(bulletproofs_plus_service
-                        .verify_batch(proofs_ref, statements_ref)
-                        .is_ok());
+                    assert!(
+                        bulletproofs_plus_service
+                            .verify_batch(proofs_ref, statements_ref)
+                            .is_ok()
+                    );
                 }
             }
         }
@@ -859,9 +867,11 @@ mod test {
                 .unwrap();
 
             // Verify the proof
-            assert!(bulletproofs_plus_service
-                .verify_batch(vec![&proof], vec![&aggregated_statement])
-                .is_ok());
+            assert!(
+                bulletproofs_plus_service
+                    .verify_batch(vec![&proof], vec![&aggregated_statement])
+                    .is_ok()
+            );
         }
     }
 
@@ -924,13 +934,15 @@ mod test {
             .unwrap();
         assert_eq!(private_mask, recovered_private_mask);
         if let Some(this_mask) = recovered_private_mask {
-            assert!(verifiers_bulletproofs_plus_service
-                .verify_extended_mask(
-                    &statement_private.statements[0].commitment,
-                    &this_mask,
-                    extended_witness.value,
-                )
-                .unwrap());
+            assert!(
+                verifiers_bulletproofs_plus_service
+                    .verify_extended_mask(
+                        &statement_private.statements[0].commitment,
+                        &this_mask,
+                        extended_witness.value,
+                    )
+                    .unwrap()
+            );
         } else {
             panic!("A mask should have been recovered!");
         }
@@ -941,22 +953,26 @@ mod test {
         assert_eq!(vec![private_mask], recovered_private_masks);
         if let Some(this_mask) = recovered_private_masks[0].clone() {
             // Verify the recovered mask
-            assert!(verifiers_bulletproofs_plus_service
-                .verify_extended_mask(
-                    &statement_private.statements[0].commitment,
-                    &this_mask,
-                    extended_witness.value,
-                )
-                .unwrap());
+            assert!(
+                verifiers_bulletproofs_plus_service
+                    .verify_extended_mask(
+                        &statement_private.statements[0].commitment,
+                        &this_mask,
+                        extended_witness.value,
+                    )
+                    .unwrap()
+            );
 
             // Also verify that the extended commitment factory can open the commitment
-            assert!(factory
-                .open_value_extended(
-                    &this_mask.secrets(),
-                    extended_witness.value,
-                    &statement_private.statements[0].commitment,
-                )
-                .unwrap());
+            assert!(
+                factory
+                    .open_value_extended(
+                        &this_mask.secrets(),
+                        extended_witness.value,
+                        &statement_private.statements[0].commitment,
+                    )
+                    .unwrap()
+            );
         } else {
             panic!("A mask should have been recovered!");
         }
@@ -967,9 +983,11 @@ mod test {
             minimum_value_promise,
         }])
         .unwrap();
-        assert!(verifiers_bulletproofs_plus_service
-            .verify_batch(vec![&proof], vec![&statement_public])
-            .is_ok());
+        assert!(
+            verifiers_bulletproofs_plus_service
+                .verify_batch(vec![&proof], vec![&statement_public])
+                .is_ok()
+        );
     }
 
     #[test]
@@ -1014,9 +1032,11 @@ mod test {
             .unwrap();
         assert_eq!(mask, recovered_mask);
         // --- Verify that the mask opens the commitment
-        assert!(verifiers_bulletproofs_plus_service
-            .verify_mask(&commitment, &recovered_mask, value)
-            .unwrap());
+        assert!(
+            verifiers_bulletproofs_plus_service
+                .verify_mask(&commitment, &recovered_mask, value)
+                .unwrap()
+        );
         // --- Also verify that the commitment factory can open the commitment
         assert!(factory.open_value(&recovered_mask, value, &commitment));
 
