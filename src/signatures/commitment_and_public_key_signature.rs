@@ -8,7 +8,7 @@ use core::{
     ops::{Add, Mul},
 };
 
-use rand_core::{CryptoRng, RngCore};
+use rand_core::{CryptoRng, Rng};
 use snafu::prelude::*;
 use tari_utilities::ByteArray;
 
@@ -147,7 +147,7 @@ where
         for<'b> &'b K: Mul<&'b K, Output = K>,
         for<'b> &'b K: Add<&'b K, Output = K>,
         C: HomomorphicCommitmentFactory<P = P>,
-        R: RngCore + CryptoRng,
+        R: Rng + CryptoRng,
     {
         // The challenge is computed by wide reduction
         let e = match K::from_uniform_bytes(challenge) {
@@ -175,7 +175,7 @@ where
         for<'b> &'b K: Mul<&'b K, Output = K>,
         for<'b> &'b K: Add<&'b K, Output = K>,
         C: HomomorphicCommitmentFactory<P = P>,
-        R: RngCore + CryptoRng,
+        R: Rng + CryptoRng,
     {
         // Reject a zero commitment and public key
         if commitment.as_public_key() == &P::default() || pubkey == &P::default() {

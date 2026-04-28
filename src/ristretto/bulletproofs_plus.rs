@@ -570,7 +570,7 @@ mod test {
 
     use bulletproofs_plus::protocols::scalar_protocol::ScalarProtocol;
     use curve25519_dalek::scalar::Scalar;
-    use rand::Rng;
+    use rand::RngExt;
 
     use crate::{
         commitment::{
@@ -629,7 +629,7 @@ mod test {
     /// Using nontrivial aggregation or extension or an invalid value should fail
     #[test]
     fn test_range_proof_service() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         const BIT_LENGTH: usize = 4;
         const AGGREGATION_FACTORS: [usize; 2] = [1, 2];
 
@@ -671,7 +671,7 @@ mod test {
     fn test_construct_verify_extended_proof_with_recovery() {
         static BIT_LENGTH: [usize; 2] = [2, 64];
         static AGGREGATION_SIZE: [usize; 2] = [1, 2];
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         for extension_degree in [
             CommitmentExtensionDegree::DefaultPedersen,
             CommitmentExtensionDegree::AddFiveBasePoints,
@@ -699,7 +699,7 @@ mod test {
                     let mut statements = vec![];
                     let mut extended_witnesses = vec![];
                     for m in 0..aggregation_size {
-                        let value = rng.gen_range(value_min..value_max);
+                        let value = rng.random_range(value_min..value_max);
                         let minimum_value_promise = if m == 0 { value / 3 } else { 0 };
                         let secrets =
                             vec![RistrettoSecretKey(Scalar::random_not_zero(&mut rng)); extension_degree as usize];
@@ -813,7 +813,7 @@ mod test {
     #[test]
     // Test correctness of single aggregated proofs of varying extension degree
     fn test_single_aggregated_extended_proof() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         const BIT_LENGTH: usize = 4;
         const AGGREGATION_FACTOR: usize = 2;
@@ -833,7 +833,7 @@ mod test {
 
             // Set up the statements and witnesses
             for _ in 0..AGGREGATION_FACTOR {
-                let value = rng.gen_range(value_min..value_max);
+                let value = rng.random_range(value_min..value_max);
                 let minimum_value_promise = value / 3;
                 let secrets = vec![RistrettoSecretKey(Scalar::random_not_zero(&mut rng)); extension_degree as usize];
                 let extended_mask = RistrettoExtendedMask::assign(extension_degree, secrets.clone()).unwrap();
@@ -870,7 +870,7 @@ mod test {
         let bit_length = 64usize;
         let aggregation_size = 1usize;
         let extension_degree = CommitmentExtensionDegree::DefaultPedersen;
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let factory = ExtendedPedersenCommitmentFactory::new_with_extension_degree(extension_degree).unwrap();
         #[allow(clippy::cast_possible_truncation)]
         let (value_min, value_max) = (0u64, ((1u128 << bit_length) - 1) as u64);
@@ -880,7 +880,7 @@ mod test {
         provers_bulletproofs_plus_service.custom_transcript_label("123 range proof");
 
         // 2. Create witness data
-        let value = rng.gen_range(value_min..value_max);
+        let value = rng.random_range(value_min..value_max);
         let minimum_value_promise = value / 3;
         let secrets = vec![RistrettoSecretKey(Scalar::random_not_zero(&mut rng)); extension_degree as usize];
         let extended_mask = RistrettoExtendedMask::assign(extension_degree, secrets.clone()).unwrap();
@@ -977,7 +977,7 @@ mod test {
         let bit_length = 64usize;
         let aggregation_size = 1usize;
         let extension_degree = CommitmentExtensionDegree::DefaultPedersen;
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let factory = ExtendedPedersenCommitmentFactory::new_with_extension_degree(extension_degree).unwrap();
         #[allow(clippy::cast_possible_truncation)]
         let (value_min, value_max) = (0u64, ((1u128 << bit_length) - 1) as u64);
@@ -987,7 +987,7 @@ mod test {
         provers_bulletproofs_plus_service.custom_transcript_label("123 range proof");
 
         // 2. Create witness data
-        let value = rng.gen_range(value_min..value_max);
+        let value = rng.random_range(value_min..value_max);
         let mask = RistrettoSecretKey(Scalar::random_not_zero(&mut rng));
         let commitment = factory.commit_value(&mask, value);
 

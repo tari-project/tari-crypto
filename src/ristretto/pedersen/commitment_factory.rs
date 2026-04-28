@@ -126,7 +126,7 @@ mod test {
     fn check_open() {
         let factory = PedersenCommitmentFactory::default();
         let H = *ristretto_pedersen_h();
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         for _ in 0..100 {
             let v = RistrettoSecretKey::random(&mut rng);
             let k = RistrettoSecretKey::random(&mut rng);
@@ -149,7 +149,7 @@ mod test {
     /// `open(k1+k2, v1+v2)` is true for _C_
     #[test]
     fn check_homomorphism() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         for _ in 0..100 {
             let v1 = RistrettoSecretKey::random(&mut rng);
             let v2 = RistrettoSecretKey::random(&mut rng);
@@ -177,7 +177,7 @@ mod test {
     /// `open(k1+k2, v1)` is true for _C_
     #[test]
     fn check_homomorphism_with_public_key() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         // Left-hand side
         let v1 = RistrettoSecretKey::random(&mut rng);
         let k1 = RistrettoSecretKey::random(&mut rng);
@@ -200,7 +200,7 @@ mod test {
     /// `open(sum(k_j), sum(v_j))` is true for `sum(C_j)`
     #[test]
     fn sum_commitment_vector() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let mut v_sum = RistrettoSecretKey::default();
         let mut k_sum = RistrettoSecretKey::default();
         let zero = RistrettoSecretKey::default();
@@ -223,7 +223,7 @@ mod test {
     #[test]
     fn serialize_deserialize() {
         use tari_utilities::message_format::MessageFormat;
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let factory = PedersenCommitmentFactory::default();
         let k = RistrettoSecretKey::random(&mut rng);
         let c = factory.commit_value(&k, 420);

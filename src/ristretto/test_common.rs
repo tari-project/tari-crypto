@@ -7,7 +7,7 @@ use crate::{
 };
 
 pub(crate) fn get_keypair() -> (RistrettoSecretKey, RistrettoPublicKey) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let k = RistrettoSecretKey::random(&mut rng);
     let pk = RistrettoPublicKey::from_secret_key(&k);
     (k, pk)

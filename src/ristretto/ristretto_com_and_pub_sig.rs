@@ -59,7 +59,7 @@ use crate::{
 /// use tari_utilities::hex::Hex;
 /// use digest::consts::U64;
 ///
-/// let mut rng = rand::thread_rng();
+/// let mut rng = rand::rng();
 /// let a_val = RistrettoSecretKey::random(&mut rng);
 /// let x_val = RistrettoSecretKey::random(&mut rng);
 /// let y_val = RistrettoSecretKey::random(&mut rng);
@@ -85,7 +85,7 @@ pub type CompressedRistrettoComAndPubSig =
 mod test {
     use blake2::Blake2b;
     use digest::{consts::U64, Digest};
-    use rand_core::RngCore;
+    use rand_core::Rng;
     use tari_utilities::ByteArray;
 
     use crate::{
@@ -127,7 +127,7 @@ mod test {
     /// Create a signature, and then verify it. Also checks that some invalid signatures fail to verify
     #[test]
     fn sign_and_verify_message() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         // Witness data
         let a_value = RistrettoSecretKey::random(&mut rng);
@@ -199,7 +199,7 @@ mod test {
     /// Create two partial signatures to the same challenge and computes if the total aggregate signature is valid.
     #[test]
     fn sign_and_verify_message_partial() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         // Witness data
         let a_value = RistrettoSecretKey::random(&mut rng);
@@ -272,7 +272,7 @@ mod test {
     /// Create a schnorr and RistrettoComAndPubSig adding them together and testing if they still valid.
     #[test]
     fn sign_and_verify_combined_schnorr() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         // Challenge; doesn't use proper Fiat-Shamir, so it's for testing only!
         let challenge = Blake2b::<U64>::new().chain_update(b"Small Gods").finalize();
@@ -328,7 +328,7 @@ mod test {
     /// Test that commitment signatures are linear, as in a multisignature construction
     #[test]
     fn test_signature_addition() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let factory = PedersenCommitmentFactory::default();
 
         // Alice's data
@@ -423,7 +423,7 @@ mod test {
 
     #[test]
     fn zero_commitment() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let factory = PedersenCommitmentFactory::default();
 
         // Generate a zero commitment opening and a random key
@@ -456,7 +456,7 @@ mod test {
 
     #[test]
     fn zero_public_key() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let factory = PedersenCommitmentFactory::default();
 
         // Generate a random commitment opening and a zero key
