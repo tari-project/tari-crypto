@@ -24,7 +24,6 @@ deny = [
     'clippy::else_if_without_else',
     'clippy::enum_glob_use',
     'clippy::inline_always',
-    'clippy::match_on_vec_items',
     'clippy::match_wild_err_arm',
 
     # Style preferences

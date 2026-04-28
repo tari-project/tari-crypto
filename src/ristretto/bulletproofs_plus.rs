@@ -19,7 +19,7 @@ use bulletproofs_plus::{
 };
 use curve25519_dalek::{ristretto::RistrettoPoint, scalar::Scalar};
 use log::*;
-use merlin::Transcript;
+use bulletproofs_plus::Transcript;
 
 use crate::{
     alloc::string::ToString,
@@ -249,7 +249,7 @@ impl RangeProofService for BulletproofsPlusService {
                 match RistrettoRangeProof::verify_batch(
                     &mut [Transcript::new(self.transcript_label.as_bytes())],
                     &[statement],
-                    &[rp.clone()],
+                    std::slice::from_ref(&rp),
                     VerifyAction::VerifyOnly,
                 ) {
                     Ok(_) => true,

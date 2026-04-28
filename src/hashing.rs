@@ -622,9 +622,7 @@ macro_rules! hash_domain {
 macro_rules! hasher {
     ($digest:ty, $name:ident, $domain:expr, $version: expr, $mod_name:ident) => {
         mod $mod_name {
-            use $crate::hash_domain;
-
-            hash_domain!(__HashDomain, $domain, $version);
+            $crate::hash_domain!(__HashDomain, $domain, $version);
         }
         pub type $name = $crate::hashing::DomainSeparatedHasher<$digest, $mod_name::__HashDomain>;
     };
