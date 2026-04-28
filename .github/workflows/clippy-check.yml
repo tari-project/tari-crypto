@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install components
         uses: dtolnay/rust-toolchain@master
         with:
@@ -22,7 +22,7 @@ jobs:
       - name: Install linter
         run: cargo install cargo-lints
       - name: Run linter
-        run: cargo +nightly lints clippy --all-targets --all-features
+        run: cargo lints clippy --all-targets --all-features
       - name: Check code
         run: cargo +stable check --release --all-targets
       - name: Check code (no default features)
