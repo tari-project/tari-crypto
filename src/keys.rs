@@ -8,7 +8,7 @@
 
 use core::ops::Add;
 
-use rand_core::{CryptoRng, RngCore};
+use rand_core::{CryptoRng, Rng};
 use subtle::ConstantTimeEq;
 use tari_utilities::{ByteArray, ByteArrayError};
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -23,7 +23,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 /// # use tari_crypto::ristretto::{ RistrettoSecretKey, RistrettoPublicKey };
 /// # use tari_crypto::keys::{ SecretKey, PublicKey };
 /// # use rand;
-/// let mut rng = rand::thread_rng();
+/// let mut rng = rand::rng();
 /// let k = RistrettoSecretKey::random(&mut rng);
 /// let p = RistrettoPublicKey::from_secret_key(&k);
 /// ```
@@ -42,7 +42,7 @@ pub trait SecretKey:
     }
 
     /// Generates a random secret key
-    fn random<R: RngCore + CryptoRng>(rng: &mut R) -> Self;
+    fn random<R: Rng + CryptoRng>(rng: &mut R) -> Self;
 
     /// Generates a secret key from a slice of uniformly-distributed bytes using wide reduction
     /// If the number of bytes is incorrect, this will fail
@@ -78,7 +78,7 @@ pub trait PublicKey:
     fn batch_mul(scalars: &[Self::K], points: &[Self]) -> Self;
 
     /// Generate a random public and secret key
-    fn random_keypair<R: RngCore + CryptoRng>(rng: &mut R) -> (Self::K, Self) {
+    fn random_keypair<R: Rng + CryptoRng>(rng: &mut R) -> (Self::K, Self) {
         let k = Self::K::random(rng);
         let pk = Self::from_secret_key(&k);
         (k, pk)

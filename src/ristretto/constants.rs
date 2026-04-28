@@ -89,9 +89,9 @@ mod test {
     use sha2::{Digest, Sha512};
 
     use crate::ristretto::constants::{
+        RISTRETTO_NUMS_POINTS_COMPRESSED,
         ristretto_nums_points,
         ristretto_nums_table_0,
-        RISTRETTO_NUMS_POINTS_COMPRESSED,
     };
 
     /// Generate a set of NUMS points by hashing domain separation labels and converting the hash output to a Ristretto

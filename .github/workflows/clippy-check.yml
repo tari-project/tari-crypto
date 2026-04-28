@@ -6,23 +6,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Install components
         uses: dtolnay/rust-toolchain@master
         with:
           components: clippy, rustfmt
           toolchain: nightly
-      - name: Toolchain thumbv8m.main-none-eabi
+      - name: Toolchain stable
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: nightly
-          targets: thumbv8m.main-none-eabi
+          components: clippy, rustfmt
+          toolchain: stable
       - name: Check formatting
         run: cargo +nightly fmt --all -- --check
       - name: Install linter
         run: cargo install cargo-lints
       - name: Run linter
-        run: cargo +nightly lints clippy --all-targets --all-features
+        run: cargo lints clippy --all-targets --all-features
       - name: Check code
         run: cargo +stable check --release --all-targets
       - name: Check code (no default features)

@@ -13,8 +13,8 @@ use core::{
 };
 
 use blake2::Blake2b;
-use digest::{consts::U64, Digest};
-use rand_core::{CryptoRng, RngCore};
+use digest::{Digest, consts::U64};
+use rand_core::{CryptoRng, Rng};
 use snafu::prelude::*;
 use tari_utilities::ByteArray;
 
@@ -124,7 +124,7 @@ where
     ///
     /// This method correctly binds a nonce and the public key to the signature challenge, using domain-separated
     /// hashing. The hasher is also opinionated in the sense that Blake2b 512-bit digest is always used.
-    pub fn sign<'a, B, R: RngCore + CryptoRng>(
+    pub fn sign<'a, B, R: Rng + CryptoRng>(
         secret: &'a K,
         message: B,
         rng: &mut R,

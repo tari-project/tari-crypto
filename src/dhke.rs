@@ -64,7 +64,7 @@ where P: PublicKey
 
 #[cfg(test)]
 mod test {
-    use rand_core::OsRng;
+    use rand::rng;
 
     use super::DiffieHellmanSharedSecret;
     use crate::{
@@ -75,7 +75,7 @@ mod test {
     #[test]
     fn test_dhke() {
         // Generate two key pairs
-        let mut rng = OsRng;
+        let mut rng = rng();
 
         let sk1 = RistrettoSecretKey::random(&mut rng);
         let pk1 = RistrettoPublicKey::from_secret_key(&sk1);

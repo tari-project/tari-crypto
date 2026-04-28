@@ -19,8 +19,8 @@ use crate::{
     commitment::HomomorphicCommitment,
     compressed_commitment::CompressedCommitment,
     ristretto::{
-        constants::{ristretto_nums_points, RISTRETTO_NUMS_POINTS_COMPRESSED},
         RistrettoPublicKey,
+        constants::{RISTRETTO_NUMS_POINTS_COMPRESSED, ristretto_nums_points},
     },
 };
 
@@ -75,21 +75,21 @@ mod test {
         commitment::{ExtendedHomomorphicCommitmentFactory, ExtensionDegree, HomomorphicCommitmentFactory},
         keys::{PublicKey, SecretKey},
         ristretto::{
+            RistrettoPublicKey,
+            RistrettoSecretKey,
             pedersen::{
+                PedersenCommitment,
+                RISTRETTO_PEDERSEN_G,
                 commitment_factory::PedersenCommitmentFactory,
                 extended_commitment_factory::ExtendedPedersenCommitmentFactory,
                 ristretto_pedersen_h,
-                PedersenCommitment,
-                RISTRETTO_PEDERSEN_G,
             },
-            RistrettoPublicKey,
-            RistrettoSecretKey,
         },
     };
 
     #[test]
     fn pubkey_roundtrip() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let (_, p) = RistrettoPublicKey::random_keypair(&mut rng);
         let c = PedersenCommitment::from_public_key(&p);
         assert_eq!(c.as_public_key(), &p);
@@ -99,7 +99,7 @@ mod test {
 
     #[test]
     fn commitment_sub() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let (_, a) = RistrettoPublicKey::random_keypair(&mut rng);
         let (_, b) = RistrettoPublicKey::random_keypair(&mut rng);
         let c = &a + &b;
@@ -136,7 +136,7 @@ mod test {
     fn check_commitments_between_factories() {
         let factory_singular = PedersenCommitmentFactory::default();
         let factory_extended = ExtendedPedersenCommitmentFactory::default();
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let v = RistrettoSecretKey::random(&mut rng);
         let k = RistrettoSecretKey::random(&mut rng);
         let c_singular = factory_singular.commit(&k, &v);

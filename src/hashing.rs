@@ -33,13 +33,13 @@ use core::{marker::PhantomData, ops::Deref};
 
 use blake2::{Blake2b, Blake2bVar};
 use digest::{
-    consts::{U32, U64},
     Digest,
     FixedOutput,
     FixedOutputReset,
     Output,
     OutputSizeUser,
     Update,
+    consts::{U32, U64},
 };
 use sha3::Sha3_256;
 
@@ -622,9 +622,7 @@ macro_rules! hash_domain {
 macro_rules! hasher {
     ($digest:ty, $name:ident, $domain:expr, $version: expr, $mod_name:ident) => {
         mod $mod_name {
-            use $crate::hash_domain;
-
-            hash_domain!(__HashDomain, $domain, $version);
+            $crate::hash_domain!(__HashDomain, $domain, $version);
         }
         pub type $name = $crate::hashing::DomainSeparatedHasher<$digest, $mod_name::__HashDomain>;
     };
@@ -650,20 +648,20 @@ pub fn create_hasher<D: Digest, HD: DomainSeparation>() -> DomainSeparatedHasher
 mod test {
     use blake2::Blake2b;
     use digest::{
-        consts::{U32, U64},
-        generic_array::GenericArray,
         Digest,
         Update,
+        consts::{U32, U64},
+        generic_array::GenericArray,
     };
     use tari_utilities::hex::{from_hex, to_hex};
 
     use crate::hashing::{
-        byte_to_decimal_ascii_bytes,
         AsFixedBytes,
         DomainSeparatedHasher,
         DomainSeparation,
         Mac,
         MacDomain,
+        byte_to_decimal_ascii_bytes,
     };
 
     mod util {
@@ -911,7 +909,10 @@ mod test {
         let hash = DomainSeparatedHasher::<Blake2b<U64>, MyDemoHasher>::new_with_label("turtles")
             .chain("elephants")
             .finalize();
-        assert_eq!(to_hex(hash.as_ref()), "64a89c7160a1076a725fac97d3f67803abd0991d82518a595072fa62df4c870bddee9160f591231c381087831bf6925616013de317ce0b02846585caf41942ac");
+        assert_eq!(
+            to_hex(hash.as_ref()),
+            "64a89c7160a1076a725fac97d3f67803abd0991d82518a595072fa62df4c870bddee9160f591231c381087831bf6925616013de317ce0b02846585caf41942ac"
+        );
     }
 
     #[test]

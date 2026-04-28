@@ -1,1 +1,9 @@
 
+[alias]
+ci-fmt = "fmt --all -- --check"
+ci-fmt-fix = "fmt --all"
+ci-clippy = "lints clippy --all-targets --all-features"
+ci-test-compile = "test --no-run --workspace --all-features --no-default-features"
+ci-test = "nextest run --all-features --release --no-fail-fast"
+ci-check = "check --release --all-targets --locked"
+ci-lcheck = "lcheck --release --all-targets --locked"

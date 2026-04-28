@@ -51,7 +51,7 @@ use crate::{
 /// use tari_crypto::ristretto::pedersen::commitment_factory::PedersenCommitmentFactory;
 /// use tari_utilities::hex::Hex;
 ///
-/// let mut rng = rand::thread_rng();
+/// let mut rng = rand::rng();
 /// let a_val = RistrettoSecretKey::random(&mut rng);
 /// let x_val = RistrettoSecretKey::random(&mut rng);
 /// let a_nonce = RistrettoSecretKey::random(&mut rng);
@@ -106,18 +106,18 @@ pub type RistrettoComSig = CommitmentSignature<RistrettoPublicKey, RistrettoSecr
 #[cfg(test)]
 mod test {
     use blake2::Blake2b;
-    use digest::{consts::U64, Digest};
-    use rand_core::RngCore;
+    use digest::{Digest, consts::U64};
+    use rand_core::Rng;
     use tari_utilities::ByteArray;
 
     use crate::{
         commitment::{HomomorphicCommitment, HomomorphicCommitmentFactory},
         keys::{PublicKey, SecretKey},
         ristretto::{
-            pedersen::{commitment_factory::PedersenCommitmentFactory, PedersenCommitment},
             RistrettoComSig,
             RistrettoPublicKey,
             RistrettoSecretKey,
+            pedersen::{PedersenCommitment, commitment_factory::PedersenCommitmentFactory},
         },
     };
 
@@ -137,7 +137,7 @@ mod test {
     #[test]
     #[allow(non_snake_case)]
     fn sign_and_verify_message() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let a_value = RistrettoSecretKey::random(&mut rng);
         let x_value = RistrettoSecretKey::random(&mut rng);
         let factory = PedersenCommitmentFactory::default();
@@ -173,7 +173,7 @@ mod test {
     #[test]
     #[allow(non_snake_case)]
     fn test_signature_addition() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let factory = PedersenCommitmentFactory::default();
         // Alice generate some keys and nonces
         let a_value_alice = RistrettoSecretKey::random(&mut rng);
@@ -232,7 +232,7 @@ mod test {
 
     #[test]
     fn zero_commitment() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let factory = PedersenCommitmentFactory::default();
 
         // Generate a zero commitment opening

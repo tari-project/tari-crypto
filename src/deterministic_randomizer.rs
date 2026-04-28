@@ -7,7 +7,7 @@
 use alloc::vec::Vec;
 use core::convert::TryFrom;
 
-use rand_core::{CryptoRng, RngCore, SeedableRng};
+use rand_core::{CryptoRng, Rng, SeedableRng};
 
 /// Error representing a failed shuffle
 #[derive(Debug)]
@@ -23,7 +23,7 @@ pub struct RandomizerError;
 /// results.
 ///
 /// To avoid certain pitfalls, you need to choose a cryptographically-secure pseudorandom number generator (CSPRNG) that
-/// implements `CryptoRng + RngCore + SeedableRng`; a good choice is something like `ChaCha12Rng` from the `rand_chacha`
+/// implements `CryptoRng + Rng + SeedableRng`; a good choice is something like `ChaCha12Rng` from the `rand_chacha`
 /// crate (which happens to be the current `rand` default).
 ///
 /// Once you instantiate the `DeterministicRandomizer` with your CSPRNG and a starting seed, you can start generating
@@ -79,7 +79,7 @@ where R: SeedableRng
 
 impl<R> DeterministicRandomizer<R>
 where
-    R: CryptoRng + RngCore + SeedableRng,
+    R: CryptoRng + Rng + SeedableRng,
     <R as SeedableRng>::Seed: Clone,
 {
     /// Initialize the randomizer with a seed

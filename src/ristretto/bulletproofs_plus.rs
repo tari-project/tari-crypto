@@ -8,6 +8,8 @@ use std::convert::TryFrom;
 
 pub use bulletproofs_plus::ristretto::RistrettoRangeProof;
 use bulletproofs_plus::{
+    PedersenGens,
+    Transcript,
     commitment_opening::CommitmentOpening,
     extended_mask::ExtendedMask as BulletproofsExtendedMask,
     generators::pedersen_gens::ExtensionDegree as BulletproofsExtensionDegree,
@@ -15,11 +17,9 @@ use bulletproofs_plus::{
     range_proof::{RangeProof, VerifyAction},
     range_statement::RangeStatement,
     range_witness::RangeWitness,
-    PedersenGens,
 };
 use curve25519_dalek::{ristretto::RistrettoPoint, scalar::Scalar};
 use log::*;
-use merlin::Transcript;
 
 use crate::{
     alloc::string::ToString,
@@ -35,9 +35,9 @@ use crate::{
     },
     range_proof::RangeProofService,
     ristretto::{
-        pedersen::extended_commitment_factory::ExtendedPedersenCommitmentFactory,
         RistrettoPublicKey,
         RistrettoSecretKey,
+        pedersen::extended_commitment_factory::ExtendedPedersenCommitmentFactory,
     },
 };
 
@@ -249,7 +249,7 @@ impl RangeProofService for BulletproofsPlusService {
                 match RistrettoRangeProof::verify_batch(
                     &mut [Transcript::new(self.transcript_label.as_bytes())],
                     &[statement],
-                    &[rp.clone()],
+                    std::slice::from_ref(&rp),
                     VerifyAction::VerifyOnly,
                 ) {
                     Ok(_) => true,
@@ -263,7 +263,7 @@ impl RangeProofService for BulletproofsPlusService {
                                 rp.extension_degree()
                             );
                         }
-                        error!(target: LOG_TARGET, "Internal range proof error ({})", e.to_string());
+                        error!(target: LOG_TARGET, "Internal range proof error ({e})");
                         false
                     },
                 }
@@ -271,8 +271,7 @@ impl RangeProofService for BulletproofsPlusService {
             Err(e) => {
                 error!(
                     target: LOG_TARGET,
-                    "Range proof could not be deserialized ({})",
-                    e.to_string()
+                    "Range proof could not be deserialized ({e})",
                 );
                 false
             },
@@ -405,7 +404,7 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
             Err(e) => {
                 return Err(RangeProofError::InvalidRangeProof {
                     reason: format!("Internal range proof(s) error ({e})"),
-                })
+                });
             },
         };
         Ok(recovered_extended_masks)
@@ -570,7 +569,7 @@ mod test {
 
     use bulletproofs_plus::protocols::scalar_protocol::ScalarProtocol;
     use curve25519_dalek::scalar::Scalar;
-    use rand::Rng;
+    use rand::RngExt;
 
     use crate::{
         commitment::{
@@ -581,6 +580,7 @@ mod test {
         extended_range_proof::ExtendedRangeProofService,
         range_proof::RangeProofService,
         ristretto::{
+            RistrettoSecretKey,
             bulletproofs_plus::{
                 BulletproofsPlusService,
                 RistrettoAggregatedPrivateStatement,
@@ -590,7 +590,6 @@ mod test {
                 RistrettoStatement,
             },
             pedersen::extended_commitment_factory::ExtendedPedersenCommitmentFactory,
-            RistrettoSecretKey,
         },
     };
 
@@ -629,7 +628,7 @@ mod test {
     /// Using nontrivial aggregation or extension or an invalid value should fail
     #[test]
     fn test_range_proof_service() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         const BIT_LENGTH: usize = 4;
         const AGGREGATION_FACTORS: [usize; 2] = [1, 2];
 
@@ -671,7 +670,7 @@ mod test {
     fn test_construct_verify_extended_proof_with_recovery() {
         static BIT_LENGTH: [usize; 2] = [2, 64];
         static AGGREGATION_SIZE: [usize; 2] = [1, 2];
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         for extension_degree in [
             CommitmentExtensionDegree::DefaultPedersen,
             CommitmentExtensionDegree::AddFiveBasePoints,
@@ -699,7 +698,7 @@ mod test {
                     let mut statements = vec![];
                     let mut extended_witnesses = vec![];
                     for m in 0..aggregation_size {
-                        let value = rng.gen_range(value_min..value_max);
+                        let value = rng.random_range(value_min..value_max);
                         let minimum_value_promise = if m == 0 { value / 3 } else { 0 };
                         let secrets =
                             vec![RistrettoSecretKey(Scalar::random_not_zero(&mut rng)); extension_degree as usize];
@@ -759,13 +758,15 @@ mod test {
                         assert_eq!(private_masks[i], recovered_private_mask);
                         for statement in &statements_private[i].statements {
                             if let Some(this_mask) = recovered_private_mask.clone() {
-                                assert!(bulletproofs_plus_service
-                                    .verify_extended_mask(
-                                        &statement.commitment,
-                                        &this_mask,
-                                        *commitment_value_map_private.get(&statement.commitment).unwrap()
-                                    )
-                                    .unwrap());
+                                assert!(
+                                    bulletproofs_plus_service
+                                        .verify_extended_mask(
+                                            &statement.commitment,
+                                            &this_mask,
+                                            *commitment_value_map_private.get(&statement.commitment).unwrap()
+                                        )
+                                        .unwrap()
+                                );
                             }
                         }
                     }
@@ -780,31 +781,37 @@ mod test {
                         for statement in &aggregated_statement.statements {
                             if let Some(this_mask) = recovered_private_masks[index].clone() {
                                 // Verify the recovered mask
-                                assert!(bulletproofs_plus_service
-                                    .verify_extended_mask(
-                                        &statement.commitment,
-                                        &this_mask,
-                                        *commitment_value_map_private.get(&statement.commitment).unwrap()
-                                    )
-                                    .unwrap());
+                                assert!(
+                                    bulletproofs_plus_service
+                                        .verify_extended_mask(
+                                            &statement.commitment,
+                                            &this_mask,
+                                            *commitment_value_map_private.get(&statement.commitment).unwrap()
+                                        )
+                                        .unwrap()
+                                );
 
                                 // Also verify that the extended commitment factory can open the commitment
-                                assert!(factory
-                                    .open_value_extended(
-                                        &this_mask.secrets(),
-                                        *commitment_value_map_private.get(&statement.commitment).unwrap(),
-                                        &statement.commitment,
-                                    )
-                                    .unwrap());
+                                assert!(
+                                    factory
+                                        .open_value_extended(
+                                            &this_mask.secrets(),
+                                            *commitment_value_map_private.get(&statement.commitment).unwrap(),
+                                            &statement.commitment,
+                                        )
+                                        .unwrap()
+                                );
                             }
                         }
                     }
 
                     // // 7. Verify the entire batch as public entity
                     let statements_ref = statements_public.iter().collect::<Vec<_>>();
-                    assert!(bulletproofs_plus_service
-                        .verify_batch(proofs_ref, statements_ref)
-                        .is_ok());
+                    assert!(
+                        bulletproofs_plus_service
+                            .verify_batch(proofs_ref, statements_ref)
+                            .is_ok()
+                    );
                 }
             }
         }
@@ -813,7 +820,7 @@ mod test {
     #[test]
     // Test correctness of single aggregated proofs of varying extension degree
     fn test_single_aggregated_extended_proof() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         const BIT_LENGTH: usize = 4;
         const AGGREGATION_FACTOR: usize = 2;
@@ -833,7 +840,7 @@ mod test {
 
             // Set up the statements and witnesses
             for _ in 0..AGGREGATION_FACTOR {
-                let value = rng.gen_range(value_min..value_max);
+                let value = rng.random_range(value_min..value_max);
                 let minimum_value_promise = value / 3;
                 let secrets = vec![RistrettoSecretKey(Scalar::random_not_zero(&mut rng)); extension_degree as usize];
                 let extended_mask = RistrettoExtendedMask::assign(extension_degree, secrets.clone()).unwrap();
@@ -859,9 +866,11 @@ mod test {
                 .unwrap();
 
             // Verify the proof
-            assert!(bulletproofs_plus_service
-                .verify_batch(vec![&proof], vec![&aggregated_statement])
-                .is_ok());
+            assert!(
+                bulletproofs_plus_service
+                    .verify_batch(vec![&proof], vec![&aggregated_statement])
+                    .is_ok()
+            );
         }
     }
 
@@ -870,7 +879,7 @@ mod test {
         let bit_length = 64usize;
         let aggregation_size = 1usize;
         let extension_degree = CommitmentExtensionDegree::DefaultPedersen;
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let factory = ExtendedPedersenCommitmentFactory::new_with_extension_degree(extension_degree).unwrap();
         #[allow(clippy::cast_possible_truncation)]
         let (value_min, value_max) = (0u64, ((1u128 << bit_length) - 1) as u64);
@@ -880,7 +889,7 @@ mod test {
         provers_bulletproofs_plus_service.custom_transcript_label("123 range proof");
 
         // 2. Create witness data
-        let value = rng.gen_range(value_min..value_max);
+        let value = rng.random_range(value_min..value_max);
         let minimum_value_promise = value / 3;
         let secrets = vec![RistrettoSecretKey(Scalar::random_not_zero(&mut rng)); extension_degree as usize];
         let extended_mask = RistrettoExtendedMask::assign(extension_degree, secrets.clone()).unwrap();
@@ -924,13 +933,15 @@ mod test {
             .unwrap();
         assert_eq!(private_mask, recovered_private_mask);
         if let Some(this_mask) = recovered_private_mask {
-            assert!(verifiers_bulletproofs_plus_service
-                .verify_extended_mask(
-                    &statement_private.statements[0].commitment,
-                    &this_mask,
-                    extended_witness.value,
-                )
-                .unwrap());
+            assert!(
+                verifiers_bulletproofs_plus_service
+                    .verify_extended_mask(
+                        &statement_private.statements[0].commitment,
+                        &this_mask,
+                        extended_witness.value,
+                    )
+                    .unwrap()
+            );
         } else {
             panic!("A mask should have been recovered!");
         }
@@ -941,22 +952,26 @@ mod test {
         assert_eq!(vec![private_mask], recovered_private_masks);
         if let Some(this_mask) = recovered_private_masks[0].clone() {
             // Verify the recovered mask
-            assert!(verifiers_bulletproofs_plus_service
-                .verify_extended_mask(
-                    &statement_private.statements[0].commitment,
-                    &this_mask,
-                    extended_witness.value,
-                )
-                .unwrap());
+            assert!(
+                verifiers_bulletproofs_plus_service
+                    .verify_extended_mask(
+                        &statement_private.statements[0].commitment,
+                        &this_mask,
+                        extended_witness.value,
+                    )
+                    .unwrap()
+            );
 
             // Also verify that the extended commitment factory can open the commitment
-            assert!(factory
-                .open_value_extended(
-                    &this_mask.secrets(),
-                    extended_witness.value,
-                    &statement_private.statements[0].commitment,
-                )
-                .unwrap());
+            assert!(
+                factory
+                    .open_value_extended(
+                        &this_mask.secrets(),
+                        extended_witness.value,
+                        &statement_private.statements[0].commitment,
+                    )
+                    .unwrap()
+            );
         } else {
             panic!("A mask should have been recovered!");
         }
@@ -967,9 +982,11 @@ mod test {
             minimum_value_promise,
         }])
         .unwrap();
-        assert!(verifiers_bulletproofs_plus_service
-            .verify_batch(vec![&proof], vec![&statement_public])
-            .is_ok());
+        assert!(
+            verifiers_bulletproofs_plus_service
+                .verify_batch(vec![&proof], vec![&statement_public])
+                .is_ok()
+        );
     }
 
     #[test]
@@ -977,7 +994,7 @@ mod test {
         let bit_length = 64usize;
         let aggregation_size = 1usize;
         let extension_degree = CommitmentExtensionDegree::DefaultPedersen;
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let factory = ExtendedPedersenCommitmentFactory::new_with_extension_degree(extension_degree).unwrap();
         #[allow(clippy::cast_possible_truncation)]
         let (value_min, value_max) = (0u64, ((1u128 << bit_length) - 1) as u64);
@@ -987,7 +1004,7 @@ mod test {
         provers_bulletproofs_plus_service.custom_transcript_label("123 range proof");
 
         // 2. Create witness data
-        let value = rng.gen_range(value_min..value_max);
+        let value = rng.random_range(value_min..value_max);
         let mask = RistrettoSecretKey(Scalar::random_not_zero(&mut rng));
         let commitment = factory.commit_value(&mask, value);
 
@@ -1014,9 +1031,11 @@ mod test {
             .unwrap();
         assert_eq!(mask, recovered_mask);
         // --- Verify that the mask opens the commitment
-        assert!(verifiers_bulletproofs_plus_service
-            .verify_mask(&commitment, &recovered_mask, value)
-            .unwrap());
+        assert!(
+            verifiers_bulletproofs_plus_service
+                .verify_mask(&commitment, &recovered_mask, value)
+                .unwrap()
+        );
         // --- Also verify that the commitment factory can open the commitment
         assert!(factory.open_value(&recovered_mask, value, &commitment));
 

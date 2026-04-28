@@ -25,16 +25,16 @@ use crate::{
     },
     errors::CommitmentError,
     ristretto::{
-        constants::{ristretto_nums_points, RISTRETTO_NUMS_POINTS_COMPRESSED},
+        RistrettoPublicKey,
+        RistrettoSecretKey,
+        constants::{RISTRETTO_NUMS_POINTS_COMPRESSED, ristretto_nums_points},
         pedersen::{
-            ristretto_pedersen_h,
-            ristretto_pedersen_h_compressed,
             PedersenCommitment,
             RISTRETTO_PEDERSEN_G,
             RISTRETTO_PEDERSEN_G_COMPRESSED,
+            ristretto_pedersen_h,
+            ristretto_pedersen_h_compressed,
         },
-        RistrettoPublicKey,
-        RistrettoSecretKey,
     },
 };
 
@@ -222,15 +222,15 @@ mod test {
         },
         keys::{PublicKey, SecretKey},
         ristretto::{
+            RistrettoPublicKey,
+            RistrettoSecretKey,
             constants::ristretto_nums_points,
             pedersen::{
+                RISTRETTO_PEDERSEN_G,
                 commitment_factory::PedersenCommitmentFactory,
                 extended_commitment_factory::ExtendedPedersenCommitmentFactory,
                 ristretto_pedersen_h,
-                RISTRETTO_PEDERSEN_G,
             },
-            RistrettoPublicKey,
-            RistrettoSecretKey,
         },
     };
 
@@ -301,7 +301,7 @@ mod test {
     #[allow(non_snake_case)]
     fn check_open_both_traits() {
         let H = *ristretto_pedersen_h();
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         for extension_degree in EXTENSION_DEGREE {
             let factory = ExtendedPedersenCommitmentFactory::new_with_extension_degree(extension_degree).unwrap();
             for _ in 0..25 {
@@ -348,7 +348,7 @@ mod test {
     /// `open(k1_i+k2_i, v1+v2)` is true for _C_
     #[test]
     fn check_homomorphism_both_traits() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         for extension_degree in EXTENSION_DEGREE {
             for _ in 0..25 {
                 let v1 = RistrettoSecretKey::random(&mut rng);
@@ -399,7 +399,7 @@ mod test {
     /// `open(k1+k2, v1)` is true for _C_
     #[test]
     fn check_homomorphism_with_public_key_singular() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         // Left-hand side
         let v1 = RistrettoSecretKey::random(&mut rng);
         let k1 = RistrettoSecretKey::random(&mut rng);
@@ -448,7 +448,7 @@ mod test {
     /// Note: Homomorphism with public key only holds for extended commitments with`ExtensionDegree::DefaultPedersen`
     #[test]
     fn check_homomorphism_with_public_key_extended() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         for extension_degree in EXTENSION_DEGREE {
             // Left-hand side
             let v1 = RistrettoSecretKey::random(&mut rng);
@@ -493,7 +493,7 @@ mod test {
     /// `open(sum(k_j), sum(v_j))` is true for `sum(C_j)`
     #[test]
     fn sum_commitment_vector_singular() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let mut v_sum = RistrettoSecretKey::default();
         let mut k_sum = RistrettoSecretKey::default();
         let zero = RistrettoSecretKey::default();
@@ -522,7 +522,7 @@ mod test {
     /// `open(sum(sum(k_i)_j), sum(v_j))` is true for `sum(C_j)`
     #[test]
     fn sum_commitment_vector_extended() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let v_zero = RistrettoSecretKey::default();
         let k_zero = vec![RistrettoSecretKey::default(); ExtensionDegree::AddFiveBasePoints as usize];
         for extension_degree in EXTENSION_DEGREE {
@@ -557,7 +557,7 @@ mod test {
         use crate::ristretto::pedersen::PedersenCommitment;
         #[test]
         fn serialize_deserialize_singular() {
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
             let factory = ExtendedPedersenCommitmentFactory::default();
             let k = RistrettoSecretKey::random(&mut rng);
             let c = factory.commit_value(&k, 420);
@@ -575,7 +575,7 @@ mod test {
 
         #[test]
         fn serialize_deserialize_extended() {
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
             for extension_degree in EXTENSION_DEGREE {
                 let factory = ExtendedPedersenCommitmentFactory::new_with_extension_degree(extension_degree).unwrap();
                 let k_vec = vec![RistrettoSecretKey::random(&mut rng); extension_degree as usize];

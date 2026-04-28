@@ -45,10 +45,10 @@ use crate::{
 /// # use tari_crypto::keys::*;
 /// # use tari_crypto::signatures::SchnorrSignature;
 /// # use digest::Digest;
-/// # use rand::{Rng, thread_rng};
+/// # use rand::{Rng, rng};
 ///
 /// fn get_keypair() -> (RistrettoSecretKey, RistrettoPublicKey) {
-///     let mut rng = rand::thread_rng();
+///     let mut rng = rand::rng();
 ///     let k = RistrettoSecretKey::random(&mut rng);
 ///     let pk = RistrettoPublicKey::from_secret_key(&k);
 ///     (k, pk)
@@ -57,7 +57,7 @@ use crate::{
 /// #[allow(non_snake_case)]
 /// let (k, P) = get_keypair();
 /// let msg = "Small Gods";
-/// let mut rng = thread_rng();
+/// let mut rng = rng();
 /// let sig = RistrettoSchnorr::sign(&k, &msg, &mut rng);
 /// ```
 ///
@@ -73,7 +73,7 @@ use crate::{
 /// # use tari_utilities::hex::*;
 /// # use tari_utilities::ByteArray;
 /// # use digest::Digest;
-/// # use rand::{Rng, thread_rng};
+/// # use rand::{Rng, rng};
 ///
 /// let msg = "Maskerade";
 /// let k = RistrettoSecretKey::from_hex(
@@ -82,7 +82,7 @@ use crate::{
 /// .unwrap();
 /// # #[allow(non_snake_case)]
 /// let P = RistrettoPublicKey::from_secret_key(&k);
-/// let mut rng = thread_rng();
+/// let mut rng = rng();
 /// let sig: SchnorrSignature<RistrettoPublicKey, RistrettoSecretKey> =
 ///     SchnorrSignature::sign(&k, msg, &mut rng).unwrap();
 /// assert!(sig.verify(&P, msg));
@@ -104,7 +104,7 @@ pub type CompressedRistrettoSchnorr =
 /// # use tari_crypto::hash_domain;
 /// # use tari_crypto::signatures::SchnorrSignature;
 /// # use tari_utilities::hex::*;
-/// # use rand::{Rng, thread_rng};
+/// # use rand::{Rng, rng};
 /// # use tari_utilities::ByteArray;
 /// # use digest::Digest;
 ///
@@ -117,7 +117,7 @@ pub type CompressedRistrettoSchnorr =
 /// .unwrap();
 /// # #[allow(non_snake_case)]
 /// let P = RistrettoPublicKey::from_secret_key(&k);
-/// let mut rng = thread_rng();
+/// let mut rng = rng();
 /// let sig: SchnorrSignature<RistrettoPublicKey, RistrettoSecretKey, MyCustomDomain> =
 ///     SchnorrSignature::sign(&k, msg, &mut rng).unwrap();
 /// assert!(sig.verify(&P, msg));
@@ -127,20 +127,20 @@ pub type RistrettoSchnorrWithDomain<H> = SchnorrSignature<RistrettoPublicKey, Ri
 #[cfg(test)]
 mod test {
     use blake2::Blake2b;
-    use digest::{consts::U64, Digest};
+    use digest::{Digest, consts::U64};
     use tari_utilities::{
-        hex::{to_hex, Hex},
         ByteArray,
+        hex::{Hex, to_hex},
     };
 
     use crate::{
         hash_domain,
         keys::{PublicKey, SecretKey},
         ristretto::{
-            ristretto_sig::RistrettoSchnorrWithDomain,
             RistrettoPublicKey,
             RistrettoSchnorr,
             RistrettoSecretKey,
+            ristretto_sig::RistrettoSchnorrWithDomain,
         },
         signatures::{SchnorrSigChallenge, SchnorrSignature},
     };
@@ -156,7 +156,7 @@ mod test {
     #[test]
     #[allow(non_snake_case)]
     fn raw_sign_and_verify_challenge() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let (k, P) = RistrettoPublicKey::random_keypair(&mut rng);
         let (r, R) = RistrettoPublicKey::random_keypair(&mut rng);
         // Use sign raw, and bind the nonce and public key manually
@@ -184,7 +184,7 @@ mod test {
     #[test]
     #[allow(non_snake_case)]
     fn test_signature_addition() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         // Alice and Bob generate some keys and nonces
         let (k1, P1) = RistrettoPublicKey::random_keypair(&mut rng);
         let (r1, R1) = RistrettoPublicKey::random_keypair(&mut rng);
@@ -236,7 +236,7 @@ mod test {
     #[allow(non_snake_case)]
     fn custom_hash_domain() {
         hash_domain!(TestDomain, "test.signature.com");
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let (k, P) = RistrettoPublicKey::random_keypair(&mut rng);
         let (r, _) = RistrettoPublicKey::random_keypair(&mut rng);
         let msg = "Moving Pictures";
@@ -259,7 +259,7 @@ mod test {
     #[test]
     #[allow(non_snake_case)]
     fn sign_and_verify_message() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let (k, P) = RistrettoPublicKey::random_keypair(&mut rng);
         let sig = RistrettoSchnorr::sign(&k, "Queues are things that happen to other people", &mut rng).unwrap();
         assert!(sig.verify(&P, "Queues are things that happen to other people"));
@@ -269,7 +269,7 @@ mod test {
 
     #[test]
     fn zero_public_key() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         // Generate a zero key
         let secret_key = RistrettoSecretKey::default();
