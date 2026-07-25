@@ -110,18 +110,18 @@ mod test {
             (
                 &PedersenCommitment::default(),
                 &RistrettoPublicKey::default(),
-                &RistrettoSecretKey::default(),
-                &RistrettoSecretKey::default(),
-                &RistrettoSecretKey::default()
+                &RistrettoSecretKey::ZERO,
+                &RistrettoSecretKey::ZERO,
+                &RistrettoSecretKey::ZERO,
             )
         );
 
         // Check all values returned from the getters
         assert_eq!(sig.ephemeral_commitment(), &PedersenCommitment::default());
         assert_eq!(sig.ephemeral_pubkey(), &RistrettoPublicKey::default());
-        assert_eq!(sig.u_a(), &RistrettoSecretKey::default());
-        assert_eq!(sig.u_x(), &RistrettoSecretKey::default());
-        assert_eq!(sig.u_y(), &RistrettoSecretKey::default());
+        assert_eq!(sig.u_a(), &RistrettoSecretKey::ZERO);
+        assert_eq!(sig.u_x(), &RistrettoSecretKey::ZERO);
+        assert_eq!(sig.u_y(), &RistrettoSecretKey::ZERO);
     }
 
     /// Create a signature, and then verify it. Also checks that some invalid signatures fail to verify
