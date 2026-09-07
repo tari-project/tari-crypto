@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.23.3](https://github.com/tari-project/tari-crypto/compare/v0.23.2...v0.23.3) (2026-09-07)
+
 ## [0.22.0](https://github.com/tari-project/tari-crypto/compare/v0.21.0...v0.22.0) (2025-01-28)
 
 
