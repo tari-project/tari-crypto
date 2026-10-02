@@ -175,11 +175,15 @@ impl ExtendedHomomorphicCommitmentFactory for ExtendedPedersenCommitmentFactory 
         k_vec: &[RistrettoSecretKey],
         v: &RistrettoSecretKey,
         commitment: &PedersenCommitment,
-    ) -> Result<bool, CommitmentError> {
+    ) -> Result<(), CommitmentError> {
         let c_test = self
             .commit_extended(k_vec, v)
             .map_err(|e| CommitmentError::CommitmentExtensionDegree { reason: e.to_string() })?;
-        Ok(commitment == &c_test)
+        if commitment == &c_test {
+            Ok(())
+        } else {
+            Err(CommitmentError::InvalidOpening {})
+        }
     }
 
     fn commit_value_extended(
@@ -196,7 +200,7 @@ impl ExtendedHomomorphicCommitmentFactory for ExtendedPedersenCommitmentFactory 
         k_vec: &[RistrettoSecretKey],
         v: u64,
         commitment: &PedersenCommitment,
-    ) -> Result<bool, CommitmentError> {
+    ) -> Result<(), CommitmentError> {
         let kv = RistrettoSecretKey::from(v);
         self.open_extended(k_vec, &kv, commitment)
     }
@@ -220,6 +224,7 @@ mod test {
             HomomorphicCommitment,
             HomomorphicCommitmentFactory,
         },
+        errors::CommitmentError,
         keys::{PublicKey, SecretKey},
         ristretto::{
             RistrettoPublicKey,
@@ -317,13 +322,19 @@ mod test {
 
                 // ExtendedHomomorphicCommitmentFactory
                 // - Default open
-                assert!(factory.open_extended(&k_vec, &v, &c_extended).unwrap());
+                factory.open_extended(&k_vec, &v, &c_extended).unwrap();
                 // - A different value doesn't open the commitment
-                assert!(!factory.open_extended(&k_vec, &(&v + &v), &c_extended).unwrap());
+                assert_eq!(
+                    factory.open_extended(&k_vec, &(&v + &v), &c_extended),
+                    Err(CommitmentError::InvalidOpening {})
+                );
                 // - A different blinding factor doesn't open the commitment
                 let mut not_k = k_vec.clone();
                 not_k[0] = &not_k[0] + v.clone();
-                assert!(!factory.open_extended(&not_k, &v, &c_extended).unwrap());
+                assert_eq!(
+                    factory.open_extended(&not_k, &v, &c_extended),
+                    Err(CommitmentError::InvalidOpening {})
+                );
 
                 // HomomorphicCommitmentFactory vs. ExtendedHomomorphicCommitmentFactory
                 if extension_degree == ExtensionDegree::DefaultPedersen {
@@ -367,10 +378,10 @@ mod test {
                 let c2_extended = factory.commit_extended(&k2_vec, &v2).unwrap();
                 let c_sum_extended = &c1_extended + &c2_extended;
                 let c_sum2_extended = factory.commit_extended(&k_sum_i, &v_sum).unwrap();
-                assert!(factory.open_extended(&k1_vec, &v1, &c1_extended).unwrap());
-                assert!(factory.open_extended(&k2_vec, &v2, &c2_extended).unwrap());
+                factory.open_extended(&k1_vec, &v1, &c1_extended).unwrap();
+                factory.open_extended(&k2_vec, &v2, &c2_extended).unwrap();
                 assert_eq!(c_sum_extended, c_sum2_extended);
-                assert!(factory.open_extended(&k_sum_i, &v_sum, &c_sum_extended).unwrap());
+                factory.open_extended(&k_sum_i, &v_sum, &c_sum_extended).unwrap();
 
                 // HomomorphicCommitmentFactory vs. ExtendedHomomorphicCommitmentFactory
                 if extension_degree == ExtensionDegree::DefaultPedersen {
@@ -473,7 +484,7 @@ mod test {
             }
             let c2 = factory.commit_extended(&k_sum_vec, &v1).unwrap();
             // Test
-            assert!(factory.open_extended(&k_sum_vec, &v1, &c2).unwrap());
+            factory.open_extended(&k_sum_vec, &v1, &c2).unwrap();
             match extension_degree {
                 ExtensionDegree::DefaultPedersen => {
                     assert_eq!(c_sum, c2.0);
@@ -544,7 +555,7 @@ mod test {
                 c_sum = &c_sum + &c;
                 commitments.push(c);
             }
-            assert!(factory.open_extended(&k_sum_vec, &v_sum, &c_sum).unwrap());
+            factory.open_extended(&k_sum_vec, &v_sum, &c_sum).unwrap();
             assert_eq!(c_sum, commitments.iter().sum());
         }
     }
@@ -583,11 +594,11 @@ mod test {
                 // Base64
                 let ser_c = c.to_base64().unwrap();
                 let c2 = PedersenCommitment::from_base64(&ser_c).unwrap();
-                assert!(factory.open_value_extended(&k_vec, 420, &c2).unwrap());
+                factory.open_value_extended(&k_vec, 420, &c2).unwrap();
                 // MessagePack
                 let ser_c = c.to_binary().unwrap();
                 let c2 = PedersenCommitment::from_binary(&ser_c).unwrap();
-                assert!(factory.open_value_extended(&k_vec, 420, &c2).unwrap());
+                factory.open_value_extended(&k_vec, 420, &c2).unwrap();
                 // Invalid Base64
                 assert!(PedersenCommitment::from_base64("bad@ser$").is_err());
             }

@@ -186,6 +186,7 @@ impl<H: DomainSeparation> SchnorrSignature<RistrettoPublicKey, RistrettoSecretKe
     /// Only a `bool` is returned. Naming the offending index would need a double-base multiplication per term,
     /// making a rejected batch cost more than an accepted one; callers that need the culprit should fall back to
     /// [`SchnorrSignature::verify`] in a loop.
+    #[must_use = "a `false` result means verification FAILED; it must be checked"]
     pub fn verify_batch<B: AsRef<[u8]>>(items: &[(&Self, &RistrettoPublicKey, B)]) -> bool {
         if items.is_empty() {
             return true;
@@ -206,6 +207,7 @@ impl<H: DomainSeparation> SchnorrSignature<RistrettoPublicKey, RistrettoSecretKe
     /// where several parties have to agree on it; use [`SchnorrSignature::verify_batch`] for that.
     ///
     /// The same variable-time caveat as [`SchnorrSignature::verify_batch`] applies.
+    #[must_use = "a `false` result means verification FAILED; it must be checked"]
     pub fn verify_batch_with_rng<B: AsRef<[u8]>, R: Rng + CryptoRng>(
         items: &[(&Self, &RistrettoPublicKey, B)],
         rng: &mut R,

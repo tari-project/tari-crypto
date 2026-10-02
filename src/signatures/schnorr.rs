@@ -187,6 +187,7 @@ where
     /// Verifies a signature created by the `sign` method. The function returns `true` if and only if the
     /// message was signed by the secret key corresponding to the given public key, and that the challenge was
     /// constructed using the domain-separation method defined in [`construct_domain_separated_challenge`].
+    #[must_use = "a `false` result means verification FAILED; it must be checked"]
     pub fn verify<'a, B>(&self, public_key: &'a P, message: B) -> bool
     where
         for<'b> &'b K: Mul<&'a P, Output = P>,
@@ -201,6 +202,7 @@ where
 
     /// Verifies a signature against a given public key and challenge byte slice.
     /// The byte slice is converted to a scalar using wide reduction.
+    #[must_use = "a `false` result means verification FAILED; it must be checked"]
     pub fn verify_raw_uniform<'a>(&self, public_key: &'a P, challenge: &[u8]) -> bool
     where
         for<'b> &'b K: Mul<&'a P, Output = P>,
@@ -215,6 +217,7 @@ where
 
     /// Verifies a signature against a given public key and challenge byte slice.
     /// The byte slice is converted to a scalar assuming a canonical representation.
+    #[must_use = "a `false` result means verification FAILED; it must be checked"]
     pub fn verify_raw_canonical<'a>(&self, public_key: &'a P, challenge: &[u8]) -> bool
     where
         for<'b> &'b K: Mul<&'a P, Output = P>,
@@ -228,6 +231,7 @@ where
     }
 
     /// Returns true if this signature is valid for a public key and challenge scalar, otherwise false.
+    #[must_use = "a `false` result means verification FAILED; it must be checked"]
     pub fn verify_challenge_scalar<'a>(&self, public_key: &'a P, challenge: &K) -> bool
     where
         for<'b> &'b K: Mul<&'a P, Output = P>,

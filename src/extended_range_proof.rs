@@ -39,13 +39,14 @@ pub trait ExtendedRangeProofService {
         seed_nonce: &Self::K,
     ) -> Result<Self::K, RangeProofError>;
 
-    /// Verify a recovered mask for a simple non-aggregated proof against the commitment.
+    /// Verify a recovered mask for a simple non-aggregated proof against the commitment. Returns
+    /// `Err(RangeProofError::InvalidMask)` if the mask and value do not open the commitment.
     fn verify_mask(
         &self,
         commitment: &HomomorphicCommitment<Self::PK>,
         mask: &Self::K,
         value: u64,
-    ) -> Result<bool, RangeProofError>;
+    ) -> Result<(), RangeProofError>;
 
     /// Constructs a new extended range proof, which may be aggregated, for the given set(s) of secret key(s) value(s)
     /// and minimum value promise(s). Other optional inputs are seed nonce(s) and mask(s) for mask embedding
@@ -90,13 +91,14 @@ pub trait ExtendedRangeProofService {
         statement: &AggregatedPrivateStatement<Self::PK>,
     ) -> Result<Option<ExtendedMask<Self::K>>, RangeProofError>;
 
-    /// Verify a recovered extended mask for a non-aggregated proof against the commitment.
+    /// Verify a recovered extended mask for a non-aggregated proof against the commitment. Returns
+    /// `Err(RangeProofError::InvalidMask)` if the extended mask and value do not open the commitment.
     fn verify_extended_mask(
         &self,
         commitment: &HomomorphicCommitment<Self::PK>,
         extended_mask: &ExtendedMask<Self::K>,
         value: u64,
-    ) -> Result<bool, RangeProofError>;
+    ) -> Result<(), RangeProofError>;
 }
 
 /// Extended blinding factor vector used as part of the witness to construct an extended proof, or rewind data
