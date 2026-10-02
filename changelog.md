@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.24.0](https://github.com/tari-project/tari-crypto/compare/v0.23.4...v0.24.0) (2026-10-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* return errors instead of Ok(false) from mask and opening checks (#251)
+
+### Bug Fixes
+
+* return errors instead of Ok(false) from mask and opening checks ([#251](https://github.com/tari-project/tari-crypto/issues/251)) ([c2a8b89](https://github.com/tari-project/tari-crypto/commit/c2a8b897478c1caa7b70546ec4334c29d3710f7f))
+
 ### [0.23.4](https://github.com/tari-project/tari-crypto/compare/v0.23.3...v0.23.4) (2026-09-24)
 
 ### Features
