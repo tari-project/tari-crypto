@@ -52,8 +52,13 @@ use crate::{
 /// let _k2 = RistrettoSecretKey::from_hex(&"100000002000000030000000040000000");
 /// let _k3 = RistrettoSecretKey::random(&mut rng);
 /// ```
-#[derive(Clone, Default, Zeroize, ZeroizeOnDrop)]
+#[derive(Clone, Zeroize, ZeroizeOnDrop)]
 pub struct RistrettoSecretKey(pub(crate) Scalar);
+
+impl RistrettoSecretKey {
+    /// A 0 secret key
+    pub const ZERO: Self = RistrettoSecretKey(Scalar::ZERO);
+}
 
 #[cfg(feature = "borsh")]
 impl borsh::BorshSerialize for RistrettoSecretKey {
@@ -236,10 +241,45 @@ define_mul_variants!(
 
 //---------------------------------------------      Conversions     -------------------------------------------------//
 
+impl From<u8> for RistrettoSecretKey {
+    fn from(v: u8) -> Self {
+        Scalar::from(v).into()
+    }
+}
+
+impl From<u16> for RistrettoSecretKey {
+    fn from(v: u16) -> Self {
+        Scalar::from(v).into()
+    }
+}
+
+impl From<u32> for RistrettoSecretKey {
+    fn from(v: u32) -> Self {
+        Scalar::from(v).into()
+    }
+}
+
 impl From<u64> for RistrettoSecretKey {
     fn from(v: u64) -> Self {
-        let s = Scalar::from(v);
-        RistrettoSecretKey(s)
+        Scalar::from(v).into()
+    }
+}
+
+impl From<u128> for RistrettoSecretKey {
+    fn from(v: u128) -> Self {
+        Scalar::from(v).into()
+    }
+}
+
+impl From<Scalar> for RistrettoSecretKey {
+    fn from(v: Scalar) -> Self {
+        Self(v)
+    }
+}
+
+impl Default for RistrettoSecretKey {
+    fn default() -> Self {
+        RistrettoSecretKey::ZERO
     }
 }
 
@@ -303,7 +343,7 @@ impl borsh::BorshDeserialize for RistrettoPublicKey {
 
 impl RistrettoPublicKey {
     // Private constructor
-    pub(super) fn new_from_pk(pk: RistrettoPoint) -> Self {
+    pub(super) const fn new_from_pk(pk: RistrettoPoint) -> Self {
         Self {
             point: pk,
             compressed: OnceLock::new(),
@@ -844,7 +884,7 @@ mod test {
     }
 
     #[test]
-    fn convert_from_u64() {
+    fn integer_conversions() {
         let k = RistrettoSecretKey::from(42u64);
         assert_eq!(
             k.to_hex(),
@@ -859,6 +899,19 @@ mod test {
         assert_eq!(
             k.to_hex(),
             "00e1f50500000000000000000000000000000000000000000000000000000000"
+        );
+        let k = RistrettoSecretKey::from(u128::MAX);
+        assert_eq!(
+            k.to_hex(),
+            "ffffffffffffffffffffffffffffffff00000000000000000000000000000000"
+        );
+        assert_eq!(RistrettoSecretKey::from(123u8), RistrettoSecretKey::from(123u128));
+
+        // Endianness
+        let k = RistrettoSecretKey::from(u128::MAX - 1);
+        assert_eq!(
+            k.to_hex(),
+            "feffffffffffffffffffffffffffffff00000000000000000000000000000000"
         );
     }
     #[cfg(feature = "serde")]
