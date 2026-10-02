@@ -131,6 +131,7 @@ where
     }
 
     /// Verify a signature on a commitment and group element statement using a given challenge (as a byte array)
+    #[must_use = "a `false` result means verification FAILED; it must be checked"]
     pub fn verify_challenge<'a, C, R>(
         &self,
         commitment: &'a HomomorphicCommitment<P>,
@@ -159,6 +160,7 @@ where
     }
 
     /// Verify a signature on a commitment and group element statement using a given challenge (as a scalar)
+    #[must_use = "a `false` result means verification FAILED; it must be checked"]
     pub fn verify<'a, C, R>(
         &self,
         commitment: &'a HomomorphicCommitment<P>,

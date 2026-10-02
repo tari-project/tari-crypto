@@ -533,14 +533,15 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
         commitment: &HomomorphicCommitment<Self::PK>,
         mask: &Self::K,
         value: u64,
-    ) -> Result<bool, RangeProofError> {
+    ) -> Result<(), RangeProofError> {
         match self
             .generators
             .pc_gens()
             .commit(&Scalar::from(value), &[mask.0])
             .map_err(|e| RangeProofError::RPExtensionDegree { reason: e.to_string() })
         {
-            Ok(val) => Ok(val == commitment.0.point()),
+            Ok(val) if val == commitment.0.point() => Ok(()),
+            Ok(_) => Err(RangeProofError::InvalidMask {}),
             Err(e) => Err(e),
         }
     }
@@ -550,14 +551,15 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
         commitment: &HomomorphicCommitment<Self::PK>,
         extended_mask: &RistrettoExtendedMask,
         value: u64,
-    ) -> Result<bool, RangeProofError> {
+    ) -> Result<(), RangeProofError> {
         match self
             .generators
             .pc_gens()
             .commit(&Scalar::from(value), &Vec::try_from(extended_mask)?)
             .map_err(|e| RangeProofError::RPExtensionDegree { reason: e.to_string() })
         {
-            Ok(val) => Ok(val == commitment.0.point()),
+            Ok(val) if val == commitment.0.point() => Ok(()),
+            Ok(_) => Err(RangeProofError::InvalidMask {}),
             Err(e) => Err(e),
         }
     }
@@ -577,6 +579,7 @@ mod test {
             ExtensionDegree as CommitmentExtensionDegree,
             HomomorphicCommitmentFactory,
         },
+        errors::RangeProofError,
         extended_range_proof::ExtendedRangeProofService,
         range_proof::RangeProofService,
         ristretto::{
@@ -758,15 +761,13 @@ mod test {
                         assert_eq!(private_masks[i], recovered_private_mask);
                         for statement in &statements_private[i].statements {
                             if let Some(this_mask) = recovered_private_mask.clone() {
-                                assert!(
-                                    bulletproofs_plus_service
-                                        .verify_extended_mask(
-                                            &statement.commitment,
-                                            &this_mask,
-                                            *commitment_value_map_private.get(&statement.commitment).unwrap()
-                                        )
-                                        .unwrap()
-                                );
+                                bulletproofs_plus_service
+                                    .verify_extended_mask(
+                                        &statement.commitment,
+                                        &this_mask,
+                                        *commitment_value_map_private.get(&statement.commitment).unwrap(),
+                                    )
+                                    .unwrap();
                             }
                         }
                     }
@@ -781,26 +782,22 @@ mod test {
                         for statement in &aggregated_statement.statements {
                             if let Some(this_mask) = recovered_private_masks[index].clone() {
                                 // Verify the recovered mask
-                                assert!(
-                                    bulletproofs_plus_service
-                                        .verify_extended_mask(
-                                            &statement.commitment,
-                                            &this_mask,
-                                            *commitment_value_map_private.get(&statement.commitment).unwrap()
-                                        )
-                                        .unwrap()
-                                );
+                                bulletproofs_plus_service
+                                    .verify_extended_mask(
+                                        &statement.commitment,
+                                        &this_mask,
+                                        *commitment_value_map_private.get(&statement.commitment).unwrap(),
+                                    )
+                                    .unwrap();
 
                                 // Also verify that the extended commitment factory can open the commitment
-                                assert!(
-                                    factory
-                                        .open_value_extended(
-                                            &this_mask.secrets(),
-                                            *commitment_value_map_private.get(&statement.commitment).unwrap(),
-                                            &statement.commitment,
-                                        )
-                                        .unwrap()
-                                );
+                                factory
+                                    .open_value_extended(
+                                        &this_mask.secrets(),
+                                        *commitment_value_map_private.get(&statement.commitment).unwrap(),
+                                        &statement.commitment,
+                                    )
+                                    .unwrap();
                             }
                         }
                     }
@@ -933,14 +930,21 @@ mod test {
             .unwrap();
         assert_eq!(private_mask, recovered_private_mask);
         if let Some(this_mask) = recovered_private_mask {
-            assert!(
-                verifiers_bulletproofs_plus_service
-                    .verify_extended_mask(
-                        &statement_private.statements[0].commitment,
-                        &this_mask,
-                        extended_witness.value,
-                    )
-                    .unwrap()
+            verifiers_bulletproofs_plus_service
+                .verify_extended_mask(
+                    &statement_private.statements[0].commitment,
+                    &this_mask,
+                    extended_witness.value,
+                )
+                .unwrap();
+            // A different value must not verify against the extended mask
+            assert_eq!(
+                verifiers_bulletproofs_plus_service.verify_extended_mask(
+                    &statement_private.statements[0].commitment,
+                    &this_mask,
+                    extended_witness.value + 1,
+                ),
+                Err(RangeProofError::InvalidMask {})
             );
         } else {
             panic!("A mask should have been recovered!");
@@ -952,26 +956,22 @@ mod test {
         assert_eq!(vec![private_mask], recovered_private_masks);
         if let Some(this_mask) = recovered_private_masks[0].clone() {
             // Verify the recovered mask
-            assert!(
-                verifiers_bulletproofs_plus_service
-                    .verify_extended_mask(
-                        &statement_private.statements[0].commitment,
-                        &this_mask,
-                        extended_witness.value,
-                    )
-                    .unwrap()
-            );
+            verifiers_bulletproofs_plus_service
+                .verify_extended_mask(
+                    &statement_private.statements[0].commitment,
+                    &this_mask,
+                    extended_witness.value,
+                )
+                .unwrap();
 
             // Also verify that the extended commitment factory can open the commitment
-            assert!(
-                factory
-                    .open_value_extended(
-                        &this_mask.secrets(),
-                        extended_witness.value,
-                        &statement_private.statements[0].commitment,
-                    )
-                    .unwrap()
-            );
+            factory
+                .open_value_extended(
+                    &this_mask.secrets(),
+                    extended_witness.value,
+                    &statement_private.statements[0].commitment,
+                )
+                .unwrap();
         } else {
             panic!("A mask should have been recovered!");
         }
@@ -1031,10 +1031,13 @@ mod test {
             .unwrap();
         assert_eq!(mask, recovered_mask);
         // --- Verify that the mask opens the commitment
-        assert!(
-            verifiers_bulletproofs_plus_service
-                .verify_mask(&commitment, &recovered_mask, value)
-                .unwrap()
+        verifiers_bulletproofs_plus_service
+            .verify_mask(&commitment, &recovered_mask, value)
+            .unwrap();
+        // --- A different value must not verify against the mask
+        assert_eq!(
+            verifiers_bulletproofs_plus_service.verify_mask(&commitment, &recovered_mask, value + 1),
+            Err(RangeProofError::InvalidMask {})
         );
         // --- Also verify that the commitment factory can open the commitment
         assert!(factory.open_value(&recovered_mask, value, &commitment));

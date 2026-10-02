@@ -174,6 +174,7 @@ pub trait HomomorphicCommitmentFactory {
     /// blinding factor on the base point
     fn zero(&self) -> HomomorphicCommitment<Self::P>;
     /// Test whether the given blinding factor _k_ and value _v_ open the given commitment
+    #[must_use = "a `false` result means the commitment does NOT open; it must be checked"]
     fn open(
         &self,
         k: &<Self::P as PublicKey>::K,
@@ -183,6 +184,7 @@ pub trait HomomorphicCommitmentFactory {
     /// Create a commitment from a blinding factor _k_ and an integer value
     fn commit_value(&self, k: &<Self::P as PublicKey>::K, value: u64) -> HomomorphicCommitment<Self::P>;
     /// Test whether the given private key and value open the given commitment
+    #[must_use = "a `false` result means the commitment does NOT open; it must be checked"]
     fn open_value(&self, k: &<Self::P as PublicKey>::K, v: u64, commitment: &HomomorphicCommitment<Self::P>) -> bool;
 }
 
@@ -201,26 +203,28 @@ pub trait ExtendedHomomorphicCommitmentFactory {
     /// Return an identity point for addition using the specified base points. This is a commitment to zero with a zero
     /// blinding factor vector on the base points
     fn zero_extended(&self) -> HomomorphicCommitment<Self::P>;
-    /// Test whether the given blinding factor vector **k** and value _v_ open the given commitment
+    /// Test whether the given blinding factor vector **k** and value _v_ open the given commitment. Returns
+    /// `Err(CommitmentError::InvalidOpening)` if they do not.
     fn open_extended(
         &self,
         k_vec: &[<Self::P as PublicKey>::K],
         v: &<Self::P as PublicKey>::K,
         commitment: &HomomorphicCommitment<Self::P>,
-    ) -> Result<bool, CommitmentError>;
+    ) -> Result<(), CommitmentError>;
     /// Create a commitment from a blinding factor vector **k** and an integer value
     fn commit_value_extended(
         &self,
         k_vec: &[<Self::P as PublicKey>::K],
         value: u64,
     ) -> Result<HomomorphicCommitment<Self::P>, CommitmentError>;
-    /// Test whether the given private keys and value open the given commitment
+    /// Test whether the given private keys and value open the given commitment. Returns
+    /// `Err(CommitmentError::InvalidOpening)` if they do not.
     fn open_value_extended(
         &self,
         k_vec: &[<Self::P as PublicKey>::K],
         v: u64,
         commitment: &HomomorphicCommitment<Self::P>,
-    ) -> Result<bool, CommitmentError>;
+    ) -> Result<(), CommitmentError>;
 }
 
 /// The extension degree for extended Pedersen commitments. Currently this is limited to adding 5 base points to the

@@ -108,6 +108,7 @@ where
 
     /// Verify if the commitment signature signed the commitment using the specified challenge (as bytes). If the
     /// provided challenge n bytes cannot be converted to a secret key, this function also returns false.
+    #[must_use = "a `false` result means verification FAILED; it must be checked"]
     pub fn verify_challenge<'a, C>(
         &self,
         public_commitment: &'a HomomorphicCommitment<P>,
@@ -129,6 +130,7 @@ where
 
     /// Verify if the commitment signature signed the commitment using the specified challenge (as secret key).
     ///  v*H + u*G = R + e.C
+    #[must_use = "a `false` result means verification FAILED; it must be checked"]
     pub fn verify<'a, C>(&self, public_commitment: &'a HomomorphicCommitment<P>, challenge: &K, factory: &C) -> bool
     where
         for<'b> &'a HomomorphicCommitment<P>: Mul<&'b K, Output = HomomorphicCommitment<P>>,

@@ -43,6 +43,9 @@ pub enum RangeProofError {
         /// The reason for the error
         reason: String,
     },
+    /// The mask and value do not open the commitment
+    #[snafu(display("The mask and value do not open the commitment"))]
+    InvalidMask {},
 }
 
 /// Errors encountered when committing values
@@ -55,6 +58,9 @@ pub enum CommitmentError {
         /// The reason for the error
         reason: String,
     },
+    /// The blinding factor(s) and value do not open the commitment
+    #[snafu(display("The blinding factor(s) and value do not open the commitment"))]
+    InvalidOpening {},
 }
 
 /// Errors encountered when hashing
