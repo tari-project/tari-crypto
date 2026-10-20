@@ -75,6 +75,13 @@ impl<T: PublicKey> CompressedKey<T> {
     pub fn key_length() -> usize {
         T::KEY_LEN
     }
+
+    /// Create a compressed key from bytes, returning an error if the bytes are not exactly `T::KEY_LEN` long or do
+    /// not decompress to a valid public key. The decompressed key is cached.
+    pub fn from_canonical_bytes_validated(bytes: &[u8]) -> Result<Self, ByteArrayError> {
+        let pk = T::from_canonical_bytes(bytes)?;
+        Ok(Self::new_from_pk(pk))
+    }
 }
 
 impl<T> CompressedKey<T> {
@@ -199,10 +206,9 @@ impl<T> Ord for CompressedKey<T> {
 }
 
 impl<T> ByteArray for CompressedKey<T> {
-    /// Create a new `RistrettoPublicKey` instance form the given byte array. The constructor returns errors under
-    /// the following circumstances:
-    /// * The byte array is not exactly 32 bytes
-    /// * The byte array does not represent a valid (compressed) point on the ristretto255 curve
+    /// Create a new `CompressedKey` from the given byte array. This only checks that the byte array is exactly 32
+    /// bytes; it does not check that the bytes represent a valid point. Use
+    /// [`CompressedKey::from_canonical_bytes_validated`] for that.
     fn from_canonical_bytes(bytes: &[u8]) -> Result<CompressedKey<T>, ByteArrayError>
     where Self: Sized {
         // Check the length here, because The Ristretto constructor panics rather than returning an error
@@ -264,5 +270,29 @@ impl<T> Serialize for CompressedKey<T> {
         } else {
             serializer.serialize_bytes(self.as_bytes())
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use tari_utilities::ByteArray;
+
+    use super::CompressedKey;
+    use crate::ristretto::RistrettoPublicKey;
+
+    #[test]
+    fn from_canonical_bytes_validated_rejects_non_points() {
+        let (_, key) = CompressedKey::<RistrettoPublicKey>::random_keypair(&mut rand::rng());
+        let decoded = CompressedKey::<RistrettoPublicKey>::from_canonical_bytes_validated(key.as_bytes()).unwrap();
+        assert_eq!(decoded, key);
+
+        // The identity point is a valid point
+        assert!(CompressedKey::<RistrettoPublicKey>::from_canonical_bytes_validated(&[0u8; 32]).is_ok());
+
+        let not_a_point = [0xffu8; 32];
+        assert!(CompressedKey::<RistrettoPublicKey>::from_canonical_bytes_validated(&not_a_point).is_err());
+        assert!(CompressedKey::<RistrettoPublicKey>::from_canonical_bytes(&not_a_point).is_ok());
+
+        assert!(CompressedKey::<RistrettoPublicKey>::from_canonical_bytes_validated(&[1u8; 31]).is_err());
     }
 }
