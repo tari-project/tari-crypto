@@ -11,7 +11,7 @@ version = "0.24.1"
 edition = "2024"
 
 [dependencies]
-tari_utilities = { version = "0.10", default-features = false }
+tari_utilities = { version = "0.11", default-features = false }
 blake2 = { version = "0.10", default-features = false  }
 borsh = { version = "1.5" , optional = true , default-features = false, features = ["derive"]}
 bulletproofs_plus = { version = "0.5.3", package="tari_bulletproofs_plus", optional = true }
@@ -27,7 +27,7 @@ subtle = { version = "2.5.0", default-features = false }
 zeroize = {version = "1" , default-features = false}
 
 [dev-dependencies]
-tari_utilities = { version = "0.10", features = ["std"] }
+tari_utilities = { version = "0.11", features = ["std"] }
 serde = { version = "1.0"}
 bincode = { version = "1.1" }
 criterion = { version = "0.5", default-features = false }

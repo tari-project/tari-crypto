@@ -19,7 +19,7 @@ use rand_core::{CryptoRng, Rng};
 #[cfg(feature = "serde")]
 use serde::de::Visitor;
 #[cfg(feature = "serde")]
-use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de, ser};
 use subtle::ConstantTimeEq;
 use tari_utilities::{ByteArray, ByteArrayError, Hashable, hex::Hex};
 use zeroize::Zeroize;
@@ -98,7 +98,7 @@ impl<T> CompressedKey<T> {
     // If 7 <= w < 64, we replace the middle of the string with "..."
     // If w <= 6, we return the first w chars of the string
     fn fmt_case(&self, f: &mut fmt::Formatter, uppercase: bool) -> fmt::Result {
-        let mut hex = self.to_hex();
+        let mut hex = self.to_hex_trimmed();
         if uppercase {
             hex = hex.to_uppercase();
         }
@@ -181,7 +181,7 @@ impl<T> fmt::UpperHex for CompressedKey<T> {
 
 impl<T> fmt::Debug for CompressedKey<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.to_hex())
+        write!(f, "{}", self.to_hex_trimmed())
     }
 }
 
@@ -266,7 +266,7 @@ impl<T> Serialize for CompressedKey<T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where S: Serializer {
         if serializer.is_human_readable() {
-            self.to_hex().serialize(serializer)
+            self.to_hex().map_err(ser::Error::custom)?.serialize(serializer)
         } else {
             serializer.serialize_bytes(self.as_bytes())
         }

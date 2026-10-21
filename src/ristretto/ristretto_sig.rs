@@ -415,7 +415,7 @@ mod test {
             .to_vec();
         assert_ne!(hash.as_ref(), naiive.as_bytes());
         assert_eq!(
-            to_hex(hash.as_ref()),
+            to_hex(hash.as_ref()).unwrap(),
             "2db0656c9dd1482bf61d32f157726b05a88d567c31107bed9a5c60a02119518af35929f360726bffd846439ab12e7c9f4983cf5fab5ea735422e05e0f560ddfd"
         );
     }
