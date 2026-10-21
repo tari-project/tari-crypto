@@ -183,15 +183,15 @@ impl RistrettoSecretKey {
 
 impl fmt::Display for RevealedSecretKey<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.secret.to_hex_trimmed())
+        let hex = Zeroizing::new(self.secret.to_hex_trimmed());
+        write!(f, "{}", *hex)
     }
 }
 
 impl fmt::Debug for RevealedSecretKey<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_tuple("RistrettoSecretKey")
-            .field(&self.secret.to_hex_trimmed())
-            .finish()
+        let hex = Zeroizing::new(self.secret.to_hex_trimmed());
+        f.debug_tuple("RistrettoSecretKey").field(&*hex).finish()
     }
 }
 
@@ -1063,6 +1063,7 @@ mod test {
         assert!(invisible.contains("***"));
         let visible = format!("{:?}", key.reveal());
         assert!(visible.contains("cd4f563f5e53a67ade2400b281e75f4b306253501da6529338e7be4f2b5c6200"));
+        assert_eq!(visible, format!("RistrettoSecretKey(\"{}\")", key.reveal()));
     }
 
     #[test]
