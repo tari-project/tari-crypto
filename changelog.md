@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.24.1](https://github.com/tari-project/tari-crypto/compare/v0.24.0...v0.24.1) (2026-10-21)
+
+### Features
+
+* adds integer to secret key conversions ([#247](https://github.com/tari-project/tari-crypto/issues/247)) ([5cab0cb](https://github.com/tari-project/tari-crypto/commit/5cab0cb3fbb77fa03cec7556108c0b26f47a4a74))
+* add CompressedKey::from_canonical_bytes_validated ([#253](https://github.com/tari-project/tari-crypto/issues/253)) ([fc16642](https://github.com/tari-project/tari-crypto/commit/fc16642be44d129d69d20db83dc0092e12b3abfb))
+
 ## [0.24.0](https://github.com/tari-project/tari-crypto/compare/v0.23.4...v0.24.0) (2026-10-02)
 
 
