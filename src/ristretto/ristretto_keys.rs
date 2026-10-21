@@ -241,24 +241,6 @@ define_mul_variants!(
 
 //---------------------------------------------      Conversions     -------------------------------------------------//
 
-impl From<u8> for RistrettoSecretKey {
-    fn from(v: u8) -> Self {
-        Scalar::from(v).into()
-    }
-}
-
-impl From<u16> for RistrettoSecretKey {
-    fn from(v: u16) -> Self {
-        Scalar::from(v).into()
-    }
-}
-
-impl From<u32> for RistrettoSecretKey {
-    fn from(v: u32) -> Self {
-        Scalar::from(v).into()
-    }
-}
-
 impl From<u64> for RistrettoSecretKey {
     fn from(v: u64) -> Self {
         Scalar::from(v).into()
@@ -905,7 +887,7 @@ mod test {
             k.to_hex(),
             "ffffffffffffffffffffffffffffffff00000000000000000000000000000000"
         );
-        assert_eq!(RistrettoSecretKey::from(123u8), RistrettoSecretKey::from(123u128));
+        assert_eq!(RistrettoSecretKey::from(123u64), RistrettoSecretKey::from(123u128));
 
         // Endianness
         let k = RistrettoSecretKey::from(u128::MAX - 1);
