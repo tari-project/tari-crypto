@@ -97,7 +97,7 @@ impl<T> CompressedKey<T> {
     // If w >= 64, we pad the result.
     // If 7 <= w < 64, we replace the middle of the string with "..."
     // If w <= 6, we return the first w chars of the string
-    // Keys of other lengths fall back to the full string when the slice would be invalid.
+    // Counts chars rather than bytes so keys of any length never print more than w chars or panic.
     fn fmt_case(&self, f: &mut fmt::Formatter, uppercase: bool) -> fmt::Result {
         let mut hex = self.to_hex_trimmed();
         if uppercase {
@@ -108,13 +108,20 @@ impl<T> CompressedKey<T> {
         }
         match f.width() {
             None => f.write_str(hex.as_str()),
-            Some(w @ 1..=6) => f.write_str(hex.get(..w).unwrap_or(&hex)),
+            Some(w @ 1..=6) => {
+                let start: String = hex.chars().take(w).collect();
+                f.write_str(&start)
+            },
             Some(w @ 7..=63) => {
-                let left = (w - 3) / 2;
-                let right = hex.len().checked_sub(w - left - 3);
-                match (hex.get(..left), right.and_then(|r| hex.get(r..))) {
-                    (Some(start), Some(end)) => write!(f, "{start}...{end}"),
-                    _ => f.write_str(&hex),
+                let count = hex.chars().count();
+                if count <= w {
+                    f.write_str(&hex)
+                } else {
+                    let left = (w - 3) / 2;
+                    let right = w - left - 3;
+                    let start: String = hex.chars().take(left).collect();
+                    let end: String = hex.chars().skip(count - right).collect();
+                    write!(f, "{start}...{end}")
                 }
             },
             _ => core::fmt::Display::fmt(&hex, f),
@@ -330,6 +337,10 @@ mod test {
                 drop(format!("{key:w$}"));
                 drop(format!("{key:w$x}"));
                 drop(format!("{key:#w$X}"));
+            }
+            for w in 1..=63 {
+                assert!(format!("{key:w$}").chars().count() <= w);
+                assert!(format!("{key:#w$X}").chars().count() <= w);
             }
             drop(format!("{key}"));
             drop(format!("{key:?}"));
