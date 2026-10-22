@@ -183,15 +183,15 @@ impl RistrettoSecretKey {
 
 impl fmt::Display for RevealedSecretKey<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.secret.to_hex())
+        let hex = Zeroizing::new(self.secret.to_hex_trimmed());
+        write!(f, "{}", *hex)
     }
 }
 
 impl fmt::Debug for RevealedSecretKey<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_tuple("RistrettoSecretKey")
-            .field(&self.secret.to_hex())
-            .finish()
+        let hex = Zeroizing::new(self.secret.to_hex_trimmed());
+        f.debug_tuple("RistrettoSecretKey").field(&*hex).finish()
     }
 }
 
@@ -469,7 +469,7 @@ impl RistrettoPublicKey {
     // If 7 <= w < 64, we replace the middle of the string with "..."
     // If w <= 6, we return the first w chars of the string
     fn fmt_case(&self, f: &mut fmt::Formatter, uppercase: bool) -> fmt::Result {
-        let mut hex = self.to_hex();
+        let mut hex = self.to_hex_trimmed();
         if uppercase {
             hex = hex.to_uppercase();
         }
@@ -503,7 +503,7 @@ impl fmt::UpperHex for RistrettoPublicKey {
 
 impl fmt::Debug for RistrettoPublicKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.to_hex())
+        write!(f, "{}", self.to_hex_trimmed())
     }
 }
 
@@ -665,7 +665,7 @@ mod test {
     fn test_new_generator() {
         let pk = RistrettoPublicKey::new_generator("test");
         assert_eq!(
-            pk.unwrap().to_hex(),
+            pk.unwrap().to_hex().unwrap(),
             "c23db69dabfbd30f3a6c8f0dcea712e01382b998f5aa232183cf833287921371".to_string()
         );
     }
@@ -720,7 +720,7 @@ mod test {
     fn secret_to_hex() {
         let mut rng = rand::rng();
         let sk = RistrettoSecretKey::random(&mut rng);
-        let hex = sk.to_hex();
+        let hex = sk.to_hex().unwrap();
         let sk2 = RistrettoSecretKey::from_hex(&hex).unwrap();
         assert_eq!(sk, sk2);
     }
@@ -730,7 +730,7 @@ mod test {
         let mut rng = rand::rng();
         let sk = RistrettoSecretKey::random(&mut rng);
         let pk = RistrettoPublicKey::from_secret_key(&sk);
-        let hex = pk.to_hex();
+        let hex = pk.to_hex().unwrap();
         let pk2 = RistrettoPublicKey::from_hex(&hex).unwrap();
         assert_completely_equal(&pk, &pk2);
     }
@@ -869,22 +869,22 @@ mod test {
     fn integer_conversions() {
         let k = RistrettoSecretKey::from(42u64);
         assert_eq!(
-            k.to_hex(),
+            k.to_hex().unwrap(),
             "2a00000000000000000000000000000000000000000000000000000000000000"
         );
         let k = RistrettoSecretKey::from(256u64);
         assert_eq!(
-            k.to_hex(),
+            k.to_hex().unwrap(),
             "0001000000000000000000000000000000000000000000000000000000000000"
         );
         let k = RistrettoSecretKey::from(100_000_000u64);
         assert_eq!(
-            k.to_hex(),
+            k.to_hex().unwrap(),
             "00e1f50500000000000000000000000000000000000000000000000000000000"
         );
         let k = RistrettoSecretKey::from(u128::MAX);
         assert_eq!(
-            k.to_hex(),
+            k.to_hex().unwrap(),
             "ffffffffffffffffffffffffffffffff00000000000000000000000000000000"
         );
         assert_eq!(RistrettoSecretKey::from(123u64), RistrettoSecretKey::from(123u128));
@@ -892,7 +892,7 @@ mod test {
         // Endianness
         let k = RistrettoSecretKey::from(u128::MAX - 1);
         assert_eq!(
-            k.to_hex(),
+            k.to_hex().unwrap(),
             "feffffffffffffffffffffffffffffff00000000000000000000000000000000"
         );
     }
@@ -1046,11 +1046,11 @@ mod test {
         let derived1 = RistrettoKdf::generate::<Blake2b<U64>>(key.as_bytes(), b"derived1", "test").unwrap();
         let derived2 = RistrettoKdf::generate::<Blake2b<U64>>(key.as_bytes(), b"derived2", "test").unwrap();
         assert_eq!(
-            derived1.to_hex(),
+            derived1.to_hex().unwrap(),
             "22deb0c38ec2dc9f741912f6e3c2cd3f76a5b33142a289da15eecdcd882bda06"
         );
         assert_eq!(
-            derived2.to_hex(),
+            derived2.to_hex().unwrap(),
             "fcca9ca5c993d817581ab6040d92feef4c78529b5a485b51d0e11af427944207"
         );
     }
@@ -1063,6 +1063,7 @@ mod test {
         assert!(invisible.contains("***"));
         let visible = format!("{:?}", key.reveal());
         assert!(visible.contains("cd4f563f5e53a67ade2400b281e75f4b306253501da6529338e7be4f2b5c6200"));
+        assert_eq!(visible, format!("RistrettoSecretKey(\"{}\")", key.reveal()));
     }
 
     #[test]

@@ -208,7 +208,7 @@ impl<D: Digest> AsRef<[u8]> for DomainSeparatedHash<D> {
 ///
 /// let id = card_id(&card);
 /// assert_eq!(
-///     to_hex(id.as_ref()),
+///     to_hex(id.as_ref()).unwrap(),
 ///     "b6d1ccd5e6e7eacedd5f3382b8567878419163257f4910f1f9f6265281b836ec"
 /// );
 /// ```
@@ -243,7 +243,7 @@ impl<D: Digest> AsRef<[u8]> for DomainSeparatedHash<D> {
 /// );
 /// let challenge = calculate_challenge("All is well.");
 /// assert_eq!(
-///     to_hex(challenge.as_ref()),
+///     to_hex(challenge.as_ref()).unwrap(),
 ///     "c84b95fd7134ef3e717fe9aece1de46fa88e13ee9f1eaa2e473263d27137bc87"
 /// );
 /// ```
@@ -472,7 +472,7 @@ impl DomainSeparation for MacDomain {
 /// );
 /// let mac = generate_api_hmac(b"a secret shared key", b"a message");
 /// assert_eq!(
-///     to_hex(mac.as_ref()),
+///     to_hex(mac.as_ref()).unwrap(),
 ///     "796eb496b6672b1b7c4021e603d6b833121d35cd282a1555e3f9dd2eda5658b8"
 /// );
 /// ```
@@ -553,12 +553,12 @@ impl<D: Digest> Deref for Mac<D> {
 /// .unwrap();
 /// let key_1 = wallet_keys(&key, 1).unwrap();
 /// assert_eq!(
-///     key_1.to_hex(),
+///     key_1.to_hex().unwrap(),
 ///     "08106b88a2ff4c52d1d8b458cf34802df8655ba989a7d91351e3504e087a2e0c"
 /// );
 /// let key_64 = wallet_keys(&key, 64).unwrap();
 /// assert_eq!(
-///     key_64.to_hex(),
+///     key_64.to_hex().unwrap(),
 ///     "2c2206dadd2a21e71b6c52dd321572cde0f2b00e7116e1123fb580b09ed1b70e"
 /// );
 /// ```
@@ -672,13 +672,13 @@ mod test {
             let mut hasher = D::new();
             hasher.update(data);
             let hash = hasher.finalize();
-            assert_eq!(to_hex(&hash), expected);
+            assert_eq!(to_hex(&hash).unwrap(), expected);
         }
 
         pub(crate) fn hash_from_digest<D: Digest>(mut hasher: D, data: &[u8], expected: &str) {
             hasher.update(data);
             let hash = hasher.finalize();
-            assert_eq!(to_hex(&hash), expected);
+            assert_eq!(to_hex(&hash).unwrap(), expected);
         }
     }
 
@@ -759,7 +759,7 @@ mod test {
         let hash2 = hash2.finalize();
         assert_eq!(hash.as_ref(), hash2.as_ref());
         assert_eq!(
-            to_hex(hash.as_ref()),
+            to_hex(hash.as_ref()).unwrap(),
             "a8326620e305430a0b632a0a5e33c6c1124d7513b4bd84736faaa3a0b9ba557f"
         );
 
@@ -784,7 +784,7 @@ mod test {
         hasher.update([0, 0, 0]);
         let hash = hasher.finalize();
         assert_eq!(
-            to_hex(hash.as_ref()),
+            to_hex(hash.as_ref()).unwrap(),
             "d4cbf5b6b97485a991973db8a6ce4d3fc660db5dff5f55f2b0cb363fca34b0a2"
         );
 
@@ -792,7 +792,7 @@ mod test {
         hasher.update([0, 0, 0]);
         let hash = hasher.finalize();
         assert_eq!(
-            to_hex(hash.as_ref()),
+            to_hex(hash.as_ref()).unwrap(),
             "d4cbf5b6b97485a991973db8a6ce4d3fc660db5dff5f55f2b0cb363fca34b0a2"
         );
     }
@@ -910,7 +910,7 @@ mod test {
             .chain("elephants")
             .finalize();
         assert_eq!(
-            to_hex(hash.as_ref()),
+            to_hex(hash.as_ref()).unwrap(),
             "64a89c7160a1076a725fac97d3f67803abd0991d82518a595072fa62df4c870bddee9160f591231c381087831bf6925616013de317ce0b02846585caf41942ac"
         );
     }
@@ -925,7 +925,7 @@ mod test {
         let mac = Mac::<Blake2b<U32>>::generate(key, "test message", "test");
         assert_eq!(MacDomain::domain_separation_tag("test"), "com.tari.mac.v1.test");
         assert_eq!(
-            to_hex(mac.as_ref()),
+            to_hex(mac.as_ref()).unwrap(),
             "9bcfbe2bad73b14ac42f673ddca34e82ce03cbbac69d34526004f5d108dff061"
         )
     }

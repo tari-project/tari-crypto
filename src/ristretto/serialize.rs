@@ -31,6 +31,7 @@ use serde::{
     Serialize,
     Serializer,
     de::{self, Visitor},
+    ser,
 };
 use tari_utilities::{byte_array::ByteArray, hex::Hex};
 use zeroize::Zeroize;
@@ -68,7 +69,7 @@ impl Serialize for RistrettoPublicKey {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where S: Serializer {
         if serializer.is_human_readable() {
-            self.to_hex().serialize(serializer)
+            self.to_hex().map_err(ser::Error::custom)?.serialize(serializer)
         } else {
             serializer.serialize_bytes(self.as_bytes())
         }
@@ -108,7 +109,7 @@ impl Serialize for RistrettoSecretKey {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where S: Serializer {
         if serializer.is_human_readable() {
-            let mut s = self.to_hex();
+            let mut s = self.to_hex().map_err(ser::Error::custom)?;
             let result = s.serialize(serializer);
             s.zeroize();
             result

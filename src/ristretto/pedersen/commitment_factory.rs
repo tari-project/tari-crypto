@@ -57,10 +57,10 @@ impl HomomorphicCommitmentFactory for PedersenCommitmentFactory {
             }
             #[cfg(not(feature = "precomputed_tables"))]
             {
-                RistrettoPoint::multiscalar_mul(&[v.0, k.0], &[self.H, self.G])
+                RistrettoPoint::multiscalar_mul([v.0, k.0], [self.H, self.G])
             }
         } else {
-            RistrettoPoint::multiscalar_mul(&[v.0, k.0], &[self.H, self.G])
+            RistrettoPoint::multiscalar_mul([v.0, k.0], [self.H, self.G])
         };
         HomomorphicCommitment(RistrettoPublicKey::new_from_pk(c))
     }
@@ -108,7 +108,7 @@ mod test {
     #[test]
     /// Verify that the identity point is equal to a commitment to zero with a zero blinding factor on the base point
     fn check_zero() {
-        let c = RistrettoPoint::multiscalar_mul(&[Scalar::ZERO, Scalar::ZERO], &[
+        let c = RistrettoPoint::multiscalar_mul([Scalar::ZERO, Scalar::ZERO], [
             RISTRETTO_PEDERSEN_G,
             *ristretto_pedersen_h(),
         ]);
