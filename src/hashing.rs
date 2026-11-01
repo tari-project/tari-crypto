@@ -38,6 +38,7 @@ use digest::{
     FixedOutputReset,
     Output,
     OutputSizeUser,
+    Reset,
     Update,
     consts::{U32, U64},
 };
@@ -247,11 +248,17 @@ impl<D: Digest> AsRef<[u8]> for DomainSeparatedHash<D> {
 ///     "c84b95fd7134ef3e717fe9aece1de46fa88e13ee9f1eaa2e473263d27137bc87"
 /// );
 /// ```
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct DomainSeparatedHasher<D, M> {
     inner: D,
     label: &'static str,
     _dst: PhantomData<M>,
+}
+
+impl<D: Digest, M: DomainSeparation> Default for DomainSeparatedHasher<D, M> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<D: Digest, M: DomainSeparation> DomainSeparatedHasher<D, M> {
@@ -347,10 +354,24 @@ impl<TInnerDigest: FixedOutput, TDomain: DomainSeparation> FixedOutput
     }
 }
 
-impl<D: FixedOutputReset, M: DomainSeparation> DomainSeparatedHasher<D, M> {
+impl<D: Digest + Reset, M: DomainSeparation> Reset for DomainSeparatedHasher<D, M> {
+    fn reset(&mut self) {
+        Reset::reset(&mut self.inner);
+        M::add_domain_separation_tag(&mut self.inner, self.label);
+    }
+}
+
+impl<D: Digest + FixedOutputReset, M: DomainSeparation> FixedOutputReset for DomainSeparatedHasher<D, M> {
+    fn finalize_into_reset(&mut self, out: &mut Output<Self>) {
+        FixedOutputReset::finalize_into_reset(&mut self.inner, out);
+        M::add_domain_separation_tag(&mut self.inner, self.label);
+    }
+}
+
+impl<D: Digest + FixedOutputReset, M: DomainSeparation> DomainSeparatedHasher<D, M> {
     /// Finalize and reset the hasher and return the hash result.
     pub fn finalize_into_reset(&mut self, out: &mut Output<Self>) {
-        self.inner.finalize_into_reset(out);
+        <Self as FixedOutputReset>::finalize_into_reset(self, out);
     }
 }
 
@@ -389,6 +410,7 @@ impl<TInnerDigest: Digest + FixedOutputReset, TDomain: DomainSeparation> Digest
 
     fn finalize_into_reset(&mut self, out: &mut Output<Self>) {
         Digest::finalize_into_reset(&mut self.inner, out);
+        TDomain::add_domain_separation_tag(&mut self.inner, self.label);
     }
 
     // Write result into provided array and consume the hasher instance.
@@ -726,11 +748,39 @@ mod test {
     #[test]
     fn finalize_into_reset() {
         hash_domain!(TestHasher, "com.example.test");
-        let mut hasher = DomainSeparatedHasher::<Blake2b<U32>, TestHasher>::new();
+        let expected = DomainSeparatedHasher::<Blake2b<U32>, TestHasher>::new_with_label("reset_label")
+            .chain([0, 0, 0])
+            .finalize();
+
+        let mut hasher = DomainSeparatedHasher::<Blake2b<U32>, TestHasher>::new_with_label("reset_label");
         hasher.update([0, 0, 0]);
 
-        let mut output = GenericArray::<u8, U32>::default();
-        hasher.finalize_into_reset(&mut output);
+        let mut output_first = GenericArray::<u8, U32>::default();
+        hasher.finalize_into_reset(&mut output_first);
+        assert_eq!(output_first.as_slice(), expected.as_ref());
+
+        // After finalize_into_reset, the domain separation tag must be re-applied so subsequent
+        // hashes match a freshly constructed DomainSeparatedHasher with the same label.
+        hasher.update([0, 0, 0]);
+        let mut output_second = GenericArray::<u8, U32>::default();
+        Digest::finalize_into_reset(&mut hasher, &mut output_second);
+        assert_eq!(output_second.as_slice(), expected.as_ref());
+
+        hasher.update([0, 0, 0]);
+        let output_third = hasher.finalize();
+        assert_eq!(output_third.as_ref(), expected.as_ref());
+    }
+
+    #[test]
+    fn default_applies_domain_separation_tag() {
+        hash_domain!(TestHasher, "com.example.test");
+        let from_default = DomainSeparatedHasher::<Blake2b<U32>, TestHasher>::default()
+            .chain([1, 2, 3])
+            .finalize();
+        let from_new = DomainSeparatedHasher::<Blake2b<U32>, TestHasher>::new()
+            .chain([1, 2, 3])
+            .finalize();
+        assert_eq!(from_default.as_ref(), from_new.as_ref());
     }
 
     #[test]
