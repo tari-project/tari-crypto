@@ -132,6 +132,28 @@ where
         buf.extend_from_slice(self.u_y().as_bytes());
         buf
     }
+
+    /// From a canonical byte representation, retrieves a compressed commitment and public key signature
+    pub fn from_bytes(buf: &[u8]) -> Result<Self, ByteArrayError> {
+        let p_len = P::KEY_LEN;
+        let k_len = K::key_length();
+        if buf.len() != 2 * p_len + 3 * k_len {
+            return Err(ByteArrayError::IncorrectLength {});
+        }
+        let ephemeral_commitment = CompressedCommitment::from_canonical_bytes(&buf[0..p_len])?;
+        let ephemeral_pubkey = CompressedKey::from_canonical_bytes(&buf[p_len..2 * p_len])?;
+        let u_a = K::from_canonical_bytes(&buf[2 * p_len..2 * p_len + k_len])?;
+        let u_x = K::from_canonical_bytes(&buf[2 * p_len + k_len..2 * p_len + 2 * k_len])?;
+        let u_y = K::from_canonical_bytes(&buf[2 * p_len + 2 * k_len..2 * p_len + 3 * k_len])?;
+
+        Ok(Self {
+            ephemeral_commitment,
+            ephemeral_pubkey,
+            u_a,
+            u_x,
+            u_y,
+        })
+    }
 }
 
 impl<P, K> Default for CompressedCommitmentAndPublicKeySignature<P, K>
