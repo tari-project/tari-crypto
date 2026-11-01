@@ -8,13 +8,20 @@ use core::{
     ops::{Add, Mul},
 };
 
+use blake2::Blake2b;
+use digest::{Digest, consts::U64};
+use rand_core::{CryptoRng, Rng};
 use snafu::prelude::*;
 use tari_utilities::{ByteArray, ByteArrayError};
 
 use crate::{
     commitment::{HomomorphicCommitment, HomomorphicCommitmentFactory},
+    hash_domain,
+    hashing::{DomainSeparatedHash, DomainSeparatedHasher, DomainSeparation},
     keys::{PublicKey, SecretKey},
 };
+
+hash_domain!(ComSigChallenge, "com.tari.commitment_signature", 1);
 
 /// An error when creating a commitment signature
 #[derive(Clone, Debug, Snafu, PartialEq, Eq)]
@@ -72,12 +79,82 @@ where
         factory.commit(&self.u, &self.v)
     }
 
-    /// Sign the provided challenge with the value commitment's value and blinding factor. The two nonces should be
-    /// completely random and never reused - that responsibility lies with the calling function.
+    /// Sign a message using the commitment's value `secret_a` and blinding factor `secret_x`, sampling fresh random
+    /// nonces and binding `(public_nonce, public_commitment, message)` in a domain-separated Blake2b-512 transcript.
+    pub fn sign_message<C, B, R>(
+        secret_a: &K,
+        secret_x: &K,
+        message: B,
+        factory: &C,
+        rng: &mut R,
+    ) -> Result<Self, CommitmentSignatureError>
+    where
+        K: Mul<P, Output = P>,
+        for<'a> &'a K: Add<&'a K, Output = K>,
+        for<'a> &'a K: Mul<&'a K, Output = K>,
+        C: HomomorphicCommitmentFactory<P = P>,
+        B: AsRef<[u8]>,
+        R: Rng + CryptoRng,
+    {
+        let nonce_a = K::random(rng);
+        let nonce_x = K::random(rng);
+        Self::sign_with_nonces_and_message(secret_a, secret_x, &nonce_a, &nonce_x, message, factory)
+    }
+
+    /// Sign a message using the commitment's value `secret_a`, blinding factor `secret_x`, and caller-supplied nonces,
+    /// binding `(public_nonce, public_commitment, message)` in a domain-separated Blake2b-512 transcript.
     ///
-    /// WARNING: The provided secret keys and nonces are NOT bound to the challenge. This method assumes that the
-    /// challenge has been constructed such that all commitments are already included in the challenge.
-    pub fn sign<C>(
+    /// WARNING: Both nonces _must_ be sampled uniformly at random and never reused with the same commitment and a
+    /// different message.
+    pub fn sign_with_nonces_and_message<C, B>(
+        secret_a: &K,
+        secret_x: &K,
+        nonce_a: &K,
+        nonce_x: &K,
+        message: B,
+        factory: &C,
+    ) -> Result<Self, CommitmentSignatureError>
+    where
+        K: Mul<P, Output = P>,
+        for<'a> &'a K: Add<&'a K, Output = K>,
+        for<'a> &'a K: Mul<&'a K, Output = K>,
+        C: HomomorphicCommitmentFactory<P = P>,
+        B: AsRef<[u8]>,
+    {
+        let public_nonce = factory.commit(nonce_x, nonce_a);
+        let public_commitment = factory.commit(secret_x, secret_a);
+        let challenge = Self::construct_domain_separated_challenge::<_, Blake2b<U64>, ComSigChallenge>(
+            &public_nonce,
+            &public_commitment,
+            message,
+        );
+        Self::sign_raw_uniform(secret_a, secret_x, nonce_a, nonce_x, challenge.as_ref(), factory)
+    }
+
+    /// Construct a domain-separated challenge hash committing to `(public_nonce, public_commitment, message)`.
+    pub fn construct_domain_separated_challenge<B, D, H>(
+        public_nonce: &HomomorphicCommitment<P>,
+        public_commitment: &HomomorphicCommitment<P>,
+        message: B,
+    ) -> DomainSeparatedHash<D>
+    where
+        B: AsRef<[u8]>,
+        D: Digest,
+        H: DomainSeparation,
+    {
+        DomainSeparatedHasher::<D, H>::new_with_label("challenge")
+            .chain(public_nonce.as_bytes())
+            .chain(public_commitment.as_bytes())
+            .chain(message.as_ref())
+            .finalize()
+    }
+
+    /// Generate a commitment signature from a wide-reduced raw challenge byte slice.
+    ///
+    /// WARNING: The caller _must_ ensure that the public nonce commitment `R = nonce_a*H + nonce_x*G` and the target
+    /// commitment `C = secret_a*H + secret_x*G` are committed in the challenge transcript, and that nonces are sampled
+    /// uniformly at random and never reused. Prefer [`Self::sign_message`] when a custom transcript is not required.
+    pub fn sign_raw_uniform<C>(
         secret_a: &K,
         secret_x: &K,
         nonce_a: &K,
@@ -95,6 +172,9 @@ where
             Ok(e) => e,
             Err(_) => return Err(CommitmentSignatureError::InvalidChallenge),
         };
+        if e == K::default() {
+            return Err(CommitmentSignatureError::InvalidChallenge);
+        }
         let ea = &e * secret_a;
         let ex = &e * secret_x;
 
@@ -106,10 +186,91 @@ where
         Ok(Self::new(public_commitment_nonce, u, v))
     }
 
-    /// Verify if the commitment signature signed the commitment using the specified challenge (as bytes). If the
-    /// provided challenge n bytes cannot be converted to a secret key, this function also returns false.
+    /// Generate a commitment signature from a canonical scalar challenge byte slice.
+    ///
+    /// WARNING: The caller _must_ ensure that the public nonce commitment `R = nonce_a*H + nonce_x*G` and the target
+    /// commitment `C = secret_a*H + secret_x*G` are committed in the challenge transcript, and that nonces are sampled
+    /// uniformly at random and never reused. Prefer [`Self::sign_message`] when a custom transcript is not required.
+    pub fn sign_raw_canonical<C>(
+        secret_a: &K,
+        secret_x: &K,
+        nonce_a: &K,
+        nonce_x: &K,
+        challenge: &[u8],
+        factory: &C,
+    ) -> Result<Self, CommitmentSignatureError>
+    where
+        K: Mul<P, Output = P>,
+        for<'a> &'a K: Add<&'a K, Output = K>,
+        for<'a> &'a K: Mul<&'a K, Output = K>,
+        C: HomomorphicCommitmentFactory<P = P>,
+    {
+        let e = match K::from_canonical_bytes(challenge) {
+            Ok(e) => e,
+            Err(_) => return Err(CommitmentSignatureError::InvalidChallenge),
+        };
+        if e == K::default() {
+            return Err(CommitmentSignatureError::InvalidChallenge);
+        }
+        let ea = &e * secret_a;
+        let ex = &e * secret_x;
+
+        let v = nonce_a + &ea;
+        let u = nonce_x + &ex;
+
+        let public_commitment_nonce = factory.commit(nonce_x, nonce_a);
+
+        Ok(Self::new(public_commitment_nonce, u, v))
+    }
+
+    /// Sign the provided challenge with the value commitment's value and blinding factor. The two nonces should be
+    /// completely random and never reused - that responsibility lies with the calling function.
+    ///
+    /// WARNING: The provided secret keys and nonces are NOT bound to the challenge by this function. Callers MUST
+    /// commit both the public nonce commitment `R` and the public commitment `C` in the challenge transcript, or use
+    /// [`Self::sign_message`] / [`Self::sign_raw_uniform`].
+    pub fn sign<C>(
+        secret_a: &K,
+        secret_x: &K,
+        nonce_a: &K,
+        nonce_x: &K,
+        challenge: &[u8],
+        factory: &C,
+    ) -> Result<Self, CommitmentSignatureError>
+    where
+        K: Mul<P, Output = P>,
+        for<'a> &'a K: Add<&'a K, Output = K>,
+        for<'a> &'a K: Mul<&'a K, Output = K>,
+        C: HomomorphicCommitmentFactory<P = P>,
+    {
+        Self::sign_raw_uniform(secret_a, secret_x, nonce_a, nonce_x, challenge, factory)
+    }
+
+    /// Verify a signature created by [`Self::sign_message`] or [`Self::sign_with_nonces_and_message`].
     #[must_use = "a `false` result means verification FAILED; it must be checked"]
-    pub fn verify_challenge<'a, C>(
+    pub fn verify_message<'a, C, B>(
+        &self,
+        public_commitment: &'a HomomorphicCommitment<P>,
+        message: B,
+        factory: &C,
+    ) -> bool
+    where
+        for<'b> &'a HomomorphicCommitment<P>: Mul<&'b K, Output = HomomorphicCommitment<P>>,
+        for<'b> &'b HomomorphicCommitment<P>: Add<&'b HomomorphicCommitment<P>, Output = HomomorphicCommitment<P>>,
+        C: HomomorphicCommitmentFactory<P = P>,
+        B: AsRef<[u8]>,
+    {
+        let challenge = Self::construct_domain_separated_challenge::<_, Blake2b<U64>, ComSigChallenge>(
+            &self.public_nonce,
+            public_commitment,
+            message,
+        );
+        self.verify_raw_uniform(public_commitment, challenge.as_ref(), factory)
+    }
+
+    /// Verify a commitment signature against a wide-reduced raw challenge byte slice.
+    #[must_use = "a `false` result means verification FAILED; it must be checked"]
+    pub fn verify_raw_uniform<'a, C>(
         &self,
         public_commitment: &'a HomomorphicCommitment<P>,
         challenge: &[u8],
@@ -128,6 +289,44 @@ where
         self.verify(public_commitment, &e, factory)
     }
 
+    /// Verify a commitment signature against a canonical scalar challenge byte slice.
+    #[must_use = "a `false` result means verification FAILED; it must be checked"]
+    pub fn verify_raw_canonical<'a, C>(
+        &self,
+        public_commitment: &'a HomomorphicCommitment<P>,
+        challenge: &[u8],
+        factory: &C,
+    ) -> bool
+    where
+        for<'b> &'a HomomorphicCommitment<P>: Mul<&'b K, Output = HomomorphicCommitment<P>>,
+        for<'b> &'b HomomorphicCommitment<P>: Add<&'b HomomorphicCommitment<P>, Output = HomomorphicCommitment<P>>,
+        C: HomomorphicCommitmentFactory<P = P>,
+    {
+        let e = match K::from_canonical_bytes(challenge) {
+            Ok(e) => e,
+            Err(_) => return false,
+        };
+
+        self.verify(public_commitment, &e, factory)
+    }
+
+    /// Verify if the commitment signature signed the commitment using the specified challenge (as bytes). If the
+    /// provided challenge n bytes cannot be converted to a secret key, this function also returns false.
+    #[must_use = "a `false` result means verification FAILED; it must be checked"]
+    pub fn verify_challenge<'a, C>(
+        &self,
+        public_commitment: &'a HomomorphicCommitment<P>,
+        challenge: &[u8],
+        factory: &C,
+    ) -> bool
+    where
+        for<'b> &'a HomomorphicCommitment<P>: Mul<&'b K, Output = HomomorphicCommitment<P>>,
+        for<'b> &'b HomomorphicCommitment<P>: Add<&'b HomomorphicCommitment<P>, Output = HomomorphicCommitment<P>>,
+        C: HomomorphicCommitmentFactory<P = P>,
+    {
+        self.verify_raw_uniform(public_commitment, challenge, factory)
+    }
+
     /// Verify if the commitment signature signed the commitment using the specified challenge (as secret key).
     ///  v*H + u*G = R + e.C
     #[must_use = "a `false` result means verification FAILED; it must be checked"]
@@ -137,8 +336,8 @@ where
         for<'b> &'b HomomorphicCommitment<P>: Add<&'b HomomorphicCommitment<P>, Output = HomomorphicCommitment<P>>,
         C: HomomorphicCommitmentFactory<P = P>,
     {
-        // Reject a zero commitment
-        if public_commitment.as_public_key() == &P::default() {
+        // Reject a zero commitment or zero challenge scalar
+        if public_commitment.as_public_key() == &P::default() || *challenge == K::default() {
             return false;
         }
 

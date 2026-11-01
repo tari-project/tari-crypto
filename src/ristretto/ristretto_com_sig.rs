@@ -257,4 +257,32 @@ mod test {
         // The signature should fail to verify
         assert!(!sig.verify_challenge(&commitment, &challenge, &factory));
     }
+
+    #[test]
+    fn sign_and_verify_domain_separated_message_and_reject_zero_challenge() {
+        let mut rng = rand::rng();
+        let factory = PedersenCommitmentFactory::default();
+        let a_val = RistrettoSecretKey::random(&mut rng);
+        let x_val = RistrettoSecretKey::random(&mut rng);
+        let commitment = factory.commit(&x_val, &a_val);
+
+        let sig = RistrettoComSig::sign_message(&a_val, &x_val, b"domain-separated-comsig", &factory, &mut rng).unwrap();
+        assert!(sig.verify_message(&commitment, b"domain-separated-comsig", &factory));
+        assert!(!sig.verify_message(&commitment, b"tampered-message", &factory));
+
+        // Zero challenge must be rejected in both signing and verification
+        let zero_wide = [0u8; RistrettoSecretKey::WIDE_REDUCTION_LEN];
+        let zero_canonical = [0u8; 32];
+        let k_a = RistrettoSecretKey::random(&mut rng);
+        let k_x = RistrettoSecretKey::random(&mut rng);
+        assert!(RistrettoComSig::sign_raw_uniform(&a_val, &x_val, &k_a, &k_x, &zero_wide, &factory).is_err());
+        assert!(RistrettoComSig::sign_raw_canonical(&a_val, &x_val, &k_a, &k_x, &zero_canonical, &factory).is_err());
+
+        // Forged (R = v*H + u*G, u, v) without knowing commitment opening must fail when challenge == 0
+        let forged_r = factory.commit(&k_x, &k_a);
+        let forged_sig = RistrettoComSig::new(forged_r, k_x, k_a);
+        assert!(!forged_sig.verify(&commitment, &RistrettoSecretKey::default(), &factory));
+        assert!(!forged_sig.verify_raw_uniform(&commitment, &zero_wide, &factory));
+        assert!(!forged_sig.verify_raw_canonical(&commitment, &zero_canonical, &factory));
+    }
 }
