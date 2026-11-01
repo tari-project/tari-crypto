@@ -5,6 +5,7 @@
 //! This module defines generic traits for handling the digital signature operations, agnostic
 //! of the underlying elliptic curve implementation
 
+use alloc::vec::Vec;
 use core::{
     cmp::Ordering,
     hash::{Hash, Hasher},
@@ -16,7 +17,7 @@ use blake2::Blake2b;
 use digest::{Digest, consts::U64};
 use rand_core::{CryptoRng, Rng};
 use snafu::prelude::*;
-use tari_utilities::ByteArray;
+use tari_utilities::{ByteArray, ByteArrayError};
 
 use crate::{
     hash_domain,
@@ -271,6 +272,26 @@ where
     pub fn get_public_nonce(&self) -> &P {
         &self.public_nonce
     }
+
+    /// Returns a canonical byte representation of the Schnorr signature.
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf = Vec::with_capacity(P::key_length() + K::key_length());
+        buf.extend_from_slice(self.public_nonce.as_bytes());
+        buf.extend_from_slice(self.signature.as_bytes());
+        buf
+    }
+
+    /// From a canonical byte representation, retrieves a Schnorr signature.
+    pub fn from_bytes(buf: &[u8]) -> Result<Self, ByteArrayError> {
+        let p_len = P::KEY_LEN;
+        let k_len = K::key_length();
+        if buf.len() != p_len + k_len {
+            return Err(ByteArrayError::IncorrectLength {});
+        }
+        let public_nonce = P::from_canonical_bytes(&buf[0..p_len])?;
+        let signature = K::from_canonical_bytes(&buf[p_len..p_len + k_len])?;
+        Ok(Self::new(public_nonce, signature))
+    }
 }
 
 impl<'a, 'b, P, K, H> Add<&'b SchnorrSignature<P, K>> for &'a SchnorrSignature<P, K, H>
@@ -376,7 +397,25 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::{hashing::DomainSeparation, signatures::SchnorrSigChallenge};
+    use tari_utilities::ByteArray;
+
+    use crate::{
+        compressed_commitment::CompressedCommitment,
+        hashing::DomainSeparation,
+        keys::PublicKey,
+        ristretto::{
+            RistrettoComAndPubSig,
+            RistrettoPublicKey,
+            RistrettoSchnorr,
+            RistrettoSecretKey,
+            pedersen::CompressedPedersenCommitment,
+        },
+        signatures::{
+            CompressedCommitmentAndPublicKeySignature,
+            CompressedSchnorrSignature,
+            SchnorrSigChallenge,
+        },
+    };
 
     #[test]
     fn schnorr_hash_domain() {
@@ -385,5 +424,58 @@ mod test {
             SchnorrSigChallenge::domain_separation_tag("test"),
             "com.tari.schnorr_signature.v1.test"
         );
+    }
+
+    #[test]
+    fn signature_to_vec_and_from_bytes_roundtrip() {
+        let mut rng = rand::rng();
+        let (sk, pk) = RistrettoPublicKey::random_keypair(&mut rng);
+        let sig = RistrettoSchnorr::sign(&sk, b"tari-crypto-test", &mut rng).unwrap();
+        let bytes = sig.to_vec();
+        assert_eq!(bytes.len(), 64);
+        let decoded = RistrettoSchnorr::from_bytes(&bytes).unwrap();
+        assert_eq!(decoded, sig);
+        assert!(RistrettoSchnorr::from_bytes(&bytes[..63]).is_err());
+
+        let comp_sig = CompressedSchnorrSignature::new_from_schnorr(sig);
+        let comp_bytes = comp_sig.to_vec();
+        assert_eq!(comp_bytes.len(), 64);
+        let comp_decoded =
+            CompressedSchnorrSignature::<RistrettoPublicKey, RistrettoSecretKey>::from_bytes(&comp_bytes).unwrap();
+        assert_eq!(comp_decoded, comp_sig);
+        assert!(
+            CompressedSchnorrSignature::<RistrettoPublicKey, RistrettoSecretKey>::from_bytes(&comp_bytes[..63])
+                .is_err()
+        );
+
+        let capk = RistrettoComAndPubSig::default();
+        let capk_bytes = capk.to_vec();
+        assert_eq!(capk_bytes.len(), 160);
+        let capk_decoded = RistrettoComAndPubSig::from_bytes(&capk_bytes).unwrap();
+        assert_eq!(capk_decoded, capk);
+        assert!(RistrettoComAndPubSig::from_bytes(&capk_bytes[..159]).is_err());
+
+        let comp_capk = CompressedCommitmentAndPublicKeySignature::new_from_capk_signature(capk);
+        let comp_capk_bytes = comp_capk.to_vec();
+        assert_eq!(comp_capk_bytes.len(), 160);
+        let comp_capk_decoded =
+            CompressedCommitmentAndPublicKeySignature::<RistrettoPublicKey, RistrettoSecretKey>::from_bytes(
+                &comp_capk_bytes,
+            )
+            .unwrap();
+        assert_eq!(comp_capk_decoded, comp_capk);
+        assert!(
+            CompressedCommitmentAndPublicKeySignature::<RistrettoPublicKey, RistrettoSecretKey>::from_bytes(
+                &comp_capk_bytes[..159]
+            )
+            .is_err()
+        );
+
+        let valid_comm = CompressedCommitment::from_public_key(pk);
+        assert_eq!(
+            CompressedPedersenCommitment::from_canonical_bytes_validated(valid_comm.as_bytes()).unwrap(),
+            valid_comm
+        );
+        assert!(CompressedPedersenCommitment::from_canonical_bytes_validated(&[0xffu8; 32]).is_err());
     }
 }

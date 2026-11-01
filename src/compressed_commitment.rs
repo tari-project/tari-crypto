@@ -84,6 +84,12 @@ where P: PublicKey
     pub fn from_commitment(commitment: HomomorphicCommitment<P>) -> Self {
         Self(CompressedKey::new_from_pk(commitment.0))
     }
+
+    /// Create a compressed commitment from bytes, returning an error if the bytes are not exactly `P::KEY_LEN` long
+    /// or do not decompress to a valid public key point. The decompressed point is cached.
+    pub fn from_canonical_bytes_validated(bytes: &[u8]) -> Result<Self, ByteArrayError> {
+        Ok(Self(CompressedKey::from_canonical_bytes_validated(bytes)?))
+    }
 }
 
 impl<P> ByteArray for CompressedCommitment<P>
