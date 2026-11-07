@@ -239,6 +239,7 @@ impl<T> Zeroize for CompressedKey<T> {
     /// Zeroizes both the point and (if it exists) the compressed point
     fn zeroize(&mut self) {
         self.key.zeroize();
+        self.public_key = OnceLock::new();
     }
 }
 
@@ -250,7 +251,7 @@ impl<'de, T> Deserialize<'de> for CompressedKey<T> {
             phantom: PhantomData<T>,
         }
 
-        impl<T> Visitor<'_> for CompressedKeyVisitor<T> {
+        impl<'de, T> Visitor<'de> for CompressedKeyVisitor<T> {
             type Value = CompressedKey<T>;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -260,6 +261,18 @@ impl<'de, T> Deserialize<'de> for CompressedKey<T> {
             fn visit_bytes<E>(self, v: &[u8]) -> Result<CompressedKey<T>, E>
             where E: de::Error {
                 CompressedKey::from_canonical_bytes(v).map_err(E::custom)
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<CompressedKey<T>, A::Error>
+            where A: de::SeqAccess<'de> {
+                let mut bytes = Vec::with_capacity(32);
+                while let Some(b) = seq.next_element::<u8>()? {
+                    if bytes.len() == 32 {
+                        return Err(de::Error::invalid_length(bytes.len().saturating_add(1), &self));
+                    }
+                    bytes.push(b);
+                }
+                CompressedKey::from_canonical_bytes(&bytes).map_err(de::Error::custom)
             }
         }
 
@@ -345,5 +358,16 @@ mod test {
             drop(format!("{key}"));
             drop(format!("{key:?}"));
         }
+    }
+
+    #[test]
+    fn zeroize_clears_cached_public_key() {
+        use zeroize::Zeroize;
+
+        let (_, mut key) = CompressedKey::<RistrettoPublicKey>::random_keypair(&mut rand::rng());
+        assert!(key.to_public_key().is_ok());
+        key.zeroize();
+        assert!(key.as_bytes().is_empty());
+        assert!(key.to_public_key().is_err());
     }
 }
