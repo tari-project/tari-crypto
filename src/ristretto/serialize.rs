@@ -36,14 +36,17 @@ use serde::{
 use tari_utilities::{byte_array::ByteArray, hex::Hex};
 use zeroize::Zeroize;
 
-use crate::ristretto::{RistrettoPublicKey, RistrettoSecretKey};
+use crate::{
+    keys::{PublicKey, SecretKey},
+    ristretto::{RistrettoPublicKey, RistrettoSecretKey},
+};
 
 impl<'de> Deserialize<'de> for RistrettoPublicKey {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where D: Deserializer<'de> {
         struct RistrettoPubKeyVisitor;
 
-        impl Visitor<'_> for RistrettoPubKeyVisitor {
+        impl<'de> Visitor<'de> for RistrettoPubKeyVisitor {
             type Value = RistrettoPublicKey;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -53,6 +56,19 @@ impl<'de> Deserialize<'de> for RistrettoPublicKey {
             fn visit_bytes<E>(self, v: &[u8]) -> Result<RistrettoPublicKey, E>
             where E: de::Error {
                 RistrettoPublicKey::from_canonical_bytes(v).map_err(E::custom)
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<RistrettoPublicKey, A::Error>
+            where A: de::SeqAccess<'de> {
+                let mut bytes = alloc::vec::Vec::with_capacity(
+                    seq.size_hint()
+                        .unwrap_or(RistrettoPublicKey::KEY_LEN)
+                        .min(RistrettoPublicKey::KEY_LEN + 1),
+                );
+                while let Some(b) = seq.next_element::<u8>()? {
+                    bytes.push(b);
+                }
+                RistrettoPublicKey::from_canonical_bytes(&bytes).map_err(de::Error::custom)
             }
         }
 
@@ -81,7 +97,7 @@ impl<'de> Deserialize<'de> for RistrettoSecretKey {
     where D: Deserializer<'de> {
         struct RistrettoVisitor;
 
-        impl Visitor<'_> for RistrettoVisitor {
+        impl<'de> Visitor<'de> for RistrettoVisitor {
             type Value = RistrettoSecretKey;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -91,6 +107,19 @@ impl<'de> Deserialize<'de> for RistrettoSecretKey {
             fn visit_bytes<E>(self, v: &[u8]) -> Result<RistrettoSecretKey, E>
             where E: de::Error {
                 RistrettoSecretKey::from_canonical_bytes(v).map_err(E::custom)
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<RistrettoSecretKey, A::Error>
+            where A: de::SeqAccess<'de> {
+                let mut bytes = zeroize::Zeroizing::new(alloc::vec::Vec::with_capacity(
+                    seq.size_hint()
+                        .unwrap_or(RistrettoSecretKey::KEY_LEN)
+                        .min(RistrettoSecretKey::KEY_LEN + 1),
+                ));
+                while let Some(b) = seq.next_element::<u8>()? {
+                    bytes.push(b);
+                }
+                RistrettoSecretKey::from_canonical_bytes(&bytes).map_err(de::Error::custom)
             }
         }
 
@@ -116,5 +145,27 @@ impl Serialize for RistrettoSecretKey {
         } else {
             serializer.serialize_bytes(self.as_bytes())
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn deserialize_from_binary_seq() {
+        let mut rng = rand::rng();
+        let (sk, pk) = RistrettoPublicKey::random_keypair(&mut rng);
+
+        // bincode::deserialize on a Vec<u8> serialized as a sequence of bytes invokes visit_seq
+        let pk_vec = pk.as_bytes().to_vec();
+        let encoded_pk = bincode::serialize(&pk_vec).unwrap();
+        let decoded_pk: RistrettoPublicKey = bincode::deserialize(&encoded_pk).unwrap();
+        assert_eq!(decoded_pk, pk);
+
+        let sk_vec = sk.as_bytes().to_vec();
+        let encoded_sk = bincode::serialize(&sk_vec).unwrap();
+        let decoded_sk: RistrettoSecretKey = bincode::deserialize(&encoded_sk).unwrap();
+        assert_eq!(decoded_sk, sk);
     }
 }
