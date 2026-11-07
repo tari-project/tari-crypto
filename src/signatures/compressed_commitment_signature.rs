@@ -45,6 +45,12 @@ where
         CompressedCommitmentSignature::new(public_nonce, u, v)
     }
 
+    /// Converts the compressed signature into aCommitmentSignature.
+    pub fn to_commitment_signature(&self) -> Result<CommitmentSignature<P, K>, ByteArrayError> {
+        let public_nonce = self.public_nonce.to_commitment()?;
+        Ok(CommitmentSignature::new(public_nonce, self.u.clone(), self.v.clone()))
+    }
+
     /// This function returns the complete signature tuple (R, u, v)
     pub fn complete_signature_tuple(&self) -> (&CompressedCommitment<P>, &K, &K) {
         (&self.public_nonce, &self.u, &self.v)
