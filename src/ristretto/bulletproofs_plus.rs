@@ -368,6 +368,15 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
         proofs: Vec<&Self::Proof>,
         statements: Vec<&RistrettoAggregatedPrivateStatement>,
     ) -> Result<Vec<Option<RistrettoExtendedMask>>, RangeProofError> {
+        if proofs.is_empty() || proofs.len() != statements.len() {
+            return Err(RangeProofError::InvalidRangeProof {
+                reason: format!(
+                    "Proof batch length ({}) must be non-empty and match statements length ({})",
+                    proofs.len(),
+                    statements.len()
+                ),
+            });
+        }
         // Prepare the range statements
         let range_statements = self.prepare_private_range_statements(statements);
 
@@ -415,6 +424,15 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
         proofs: Vec<&Self::Proof>,
         statements: Vec<&RistrettoAggregatedPublicStatement>,
     ) -> Result<(), RangeProofError> {
+        if proofs.is_empty() || proofs.len() != statements.len() {
+            return Err(RangeProofError::InvalidRangeProof {
+                reason: format!(
+                    "Proof batch length ({}) must be non-empty and match statements length ({})",
+                    proofs.len(),
+                    statements.len()
+                ),
+            });
+        }
         // Prepare the range statements
         let range_statements = self.prepare_public_range_statements(statements);
 
@@ -1044,5 +1062,24 @@ mod test {
 
         // 7. Verify the proof as private or public entity
         assert!(verifiers_bulletproofs_plus_service.verify(&proof, &commitment));
+    }
+
+    #[test]
+    fn test_verify_batch_rejects_empty_and_mismatched_lengths() {
+        let factory =
+            ExtendedPedersenCommitmentFactory::new_with_extension_degree(CommitmentExtensionDegree::DefaultPedersen)
+                .unwrap();
+        let service = BulletproofsPlusService::init(64, 1, factory).unwrap();
+
+        assert!(service.verify_batch(vec![], vec![]).is_err());
+        assert!(service.verify_batch_and_recover_masks(vec![], vec![]).is_err());
+
+        let dummy_proof = vec![0u8; 32];
+        assert!(service.verify_batch(vec![&dummy_proof], vec![]).is_err());
+        assert!(
+            service
+                .verify_batch_and_recover_masks(vec![&dummy_proof], vec![])
+                .is_err()
+        );
     }
 }
