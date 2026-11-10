@@ -57,6 +57,11 @@ pub struct ExtendedPedersenCommitmentFactory {
 }
 
 impl ExtendedPedersenCommitmentFactory {
+    /// Returns the extension degree configured for this factory.
+    pub const fn extension_degree(&self) -> ExtensionDegree {
+        self.extension_degree
+    }
+
     /// Create a new Extended Pedersen Ristretto Commitment factory for the required extension degree using
     /// pre-calculated compressed constants - we only hold references to the static generator points.
     pub fn new_with_extension_degree(extension_degree: ExtensionDegree) -> Result<Self, CommitmentError> {
@@ -176,9 +181,7 @@ impl ExtendedHomomorphicCommitmentFactory for ExtendedPedersenCommitmentFactory 
         v: &RistrettoSecretKey,
         commitment: &PedersenCommitment,
     ) -> Result<(), CommitmentError> {
-        let c_test = self
-            .commit_extended(k_vec, v)
-            .map_err(|e| CommitmentError::CommitmentExtensionDegree { reason: e.to_string() })?;
+        let c_test = self.commit_extended(k_vec, v)?;
         if commitment == &c_test {
             Ok(())
         } else {
@@ -256,6 +259,42 @@ mod test {
         assert_eq!(
             factory,
             ExtendedPedersenCommitmentFactory::new_with_extension_degree(ExtensionDegree::DefaultPedersen).unwrap()
+        );
+    }
+
+    #[test]
+    fn open_extended_preserves_extension_degree_error_without_double_wrapping() {
+        let factory = ExtendedPedersenCommitmentFactory::new_with_extension_degree(ExtensionDegree::DefaultPedersen)
+            .expect("factory");
+        assert_eq!(factory.extension_degree(), ExtensionDegree::DefaultPedersen);
+
+        let k = RistrettoSecretKey::from(7u64);
+        let v = RistrettoSecretKey::from(11u64);
+        let commitment = factory.commit_extended(core::slice::from_ref(&k), &v).expect("commit");
+        factory
+            .open_extended(core::slice::from_ref(&k), &v, &commitment)
+            .expect("open");
+        factory
+            .open_value_extended(core::slice::from_ref(&k), 11, &commitment)
+            .expect("open_value");
+
+        let err = factory
+            .open_extended(&[], &v, &commitment)
+            .expect_err("empty blinding slice must fail");
+        assert_eq!(
+            err,
+            CommitmentError::CommitmentExtensionDegree {
+                reason: "blinding vector".to_string()
+            }
+        );
+        let val_err = factory
+            .open_value_extended(&[k.clone(), k], 11, &commitment)
+            .expect_err("excess blinding slice must fail");
+        assert_eq!(
+            val_err,
+            CommitmentError::CommitmentExtensionDegree {
+                reason: "blinding vector".to_string()
+            }
         );
     }
 
