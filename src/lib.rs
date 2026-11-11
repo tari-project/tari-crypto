@@ -3,6 +3,8 @@
 
 //! Tari-Crypto
 
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+
 #[allow(unused_imports)]
 #[macro_use]
 extern crate alloc;
