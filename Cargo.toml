@@ -10,6 +10,10 @@ license = "BSD-3-Clause"
 version = "0.24.1"
 edition = "2024"
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [dependencies]
 tari_utilities = { version = "0.11", default-features = false }
 blake2 = { version = "0.10", default-features = false  }
