@@ -9,7 +9,6 @@ target
 *.iml
 .vs/
 *.userprefs
-.vscode/
 *.code-workspace
 tags
 
@@ -33,3 +32,5 @@ Cargo.lock
 
 # C-demo output
 bin/
+config.bat
+node_modules
