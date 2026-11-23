@@ -816,7 +816,6 @@ dependencies = [
 name = "tari_crypto"
 version = "0.24.1"
 dependencies = [
- "bincode",
  "blake2",
  "borsh",
  "criterion",
