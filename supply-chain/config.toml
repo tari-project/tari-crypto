@@ -26,7 +26,7 @@ url = "https://raw.githubusercontent.com/mozilla/supply-chain/main/audits.toml"
 url = "https://raw.githubusercontent.com/zcash/rust-ecosystem/main/supply-chain/audits.toml"
 
 [policy.tari_crypto]
-audit-as-crates-io = true
+audit-as-crates-io = false
 
 [[exemptions.aho-corasick]]
 version = "1.1.5"
@@ -286,10 +286,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.tari_bulletproofs_plus]]
 version = "0.5.3"
-criteria = "safe-to-deploy"
-
-[[exemptions.tari_crypto]]
-version = "0.24.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.tari_merlin]]

@@ -33,7 +33,7 @@ All notable changes to this project will be documented in this file. See [standa
 * Documented the RNG requirement of `CommitmentAndPublicKeySignature::verify` and `verify_batch_with_rng`, and the empty-batch behaviour of batch verification.
 * `scripts/file_license_check.sh` uses `mktemp` instead of a fixed `/tmp` path.
 * CI hardening: read-only workflow tokens, `persist-credentials: false`, SHA-pinned actions, version-pinned tool installs, `rustsec/audit-check` on PRs, and a new `supply-chain` job running `cargo deny check` and `cargo vet --locked`.
-* `deny.toml` migrated to the cargo-deny 0.20 schema; cargo-vet exemptions regenerated.
+* `deny.toml` migrated to the cargo-deny 0.20 schema; cargo-vet exemptions regenerated, and `tari_crypto` itself is treated as first-party so release version bumps need no exemption.
 * `Cargo.lock` is committed and CI builds use `--locked`.
 * Dependabot updates GitHub Actions and Cargo dependencies weekly.
 
