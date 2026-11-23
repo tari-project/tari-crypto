@@ -18,7 +18,7 @@ jobs:
     steps:
       - name: install
         run: |
-          npm install -g @commitlint/cli@21.2.4 @commitlint/config-conventional@21.2.4
+          npm install -g --ignore-scripts @commitlint/cli@21.2.4 @commitlint/config-conventional@21.2.4
           echo "module.exports = {extends: ['@commitlint/config-conventional']}" > commitlint.config.js
 
       - name: lint
