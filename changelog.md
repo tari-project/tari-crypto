@@ -22,7 +22,7 @@ All notable changes to this project will be documented in this file. See [standa
 
 * `DomainSeparatedHasher::finalize_into_reset` (inherent and `Digest`) re-adds the domain tag after reset; outputs of every previously consistent hashing path are unchanged.
 * `DomainSeparatedHasher` implements `Default` manually as `new()`, so it is domain tagged.
-* Debug builds assert that a hash domain contains no `.v<digits>.` segment, the only pattern that makes the tag encoding ambiguous. Labels are not restricted.
+* Debug builds assert that a hash domain neither contains a `.v<digits>.` segment nor ends with `.v<digits>`, the patterns that make the tag encoding ambiguous. Labels are not restricted.
 * `CommitmentSignature::{sign_message, sign_message_with_nonces, verify_message, challenge_scalar, construct_domain_separated_challenge}` bind the public nonce, commitment and message under the new `com.tari.commitment_signature` domain (`CommitmentSigChallenge`).
 * Batch Schnorr verification rejects a zero challenge, matching single verification.
 * `Mac` implements constant-time `ConstantTimeEq` and `PartialEq`, and gains `Mac::verify(&[u8])`.

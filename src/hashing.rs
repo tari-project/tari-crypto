@@ -66,8 +66,9 @@ use crate::{
 /// `len_le_u64 || domain || ".v" || version || "." || label` (the final `"." || label` is omitted for an empty
 /// label), where `len` is the byte length of everything after it. Labels may contain `.`.
 ///
-/// Domain strings must not contain a `.v<digits>.` segment: domain `a.v1.b` with label `c` produces the same tag as
-/// domain `a` with label `b.c`. Debug builds assert this when a [`DomainSeparatedHasher`] is created.
+/// Domain strings must neither contain a `.v<digits>.` segment nor end with `.v<digits>`: domain `a.v1.b` with label
+/// `c` produces the same tag as domain `a` with label `b.c`, and domain `a.v1` at version 2 with label `x` the same as
+/// domain `a` at version 1 with label `v2.x`. Debug builds assert this when a [`DomainSeparatedHasher`] is created.
 pub trait DomainSeparation {
     /// Returns the version number for the metadata tag
     fn version() -> u8;
@@ -89,8 +90,8 @@ pub trait DomainSeparation {
     /// `{domain}.v{version}.{label}`, where the version and tag are typically hard-coded into the implementing
     /// type, and the label is provided per specific application of the domain.
     ///
-    /// The exact byte layout, and the rule that domains must not contain a `.v<digits>.` segment, are described on
-    /// [`DomainSeparation`].
+    /// The exact byte layout, and the rule that domains must not contain a `.v<digits>.` segment or end with
+    /// `.v<digits>`, are described on [`DomainSeparation`].
     fn add_domain_separation_tag<S: AsRef<[u8]>, D: Digest>(digest: &mut D, label: S) {
         let label = if label.as_ref().is_empty() { &[] } else { label.as_ref() };
         let domain = Self::domain();
@@ -136,7 +137,7 @@ fn byte_to_decimal_ascii_bytes(mut byte: u8) -> (usize, [u8; 3]) {
     (pos, bytes)
 }
 
-/// Returns true if `s` contains a `.v<one or more ASCII digits>.` segment.
+/// Returns true if `s` contains a `.v<one or more ASCII digits>.` segment or ends with `.v<one or more ASCII digits>`.
 fn contains_version_segment(s: &str) -> bool {
     let b = s.as_bytes();
     (0..b.len()).any(|i| {
@@ -144,7 +145,7 @@ fn contains_version_segment(s: &str) -> bool {
             return false;
         }
         let digits = b[i + 2..].iter().take_while(|c| c.is_ascii_digit()).count();
-        digits > 0 && b.get(i + 2 + digits) == Some(&b'.')
+        digits > 0 && matches!(b.get(i + 2 + digits), None | Some(&b'.'))
     })
 }
 
@@ -298,7 +299,8 @@ impl<D: Digest, M: DomainSeparation> DomainSeparatedHasher<D, M> {
     pub fn new_with_label(label: &'static str) -> Self {
         debug_assert!(
             !contains_version_segment(M::domain()),
-            "hash domain {:?} contains a `.v<digits>.` version segment, which makes the tag encoding ambiguous",
+            "hash domain {:?} contains a `.v<digits>.` or trailing `.v<digits>` version segment, which makes the tag \
+             encoding ambiguous",
             M::domain()
         );
         let mut inner = D::new();
@@ -1081,12 +1083,23 @@ mod test {
     }
 
     #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "version segment")]
+    fn domain_ending_in_version_segment_panics_in_debug() {
+        hash_domain!(BadDomain, "com.example.v1");
+        let _hasher = DomainSeparatedHasher::<Blake2b<U64>, BadDomain>::new();
+    }
+
+    #[test]
     fn version_segment_detection() {
         assert!(contains_version_segment("a.v1.b"));
         assert!(contains_version_segment("com.example.v12.x"));
         assert!(contains_version_segment(".v0."));
         assert!(!contains_version_segment("a.v.b"));
-        assert!(!contains_version_segment("a.v1"));
+        assert!(contains_version_segment("a.v1"));
+        assert!(contains_version_segment("com.example.v12"));
+        assert!(!contains_version_segment("a.v1x"));
+        assert!(!contains_version_segment("a.v"));
         assert!(!contains_version_segment("a.vx1.b"));
         assert!(!contains_version_segment("com.tari.v"));
     }
