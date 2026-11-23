@@ -131,6 +131,10 @@ where
     }
 
     /// Verify a signature on a commitment and group element statement using a given challenge (as a byte array)
+    ///
+    /// # RNG requirement
+    ///
+    /// See [`CommitmentAndPublicKeySignature::verify`]: `rng` must be unpredictable to the prover.
     #[must_use = "a `false` result means verification FAILED; it must be checked"]
     pub fn verify_challenge<'a, C, R>(
         &self,
@@ -160,6 +164,13 @@ where
     }
 
     /// Verify a signature on a commitment and group element statement using a given challenge (as a scalar)
+    ///
+    /// # RNG requirement
+    ///
+    /// The commitment and public key equations are combined with a weight `w` drawn from `rng`. `rng` must be
+    /// unpredictable to the prover: never seed it from block, transaction or other public data. A prover who can
+    /// predict `w` can forge a signature for a commitment `C = C' - w·P` while only knowing the opening of `C'`. Use
+    /// `OsRng` or `rand::rng()`.
     #[must_use = "a `false` result means verification FAILED; it must be checked"]
     pub fn verify<'a, C, R>(
         &self,

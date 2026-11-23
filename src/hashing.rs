@@ -1064,13 +1064,14 @@ mod test {
     fn crate_domains_pass_the_guard() {
         use crate::{
             ristretto::ristretto_keys::{RistrettoGeneratorPoint, RistrettoKdf},
-            signatures::SchnorrSigChallenge,
+            signatures::{CommitmentSigChallenge, SchnorrSigChallenge},
         };
         for domain in [
             MacDomain::domain(),
             RistrettoKdf::domain(),
             RistrettoGeneratorPoint::domain(),
             SchnorrSigChallenge::domain(),
+            CommitmentSigChallenge::domain(),
         ] {
             assert!(!contains_version_segment(domain), "{domain}");
         }
