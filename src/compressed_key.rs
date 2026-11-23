@@ -19,7 +19,7 @@ use rand_core::{CryptoRng, Rng};
 #[cfg(feature = "serde")]
 use serde::de::Visitor;
 #[cfg(feature = "serde")]
-use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de, ser};
 use subtle::ConstantTimeEq;
 use tari_utilities::{ByteArray, ByteArrayError, Hashable, hex::Hex};
 use zeroize::Zeroize;
@@ -101,23 +101,32 @@ impl<T> CompressedKey<T> {
     // If w >= 64, we pad the result.
     // If 7 <= w < 64, we replace the middle of the string with "..."
     // If w <= 6, we return the first w chars of the string
+    // Counts chars rather than bytes so keys of any length never print more than w chars or panic.
     fn fmt_case(&self, f: &mut fmt::Formatter, uppercase: bool) -> fmt::Result {
-        let mut hex = self.to_hex();
+        let mut hex = self.to_hex_trimmed();
         if uppercase {
             hex = hex.to_uppercase();
         }
         if f.alternate() {
             hex = format!("0x{hex}");
         }
-        let n = hex.len();
         match f.width() {
             None => f.write_str(hex.as_str()),
-            Some(w @ 1..=6) => f.write_str(&hex[..w.min(n)]),
-            // `w < n` keeps `left <= right` and both slice bounds within the string
-            Some(w @ 7..=63) if w < n => {
-                let left = (w - 3) / 2;
-                let right = n - (w - left - 3);
-                f.write_str(format!("{}...{}", &hex[..left], &hex[right..]).as_str())
+            Some(w @ 1..=6) => {
+                let start: String = hex.chars().take(w).collect();
+                f.write_str(&start)
+            },
+            Some(w @ 7..=63) => {
+                let count = hex.chars().count();
+                if count <= w {
+                    f.write_str(&hex)
+                } else {
+                    let left = (w - 3) / 2;
+                    let right = w - left - 3;
+                    let start: String = hex.chars().take(left).collect();
+                    let end: String = hex.chars().skip(count - right).collect();
+                    write!(f, "{start}...{end}")
+                }
             },
             _ => core::fmt::Display::fmt(&hex, f),
         }
@@ -187,7 +196,7 @@ impl<T> fmt::UpperHex for CompressedKey<T> {
 
 impl<T> fmt::Debug for CompressedKey<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.to_hex())
+        write!(f, "{}", self.to_hex_trimmed())
     }
 }
 
@@ -269,7 +278,7 @@ impl<T> Serialize for CompressedKey<T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where S: Serializer {
         if serializer.is_human_readable() {
-            self.to_hex().serialize(serializer)
+            self.to_hex().map_err(ser::Error::custom)?.serialize(serializer)
         } else {
             serializer.serialize_bytes(self.as_bytes())
         }
@@ -307,19 +316,29 @@ mod test {
         assert!(CompressedKey::<RistrettoPublicKey>::new(&[0u8; 32]).is_ok());
     }
 
+    /// Display output for 32-byte keys is pinned to v0.24.1
     #[test]
-    fn formatting_is_unchanged_and_never_panics() {
-        let key = CompressedKey::<RistrettoPublicKey>::new(&(0u8..32).collect::<Vec<_>>()).unwrap();
-        let full = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
-        assert_eq!(format!("{key}"), full);
-        assert_eq!(format!("{key:#}"), format!("0x{full}"));
-        assert_eq!(format!("{key:0}"), full);
+    fn fmt_32_byte_key() {
+        let bytes: Vec<u8> = (0u8..32).collect();
+        let key = CompressedKey::<RistrettoPublicKey>::new(&bytes).unwrap();
+        let hex = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
+        assert_eq!(format!("{key}"), hex);
+        assert_eq!(format!("{key:x}"), hex);
+        assert_eq!(format!("{key:?}"), hex);
+        assert_eq!(format!("{key:X}"), hex.to_uppercase());
+        assert_eq!(format!("{key:#}"), format!("0x{hex}"));
+        assert_eq!(format!("{key:#x}"), format!("0x{hex}"));
+        assert_eq!(format!("{key:0}"), hex);
         assert_eq!(format!("{key:1}"), "0");
+        assert_eq!(format!("{key:5}"), "00010");
         assert_eq!(format!("{key:6}"), "000102");
         assert_eq!(format!("{key:#6x}"), "0x0001");
         assert_eq!(format!("{key:7}"), "00...1f");
         assert_eq!(format!("{key:#7}"), "0x...1f");
         assert_eq!(format!("{key:8X}"), "00...E1F");
+        assert_eq!(format!("{key:#10x}"), "0x0...1e1f");
+        assert_eq!(format!("{key:26}"), "00010203040...1a1b1c1d1e1f");
+        assert_eq!(format!("{key:27x}"), "000102030405...1a1b1c1d1e1f");
         assert_eq!(format!("{key:40}"), "000102030405060708...61718191a1b1c1d1e1f");
         assert_eq!(format!("{key:#40}"), "0x0001020304050607...61718191a1b1c1d1e1f");
         assert_eq!(
@@ -330,21 +349,43 @@ mod test {
             format!("{key:#63}"),
             "0x000102030405060708090a0b0c0d...1112131415161718191a1b1c1d1e1f"
         );
-        assert_eq!(format!("{key:64}"), full);
-        assert_eq!(format!("{key:66}"), format!("{full}  "));
-        assert_eq!(format!("{key:#70}"), format!("0x{full}    "));
+        assert_eq!(format!("{key:64}"), hex);
+        assert_eq!(format!("{key:66}"), format!("{hex}  "));
+        assert_eq!(format!("{key:70}"), format!("{hex}      "));
+        assert_eq!(format!("{key:#70}"), format!("0x{hex}    "));
+    }
 
-        // Keys shorter than 32 bytes cannot be built through the API, but formatting must still not panic
-        let short = CompressedKey::<RistrettoPublicKey> {
-            key: vec![0xab; 2],
+    #[test]
+    fn fmt_does_not_panic_for_any_key_length() {
+        use zeroize::Zeroize;
+
+        // `new` only accepts 32 bytes, so build other lengths directly
+        let raw = |bytes: Vec<u8>| CompressedKey::<RistrettoPublicKey> {
+            key: bytes,
             public_key: Default::default(),
         };
-        for w in 0..=70 {
-            assert!(!format!("{key:w$}{key:#w$}{key:w$X}{short:w$}{short:#w$}{short:w$X}").is_empty());
+        let mut zeroized = CompressedKey::<RistrettoPublicKey>::new(&[0xab; 32]).unwrap();
+        zeroized.zeroize();
+        let keys = [
+            raw(vec![]),
+            raw(vec![0xab]),
+            raw(vec![0xab; 4]),
+            raw(vec![0xab; 256 * 1024 + 1]),
+            zeroized,
+        ];
+        for key in &keys {
+            for w in 0..80 {
+                drop(format!("{key:w$}"));
+                drop(format!("{key:w$x}"));
+                drop(format!("{key:#w$X}"));
+            }
+            for w in 1..=63 {
+                assert!(format!("{key:w$}").chars().count() <= w);
+                assert!(format!("{key:#w$X}").chars().count() <= w);
+            }
+            drop(format!("{key}"));
+            drop(format!("{key:?}"));
         }
-        assert_eq!(format!("{short:10}"), "abab      ");
-        assert_eq!(format!("{short:3}"), "aba");
-        assert_eq!(format!("{short:6}"), "abab");
     }
 
     #[test]

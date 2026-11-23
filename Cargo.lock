@@ -850,14 +850,15 @@ dependencies = [
 
 [[package]]
 name = "tari_utilities"
-version = "0.10.0"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "59020053bb363474087e5b170acbf0e1a848b1af5736e058a0332ce69b6dbf9e"
+checksum = "598c14c0aea03d57f26fb1557c88de103154cb07658f8a09acc6a10ed02af780"
 dependencies = [
  "base58-monero",
  "base64",
  "bincode",
  "generic-array",
+ "log",
  "newtype-ops",
  "serde",
  "serde_json",
