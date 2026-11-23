@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file. See [standa
 
 ### Breaking
 
-* `DomainSeparatedHasher` no longer implements `digest::FixedOutput`. Migration: use `Digest::finalize_into` instead of `FixedOutput::finalize_into`; the output is identical.
+* `DomainSeparatedHasher` no longer implements `digest::FixedOutput`. Migration: replace `finalize_fixed` with `Digest::finalize` or the inherent `finalize()`, and `FixedOutput::finalize_into` with `Digest::finalize_into`; outputs are identical. The `Digest` impl requires the inner digest to be `Digest + FixedOutputReset` rather than just `FixedOutput`, so generic code bounded on `D: FixedOutput` must bound on `D: Digest + FixedOutputReset` instead (RustCrypto digests such as `Blake2b` satisfy it).
 * `DomainSeparatedHasher` no longer implements `digest::Update`, whose `update` fed raw bytes to the inner digest with no length prefix. Migration: there is no output-compatible replacement on the hasher. `Digest::update` and the inherent `update` length-prefix the data, so switching to them changes every resulting hash, which is a consensus change wherever those hashes are stored or verified. Callers that must reproduce the old outputs need to add the domain tag to the inner digest with `DomainSeparation::add_domain_separation_tag` and feed it the raw bytes themselves.
 * `DomainSeparatedHasher`'s `Default` impl now requires `D: Digest, M: DomainSeparation` instead of `D: Default, M: Default`, and is equal to `new()`: its output is now domain tagged. Likewise a hasher reused after `finalize_into_reset` now starts from the domain tag instead of an empty digest. Migration: hashes previously produced via `Default` or after `finalize_into_reset` were untagged; re-derive any stored ones, and use `new()` explicitly where you construct hashers.
 * The inherent `DomainSeparatedHasher::finalize_into_reset` now requires `D: Digest + FixedOutputReset`. Migration: none for digests from the RustCrypto crates, which all implement `Digest`.
@@ -22,7 +22,7 @@ All notable changes to this project will be documented in this file. See [standa
 
 ### Fixed / Added
 
-* `DomainSeparatedHasher::finalize_into_reset` (inherent and `Digest`) re-adds the domain tag after reset, and `Default` is implemented manually as `new()`, so both are domain tagged (see Breaking). Outputs of `new`, `new_with_label`, the inherent `update`/`chain`/`finalize`/`digest` and the `Digest` impl are unchanged.
+* The inherent `DomainSeparatedHasher::finalize_into_reset` re-adds the domain tag after reset (the `Digest` trait's `finalize_into_reset` is fixed the same way but cannot be called, as the hasher does not implement `FixedOutputReset`), and `Default` is implemented manually as `new()`, so both are domain tagged (see Breaking). Outputs of `new`, `new_with_label`, the inherent `update`/`chain`/`finalize`/`digest` and the `Digest` impl are unchanged.
 * Debug builds assert that a hash domain neither contains a `.v<digits>.` segment nor ends with `.v<digits>`, the patterns that make the tag encoding ambiguous. Labels are not restricted.
 * `CommitmentSignature::{sign_message, sign_message_with_nonces, verify_message, challenge_scalar, construct_domain_separated_challenge}` bind the public nonce, commitment and message under the new `com.tari.commitment_signature` domain (`CommitmentSigChallenge`).
 * Batch Schnorr verification rejects a zero challenge, matching single verification.
