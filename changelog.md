@@ -2,6 +2,41 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## Unreleased
+
+### Breaking
+
+* `DomainSeparatedHasher` no longer implements `digest::Update` or `digest::FixedOutput`, which fed untagged raw bytes. Migration: use the `Digest` impl or the inherent `update`/`chain`/`finalize` API.
+* The inherent `DomainSeparatedHasher::finalize_into_reset` now requires `D: Digest + FixedOutputReset`. Migration: none for digests from the RustCrypto crates, which all implement `Digest`.
+* `SchnorrSignature` `Add` impls now require the same domain type `H` on both operands and return `SchnorrSignature<P, K, H>`. Migration: add signatures of the same domain; annotate the result with that domain instead of the default one.
+* `SchnorrSignature::{verify_challenge_scalar, verify_raw_uniform, verify_raw_canonical, verify}` return `false`, and `SchnorrSignature::{sign_raw_uniform, sign_raw_canonical}` return `InvalidChallenge`, for a zero challenge. Migration: none for hashed challenges (probability 2^-252); callers passing raw challenges must not pass zero.
+* `CommitmentSignature::{sign, verify, verify_challenge}` reject a zero challenge (`InvalidChallenge` / `false`). Migration: as above.
+* `DiffieHellmanSharedSecret::new` returns `Result<_, DiffieHellmanError>` and rejects an identity public key or shared secret. Migration: handle the error, e.g. treat it as an invalid peer key.
+* `DiffieHellmanSharedSecret::from_canonical_bytes` returns `DiffieHellmanError` instead of `ByteArrayError` and rejects the identity encoding. Migration: match `DiffieHellmanError::ByteArray { source }` for the previous error.
+* `CompressedKey::new` returns `Result<_, ByteArrayError>` and requires exactly 32 bytes. Migration: handle the error, or use `CompressedKey::new_from_pk` when you hold a public key.
+* `PedersenCommitmentFactory::new` returns `Result<_, CommitmentError>` and rejects `G == H` or identity generators. Migration: handle the error; `PedersenCommitmentFactory::default()` is unchanged.
+* `CommitmentError` has a new `InvalidGenerators { reason }` variant. Migration: add a match arm where `CommitmentError` is matched exhaustively.
+* `DeterministicRandomizer::next_bounded_u64(0)` returns `Err` instead of panicking. Migration: none unless you relied on the panic.
+
+### Fixed / Added
+
+* `DomainSeparatedHasher::finalize_into_reset` (inherent and `Digest`) re-adds the domain tag after reset; outputs of every previously consistent hashing path are unchanged.
+* `DomainSeparatedHasher` implements `Default` manually as `new()`, so it is domain tagged.
+* Debug builds assert that a hash domain contains no `.v<digits>.` segment, the only pattern that makes the tag encoding ambiguous. Labels are not restricted.
+* `CommitmentSignature::{sign_message, sign_message_with_nonces, verify_message, challenge_scalar, construct_domain_separated_challenge}` bind the public nonce, commitment and message under the new `com.tari.commitment_signature` domain (`CommitmentSigChallenge`).
+* Batch Schnorr verification rejects a zero challenge, matching single verification.
+* `Mac` implements constant-time `ConstantTimeEq` and `PartialEq`, and gains `Mac::verify(&[u8])`.
+* `DomainSeparatedHash` implements `Zeroize`; secret intermediates in `DerivedKeyDomain::generate`, `RistrettoSecretKey::from_canonical_bytes` and the Bulletproofs+ mask conversions are zeroized.
+* `CompressedKey::zeroize` also drops the cached decompressed point.
+* `CompressedKey` formatting can no longer panic; docs on `CompressedKey` and `CompressedCommitment` state that point validation is lazy.
+* `RangeProofService::verify` logs failures from untrusted proofs at debug level instead of error.
+* Documented the RNG requirement of `CommitmentAndPublicKeySignature::verify` and `verify_batch_with_rng`, and the empty-batch behaviour of batch verification.
+* `scripts/file_license_check.sh` uses `mktemp` instead of a fixed `/tmp` path.
+* CI hardening: read-only workflow tokens, `persist-credentials: false`, SHA-pinned actions, version-pinned tool installs, `rustsec/audit-check` on PRs, and a new `supply-chain` job running `cargo deny check` and `cargo vet --locked`.
+* `deny.toml` migrated to the cargo-deny 0.20 schema; cargo-vet exemptions regenerated.
+* `Cargo.lock` is committed and CI builds use `--locked`.
+* Dependabot updates GitHub Actions and Cargo dependencies weekly.
+
 ### [0.24.1](https://github.com/tari-project/tari-crypto/compare/v0.24.0...v0.24.1) (2026-10-21)
 
 ### Features
