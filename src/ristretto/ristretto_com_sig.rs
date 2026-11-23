@@ -119,7 +119,7 @@ mod test {
             RistrettoSecretKey,
             pedersen::{PedersenCommitment, commitment_factory::PedersenCommitmentFactory},
         },
-        signatures::CommitmentSigChallenge,
+        signatures::{CommitmentSigChallenge, CommitmentSignatureError},
     };
 
     #[test]
@@ -311,6 +311,14 @@ mod test {
             .unwrap();
         assert_eq!(sig.public_nonce(), &factory.commit(&nonce_x, &nonce_a));
         assert!(sig.verify_message(&commitment, message, &factory));
+
+        // A commitment the secrets do not open is rejected
+        assert_eq!(
+            RistrettoComSig::sign_message_with_nonces(&a, &x, &nonce_a, &nonce_x, &other_commitment, message, &factory)
+                .unwrap_err(),
+            CommitmentSignatureError::InvalidOpening
+        );
+        assert!(RistrettoComSig::sign_message(&a, &x, &other_commitment, message, &factory, &mut rng).is_err());
     }
 
     /// Signatures over a shared challenge add up to a signature for the sum of the commitments

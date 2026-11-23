@@ -17,6 +17,7 @@ All notable changes to this project will be documented in this file. See [standa
 * `DiffieHellmanSharedSecret::from_canonical_bytes` returns `DiffieHellmanError` instead of `ByteArrayError` and rejects the identity encoding. Migration: match `DiffieHellmanError::ByteArray { source }` for the previous error.
 * `CompressedKey::new` returns `Result<_, ByteArrayError>` and requires exactly 32 bytes. Migration: handle the error, or use `CompressedKey::new_from_pk` when you hold a public key.
 * `PedersenCommitmentFactory::new` returns `Result<_, CommitmentError>` and rejects `G == H` or identity generators. Migration: handle the error; `PedersenCommitmentFactory::default()` is unchanged.
+* `CommitmentSignatureError` has a new `InvalidOpening` variant, returned by `CommitmentSignature::sign_message{,_with_nonces}` when the secrets do not open the given commitment. Migration: add a match arm where `CommitmentSignatureError` is matched exhaustively.
 * `CommitmentError` has a new `InvalidGenerators { reason }` variant. Migration: add a match arm where `CommitmentError` is matched exhaustively.
 * `DeterministicRandomizer::next_bounded_u64(0)` returns `Err` instead of panicking. Migration: none unless you relied on the panic.
 
@@ -24,10 +25,10 @@ All notable changes to this project will be documented in this file. See [standa
 
 * The inherent `DomainSeparatedHasher::finalize_into_reset` re-adds the domain tag after reset (the `Digest` trait's `finalize_into_reset` is fixed the same way but cannot be called, as the hasher does not implement `FixedOutputReset`), and `Default` is implemented manually as `new()`, so both are domain tagged (see Breaking). Outputs of `new`, `new_with_label`, the inherent `update`/`chain`/`finalize`/`digest` and the `Digest` impl are unchanged.
 * Debug builds assert that a hash domain neither contains a `.v<digits>.` segment nor ends with `.v<digits>`, the patterns that make the tag encoding ambiguous. Labels are not restricted.
-* `CommitmentSignature::{sign_message, sign_message_with_nonces, verify_message, challenge_scalar, construct_domain_separated_challenge}` bind the public nonce, commitment and message under the new `com.tari.commitment_signature` domain (`CommitmentSigChallenge`).
+* `CommitmentSignature::{sign_message, sign_message_with_nonces, verify_message, challenge_scalar, construct_domain_separated_challenge}` bind the public nonce, commitment and message under the new `com.tari.commitment_signature` domain (`CommitmentSigChallenge`). `sign_message{,_with_nonces}` check that the secrets open the commitment. The domain is fixed, so callers include their own context in the message or build a per-application challenge.
 * Batch Schnorr verification rejects a zero challenge, matching single verification.
 * `Mac` implements constant-time `ConstantTimeEq` and `PartialEq`, and gains `Mac::verify(&[u8])`.
-* `DomainSeparatedHash` implements `Zeroize`. Zeroized on drop: the output hash that `DerivedKeyDomain::generate` reduces into the key (not the digest's internal state), the byte copy in `RistrettoSecretKey::from_canonical_bytes`, and the scalar vectors in the Bulletproofs+ mask conversions that are not handed to upstream by value.
+* `DomainSeparatedHash` implements `Zeroize`. Zeroized on drop: the output hash that `DerivedKeyDomain::generate` reduces into the key (not the digest's internal state), the byte buffer `RistrettoSecretKey::from_canonical_bytes` owns (best effort: curve25519-dalek's `Scalar::from_canonical_bytes` takes the array by value, so that argument copy is not wiped), and the scalar vectors in the Bulletproofs+ mask conversions that are not handed to upstream by value.
 * `CompressedKey::zeroize` also drops the cached decompressed point.
 * `CompressedKey` formatting can no longer panic; docs on `CompressedKey` and `CompressedCommitment` state that point validation is lazy.
 * `RangeProofService::verify` logs failures from untrusted proofs at debug level instead of error.

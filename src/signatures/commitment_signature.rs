@@ -31,6 +31,8 @@ hash_domain!(CommitmentSigChallenge, "com.tari.commitment_signature", 1);
 pub enum CommitmentSignatureError {
     #[snafu(display("An invalid challenge was provided"))]
     InvalidChallenge,
+    #[snafu(display("The secrets do not open the commitment"))]
+    InvalidOpening,
 }
 
 /// # Commitment Signatures
@@ -176,7 +178,14 @@ where
     ///
     /// The challenge binds the public nonce, the commitment and the message; see
     /// [`CommitmentSignature::construct_domain_separated_challenge`]. Verify with
-    /// [`CommitmentSignature::verify_message`].
+    /// [`CommitmentSignature::verify_message`]. Returns [`CommitmentSignatureError::InvalidOpening`] if
+    /// `public_commitment` is not `commit(secret_x, secret_a)`.
+    ///
+    /// The challenge domain is fixed to [`CommitmentSigChallenge`], so a signature made here for a commitment verifies
+    /// in every application that uses this API for the same commitment and message. Include your own context in
+    /// `message`, or build a per-application challenge with
+    /// [`CommitmentSignature::construct_domain_separated_challenge`] and use [`CommitmentSignature::sign`] /
+    /// [`CommitmentSignature::verify_challenge`].
     ///
     /// ```
     /// # use tari_crypto::{commitment::HomomorphicCommitmentFactory, keys::SecretKey};
@@ -219,8 +228,9 @@ where
 
     /// As [`CommitmentSignature::sign_message`], but with caller-supplied nonces.
     ///
-    /// WARNING: The nonces _must_ be sampled uniformly at random and never reused; reusing them for a different
-    /// message reveals the secrets.
+    /// WARNING: The nonces _must_ be sampled uniformly at random and never reused at all; two signatures with the same
+    /// nonces and different challenges reveal the secrets. Any deterministic nonce derivation must bind the secrets,
+    /// the commitment and the message.
     pub fn sign_message_with_nonces<C, B>(
         secret_a: &K,
         secret_x: &K,
@@ -237,6 +247,10 @@ where
         C: HomomorphicCommitmentFactory<P = P>,
         B: AsRef<[u8]>,
     {
+        // Otherwise a caller-chosen commitment varies the challenge under the same nonces, revealing the secrets
+        if &factory.commit(secret_x, secret_a) != public_commitment {
+            return Err(CommitmentSignatureError::InvalidOpening);
+        }
         let public_nonce = factory.commit(nonce_x, nonce_a);
         let challenge = Self::construct_domain_separated_challenge::<_, Blake2b<U64>, CommitmentSigChallenge>(
             &public_nonce,
@@ -269,6 +283,12 @@ where
     }
 
     /// Verifies a signature created by [`CommitmentSignature::sign_message`] for `public_commitment` and `message`.
+    ///
+    /// The challenge domain is fixed to [`CommitmentSigChallenge`], so a signature made here for a commitment verifies
+    /// in every application that uses this API for the same commitment and message. Include your own context in
+    /// `message`, or build a per-application challenge with
+    /// [`CommitmentSignature::construct_domain_separated_challenge`] and use [`CommitmentSignature::sign`] /
+    /// [`CommitmentSignature::verify_challenge`].
     #[must_use = "a `false` result means verification FAILED; it must be checked"]
     pub fn verify_message<'a, C, B>(
         &self,
@@ -291,6 +311,12 @@ where
     /// Returns the challenge scalar that [`CommitmentSignature::verify_message`] checks this signature against: the
     /// wide reduction of [`CommitmentSignature::construct_domain_separated_challenge`] with `Blake2b<U64>` and
     /// [`CommitmentSigChallenge`].
+    ///
+    /// The challenge domain is fixed to [`CommitmentSigChallenge`], so a signature made here for a commitment verifies
+    /// in every application that uses this API for the same commitment and message. Include your own context in
+    /// `message`, or build a per-application challenge with
+    /// [`CommitmentSignature::construct_domain_separated_challenge`] and use [`CommitmentSignature::sign`] /
+    /// [`CommitmentSignature::verify_challenge`].
     pub fn challenge_scalar<B>(
         &self,
         public_commitment: &HomomorphicCommitment<P>,
