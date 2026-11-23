@@ -212,7 +212,7 @@ impl<D: Digest> AsRef<[u8]> for DomainSeparatedHash<D> {
 /// Using a hash as an object ID, based on the fields of the object.
 ///
 /// ```
-/// # use sha2::Sha256;
+/// # use sha3::Sha3_256;
 /// # use tari_crypto::{hash_domain, hashing::{ DomainSeparatedHash, DomainSeparatedHasher, DomainSeparation}};
 /// # use tari_utilities::hex::{to_hex, Hex};
 /// # use blake2::Blake2b;
@@ -224,8 +224,8 @@ impl<D: Digest> AsRef<[u8]> for DomainSeparatedHash<D> {
 ///     strength: u8,
 /// }
 ///
-/// fn card_id(card: &Card) -> DomainSeparatedHash<Sha256> {
-///     DomainSeparatedHasher::<Sha256, CardHashDomain>::new_with_label("card_id")
+/// fn card_id(card: &Card) -> DomainSeparatedHash<Sha3_256> {
+///     DomainSeparatedHasher::<Sha3_256, CardHashDomain>::new_with_label("card_id")
 ///         .chain(card.name.as_bytes())
 ///         .chain(&[card.strength])
 ///         .finalize()
@@ -241,7 +241,7 @@ impl<D: Digest> AsRef<[u8]> for DomainSeparatedHash<D> {
 /// let id = card_id(&card);
 /// assert_eq!(
 ///     to_hex(id.as_ref()).unwrap(),
-///     "b6d1ccd5e6e7eacedd5f3382b8567878419163257f4910f1f9f6265281b836ec"
+///     "ba86ebbc5c38625d3c65c310d206650d865ae0e61c7345e9ee7fe21a7eac4c13"
 /// );
 /// ```
 ///
