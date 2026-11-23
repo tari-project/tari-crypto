@@ -41,6 +41,8 @@ use digest::{
     consts::{U32, U64},
 };
 use sha3::Sha3_256;
+use subtle::{Choice, ConstantTimeEq};
+use zeroize::{Zeroize, Zeroizing};
 
 use crate::{
     alloc::string::ToString,
@@ -173,6 +175,12 @@ impl<D: Digest> DomainSeparatedHash<D> {
     // the guarantees that the data represents a hash containing the domain separation label provided in `M`
     fn new(output: Output<D>) -> Self {
         Self { output }
+    }
+}
+
+impl<D: Digest> Zeroize for DomainSeparatedHash<D> {
+    fn zeroize(&mut self) {
+        self.output.as_mut_slice().zeroize();
     }
 }
 
@@ -501,6 +509,8 @@ impl DomainSeparation for MacDomain {
 ///     "796eb496b6672b1b7c4021e603d6b833121d35cd282a1555e3f9dd2eda5658b8"
 /// );
 /// ```
+///
+/// Always compare MACs with [`Mac::verify`] or [`ConstantTimeEq::ct_eq`]; never with `==` on slices.
 pub struct Mac<D: Digest> {
     hmac: DomainSeparatedHash<D>,
 }
@@ -520,6 +530,25 @@ where D: Digest + Update + LengthExtensionAttackResistant
             .chain(msg.as_ref())
             .finalize();
         Self { hmac }
+    }
+
+    /// Compares this MAC with `expected` in constant time. Returns `false` if the lengths differ.
+    #[must_use = "a `false` result means verification FAILED; it must be checked"]
+    pub fn verify(&self, expected: &[u8]) -> bool {
+        // subtle's slice comparison returns false for different lengths
+        self.as_ref().ct_eq(expected).into()
+    }
+}
+
+impl<D: Digest> ConstantTimeEq for Mac<D> {
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.as_ref().ct_eq(other.as_ref())
+    }
+}
+
+impl<D: Digest> PartialEq for Mac<D> {
+    fn eq(&self, other: &Self) -> bool {
+        self.ct_eq(other).into()
     }
 }
 
@@ -609,10 +638,12 @@ pub trait DerivedKeyDomain: DomainSeparation {
             return Err(HashingError::InputTooShort {});
         }
 
-        let hash = DomainSeparatedHasher::<D, Self>::new_with_label(label)
-            .chain(primary_key)
-            .chain(data)
-            .finalize();
+        let hash = Zeroizing::new(
+            DomainSeparatedHasher::<D, Self>::new_with_label(label)
+                .chain(primary_key)
+                .chain(data)
+                .finalize(),
+        );
         let derived_key = Self::DerivedKeyType::from_uniform_bytes(hash.as_ref())
             .map_err(|e| HashingError::ConversionFromBytes { reason: e.to_string() })?;
         Ok(derived_key)
@@ -1075,6 +1106,29 @@ mod test {
         ] {
             assert!(!contains_version_segment(domain), "{domain}");
         }
+    }
+
+    #[test]
+    fn mac_verify_is_exact() {
+        let mac = Mac::<Blake2b<U32>>::generate(b"key", "message", "test");
+        let mut expected = mac.as_ref().to_vec();
+        assert!(mac.verify(&expected));
+        assert!(mac == Mac::<Blake2b<U32>>::generate(b"key", "message", "test"));
+        assert!(!mac.verify(&expected[..31]));
+        expected[5] ^= 1;
+        assert!(!mac.verify(&expected));
+        assert!(mac != Mac::<Blake2b<U32>>::generate(b"key", "other message", "test"));
+    }
+
+    #[test]
+    fn domain_separated_hash_zeroizes() {
+        use zeroize::Zeroize;
+
+        hash_domain!(TestDomain, "com.example.test");
+        let mut hash = DomainSeparatedHasher::<Blake2b<U32>, TestDomain>::new().digest(b"abc");
+        assert!(hash.as_ref().iter().any(|b| *b != 0));
+        hash.zeroize();
+        assert!(hash.as_ref().iter().all(|b| *b == 0));
     }
 
     #[test]

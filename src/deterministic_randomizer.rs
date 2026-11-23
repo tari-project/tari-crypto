@@ -139,8 +139,13 @@ where
         Ok(())
     }
 
-    /// Choose a random bounded 64-bit unsigned integer with exclusive upper bound
+    /// Choose a random bounded 64-bit unsigned integer with exclusive upper bound.
+    ///
+    /// Returns `Err` when `upper == 0`.
     pub fn next_bounded_u64(&mut self, upper: u64) -> Result<u64, RandomizerError> {
+        if upper == 0 {
+            return Err(RandomizerError);
+        }
         // We can't get a `u128` directly from the generator
         let x = (u128::from(self.prng.next_u64()) << 64) | u128::from(self.prng.next_u64());
 
@@ -164,6 +169,11 @@ mod test {
 
         randomizer.shuffle(&mut data).unwrap();
         assert_eq!(&data, &[0u8, 2u8, 3u8, 1u8]);
+    }
+
+    #[test]
+    fn bounded_u64_rejects_zero() {
+        assert!(R::new([1u8; 32]).next_bounded_u64(0).is_err());
     }
 
     #[test]
