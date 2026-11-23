@@ -32,6 +32,10 @@ audit-as-crates-io = false
 version = "1.1.5"
 criteria = "safe-to-run"
 
+[[exemptions.alloca]]
+version = "0.4.0"
+criteria = "safe-to-run"
+
 [[exemptions.anstyle]]
 version = "1.0.14"
 criteria = "safe-to-run"
@@ -68,6 +72,10 @@ criteria = "safe-to-deploy"
 version = "1.12.2"
 criteria = "safe-to-deploy"
 
+[[exemptions.cc]]
+version = "1.11.3"
+criteria = "safe-to-run"
+
 [[exemptions.cfg-if]]
 version = "1.0.5"
 criteria = "safe-to-deploy"
@@ -92,8 +100,16 @@ criteria = "safe-to-deploy"
 version = "0.5.1"
 criteria = "safe-to-run"
 
+[[exemptions.criterion]]
+version = "0.8.2"
+criteria = "safe-to-run"
+
 [[exemptions.criterion-plot]]
 version = "0.5.0"
+criteria = "safe-to-run"
+
+[[exemptions.criterion-plot]]
+version = "0.8.2"
 criteria = "safe-to-run"
 
 [[exemptions.critical-section]]
@@ -140,6 +156,10 @@ criteria = "safe-to-deploy"
 version = "0.14.0"
 criteria = "safe-to-deploy"
 
+[[exemptions.find-msvc-tools]]
+version = "0.1.15"
+criteria = "safe-to-run"
+
 [[exemptions.generic-array]]
 version = "0.14.7"
 criteria = "safe-to-deploy"
@@ -180,6 +200,10 @@ criteria = "safe-to-run"
 version = "0.12.1"
 criteria = "safe-to-deploy"
 
+[[exemptions.itertools]]
+version = "0.13.0"
+criteria = "safe-to-run"
+
 [[exemptions.itoa]]
 version = "1.0.19"
 criteria = "safe-to-deploy"
@@ -203,6 +227,10 @@ criteria = "safe-to-deploy"
 [[exemptions.once_cell]]
 version = "1.20.3"
 criteria = "safe-to-deploy"
+
+[[exemptions.page_size]]
+version = "0.6.0"
+criteria = "safe-to-run"
 
 [[exemptions.portable-atomic]]
 version = "1.15.0"
@@ -263,6 +291,10 @@ criteria = "safe-to-deploy"
 [[exemptions.sha3]]
 version = "0.10.9"
 criteria = "safe-to-deploy"
+
+[[exemptions.shlex]]
+version = "2.0.1"
+criteria = "safe-to-run"
 
 [[exemptions.snafu]]
 version = "0.7.5"
@@ -330,6 +362,18 @@ criteria = "safe-to-deploy"
 
 [[exemptions.walkdir]]
 version = "2.5.1"
+criteria = "safe-to-run"
+
+[[exemptions.winapi]]
+version = "0.3.9"
+criteria = "safe-to-run"
+
+[[exemptions.winapi-i686-pc-windows-gnu]]
+version = "0.4.0"
+criteria = "safe-to-run"
+
+[[exemptions.winapi-x86_64-pc-windows-gnu]]
+version = "0.4.0"
 criteria = "safe-to-run"
 
 [[exemptions.windows-sys]]
