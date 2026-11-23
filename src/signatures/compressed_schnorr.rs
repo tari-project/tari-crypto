@@ -46,7 +46,7 @@ where
 {
     /// Create a new `CompressedSchnorrSignature` from a SchnorrSignature.
     pub fn new_from_schnorr(sig: SchnorrSignature<P, K, H>) -> Self {
-        let public_nonce = CompressedKey::new(sig.get_public_nonce().as_bytes());
+        let public_nonce = CompressedKey::new_from_pk(sig.public_nonce);
         CompressedSchnorrSignature {
             public_nonce,
             signature: sig.signature,

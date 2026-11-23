@@ -89,6 +89,8 @@ where P: PublicKey
 impl<P> ByteArray for CompressedCommitment<P>
 where P: PublicKey
 {
+    /// Checks only that the slice is exactly 32 bytes. The bytes are **not** verified to be a valid point until
+    /// [`CompressedCommitment::to_public_key`] is called; `Eq`, `Ord` and `Hash` operate on the raw bytes.
     fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, ByteArrayError> {
         let key = CompressedKey::from_canonical_bytes(bytes)?;
         Ok(Self(key))

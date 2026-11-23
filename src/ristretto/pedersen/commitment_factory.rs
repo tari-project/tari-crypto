@@ -5,13 +5,14 @@
 
 use curve25519_dalek::{
     ristretto::RistrettoPoint,
-    traits::{Identity, MultiscalarMul},
+    traits::{Identity, IsIdentity, MultiscalarMul},
 };
 
 #[cfg(feature = "precomputed_tables")]
 use crate::ristretto::pedersen::scalar_mul_with_pre_computation_tables;
 use crate::{
     commitment::{HomomorphicCommitment, HomomorphicCommitmentFactory},
+    errors::CommitmentError,
     ristretto::{
         RistrettoPublicKey,
         RistrettoSecretKey,
@@ -31,9 +32,18 @@ pub struct PedersenCommitmentFactory {
 impl PedersenCommitmentFactory {
     /// Create a new Ristretto Commitment factory with the given points as the bases. It's very cheap to create
     /// factories, since we only hold references to the static generator points.
+    ///
+    /// Returns an error if `G == H` or either is the identity. The generators must also be independent
+    /// nothing-up-my-sleeve points: a known discrete-log relation between them breaks binding, and cannot be detected
+    /// here.
     #[allow(non_snake_case)]
-    pub fn new(G: RistrettoPoint, H: RistrettoPoint) -> PedersenCommitmentFactory {
-        PedersenCommitmentFactory { G, H }
+    pub fn new(G: RistrettoPoint, H: RistrettoPoint) -> Result<PedersenCommitmentFactory, CommitmentError> {
+        if G == H || G.is_identity() || H.is_identity() {
+            return Err(CommitmentError::InvalidGenerators {
+                reason: "the generators must be distinct and not the identity".into(),
+            });
+        }
+        Ok(PedersenCommitmentFactory { G, H })
     }
 }
 
@@ -41,6 +51,7 @@ impl Default for PedersenCommitmentFactory {
     /// The default Ristretto Commitment factory uses the Base point for x25519 and its first Blake256 hash.
     fn default() -> Self {
         PedersenCommitmentFactory::new(RISTRETTO_PEDERSEN_G, *ristretto_pedersen_h())
+            .expect("default NUMS generators are valid")
     }
 }
 
@@ -102,7 +113,22 @@ mod test {
     fn check_default_base() {
         let base = PedersenCommitmentFactory::default();
         assert_eq!(base.G, RISTRETTO_PEDERSEN_G);
-        assert_eq!(base.H, *ristretto_pedersen_h())
+        assert_eq!(base.H, *ristretto_pedersen_h());
+        assert_eq!(
+            base,
+            PedersenCommitmentFactory::new(RISTRETTO_PEDERSEN_G, *ristretto_pedersen_h()).unwrap()
+        );
+    }
+
+    #[test]
+    fn degenerate_generators_are_rejected() {
+        let g = RISTRETTO_PEDERSEN_G;
+        let h = *ristretto_pedersen_h();
+        let identity = RistrettoPoint::identity();
+        assert!(PedersenCommitmentFactory::new(g, g).is_err());
+        assert!(PedersenCommitmentFactory::new(identity, h).is_err());
+        assert!(PedersenCommitmentFactory::new(g, identity).is_err());
+        assert!(PedersenCommitmentFactory::new(h, g).is_ok());
     }
 
     #[test]
