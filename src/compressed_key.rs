@@ -340,7 +340,7 @@ mod test {
             public_key: Default::default(),
         };
         for w in 0..=70 {
-            let _ = format!("{key:w$}{key:#w$}{key:w$X}{short:w$}{short:#w$}{short:w$X}");
+            assert!(!format!("{key:w$}{key:#w$}{key:w$X}{short:w$}{short:#w$}{short:w$X}").is_empty());
         }
         assert_eq!(format!("{short:10}"), "abab      ");
         assert_eq!(format!("{short:3}"), "aba");
