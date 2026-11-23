@@ -1,13 +1,28 @@
-# Runs daily at 12:10
 name: Security audit
 on:
+  pull_request:
+  push:
+    branches:
+      - main
+  # Runs daily at 12:10
   schedule:
     - cron:  '10 12 * * *'
+
+permissions:
+  contents: read
+
 jobs:
   security_audit:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # audit-check publishes a check run on push and opens issues on schedule
+      checks: write
+      issues: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rs/audit-check@v1
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: rustsec/audit-check@69366f33c96575abad1ee0dba8212993eecbe998 # v2.0.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}

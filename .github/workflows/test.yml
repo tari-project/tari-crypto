@@ -2,6 +2,9 @@ on: [push, pull_request]
 
 name: Test
 
+permissions:
+  contents: read
+
 jobs:
   test:
     name: cargo test
@@ -12,18 +15,20 @@ jobs:
           - stable
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
       - name: Install components
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # master
         with:
           toolchain: stable
       - name: test/debug
-        run: cargo +stable test
+        run: cargo +stable test --locked
       - name: test/release
-        run: cargo +stable test --release
+        run: cargo +stable test --locked --release
       - name: test/debug features
-        run: cargo +stable test --all-features
+        run: cargo +stable test --locked --all-features
       - name: test/release features
-        run: cargo +stable test --release --all-features
+        run: cargo +stable test --locked --release --all-features
       - name: Build documentation
-        run: cargo doc --all-features --no-deps
+        run: cargo doc --locked --all-features --no-deps

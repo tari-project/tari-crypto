@@ -5,25 +5,29 @@ on:
       - main
 env:
   RUSTUP_TOOLCHAIN: "stable"
+permissions:
+  contents: read
 jobs:
   coverage:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
       - name: Install dependencies
         run: |
           sudo apt update
           sudo apt install -y jq lcov
       - name: Download Rust
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # master
         with:
           toolchain: ${{ env.RUSTUP_TOOLCHAIN }}
           components: llvm-tools-preview
       - name: Install requirements for code coverage
         run: |
-          cargo install cargo-binutils
-          cargo install rustfilt
+          cargo install --locked cargo-binutils --version 0.4.0
+          cargo install --locked rustfilt --version 0.2.2
       - name: Run test coverage
         id: coverage
         env:
@@ -31,7 +35,7 @@ jobs:
         run: |
           /bin/bash -c ./test_coverage.sh
       - name: Coveralls upload
-        uses: coverallsapp/github-action@master
+        uses: coverallsapp/github-action@8d6379e14d29928660c4ba802d8e85393440b329 # v2.3.8
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path-to-lcov: ./cov_raw/tari_crypto.lcov
