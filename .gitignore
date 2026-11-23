@@ -25,7 +25,6 @@ cov_raw/
 coverage_report/
 default.profraw
 
-Cargo.lock
 *.log
 
 # Generated during build

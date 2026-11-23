@@ -119,6 +119,7 @@ mod test {
             RistrettoSecretKey,
             pedersen::{PedersenCommitment, commitment_factory::PedersenCommitmentFactory},
         },
+        signatures::{CommitmentSigChallenge, CommitmentSignatureError},
     };
 
     #[test]
@@ -256,5 +257,98 @@ mod test {
 
         // The signature should fail to verify
         assert!(!sig.verify_challenge(&commitment, &challenge, &factory));
+    }
+
+    #[test]
+    fn zero_challenge_is_rejected() {
+        let mut rng = rand::rng();
+        let factory = PedersenCommitmentFactory::default();
+        let a = RistrettoSecretKey::random(&mut rng);
+        let x = RistrettoSecretKey::random(&mut rng);
+        let commitment = factory.commit(&x, &a);
+        let zero = [0u8; RistrettoSecretKey::WIDE_REDUCTION_LEN];
+
+        let nonce_a = RistrettoSecretKey::random(&mut rng);
+        let nonce_x = RistrettoSecretKey::random(&mut rng);
+        assert!(RistrettoComSig::sign(&a, &x, &nonce_a, &nonce_x, &zero, &factory).is_err());
+
+        // With e = 0 the equation is commit(u, v) == R, which holds for R = commit(u, v) regardless of C
+        let u = RistrettoSecretKey::random(&mut rng);
+        let v = RistrettoSecretKey::random(&mut rng);
+        let sig = RistrettoComSig::new(factory.commit(&u, &v), u, v);
+        assert!(!sig.verify(&commitment, &RistrettoSecretKey::default(), &factory));
+        assert!(!sig.verify_challenge(&commitment, &zero, &factory));
+    }
+
+    #[test]
+    fn sign_and_verify_bound_message() {
+        let mut rng = rand::rng();
+        let factory = PedersenCommitmentFactory::default();
+        let a = RistrettoSecretKey::random(&mut rng);
+        let x = RistrettoSecretKey::random(&mut rng);
+        let commitment = factory.commit(&x, &a);
+        let message = b"Night Watch";
+
+        let sig = RistrettoComSig::sign_message(&a, &x, &commitment, message, &factory, &mut rng).unwrap();
+        assert!(sig.verify_message(&commitment, message, &factory));
+
+        // challenge_scalar is the challenge verify_message checks against
+        let e = sig.challenge_scalar(&commitment, message).unwrap();
+        assert!(sig.verify(&commitment, &e, &factory));
+
+        // Tampering with the message, the commitment or the nonce fails
+        assert!(!sig.verify_message(&commitment, b"Day Watch", &factory));
+        let other_commitment = factory.commit(&RistrettoSecretKey::random(&mut rng), &a);
+        assert!(!sig.verify_message(&other_commitment, message, &factory));
+        let (_, u, v) = sig.complete_signature_tuple();
+        let tampered = RistrettoComSig::new(factory.commit(u, v), u.clone(), v.clone());
+        assert!(!tampered.verify_message(&commitment, message, &factory));
+
+        // Explicit nonces produce the expected public nonce
+        let nonce_a = RistrettoSecretKey::random(&mut rng);
+        let nonce_x = RistrettoSecretKey::random(&mut rng);
+        let sig = RistrettoComSig::sign_message_with_nonces(&a, &x, &nonce_a, &nonce_x, &commitment, message, &factory)
+            .unwrap();
+        assert_eq!(sig.public_nonce(), &factory.commit(&nonce_x, &nonce_a));
+        assert!(sig.verify_message(&commitment, message, &factory));
+
+        // A commitment the secrets do not open is rejected
+        assert_eq!(
+            RistrettoComSig::sign_message_with_nonces(&a, &x, &nonce_a, &nonce_x, &other_commitment, message, &factory)
+                .unwrap_err(),
+            CommitmentSignatureError::InvalidOpening
+        );
+        assert!(RistrettoComSig::sign_message(&a, &x, &other_commitment, message, &factory, &mut rng).is_err());
+    }
+
+    /// Signatures over a shared challenge add up to a signature for the sum of the commitments
+    #[test]
+    fn bound_challenge_addition() {
+        let mut rng = rand::rng();
+        let factory = PedersenCommitmentFactory::default();
+        let (a1, x1, a2, x2) = (
+            RistrettoSecretKey::random(&mut rng),
+            RistrettoSecretKey::random(&mut rng),
+            RistrettoSecretKey::random(&mut rng),
+            RistrettoSecretKey::random(&mut rng),
+        );
+        let (na1, nx1, na2, nx2) = (
+            RistrettoSecretKey::random(&mut rng),
+            RistrettoSecretKey::random(&mut rng),
+            RistrettoSecretKey::random(&mut rng),
+            RistrettoSecretKey::random(&mut rng),
+        );
+        let combined_commitment = &factory.commit(&x1, &a1) + &factory.commit(&x2, &a2);
+        let combined_nonce = &factory.commit(&nx1, &na1) + &factory.commit(&nx2, &na2);
+        let challenge = RistrettoComSig::construct_domain_separated_challenge::<_, Blake2b<U64>, CommitmentSigChallenge>(
+            &combined_nonce,
+            &combined_commitment,
+            b"Jingo",
+        );
+
+        let sig1 = RistrettoComSig::sign(&a1, &x1, &na1, &nx1, challenge.as_ref(), &factory).unwrap();
+        let sig2 = RistrettoComSig::sign(&a2, &x2, &na2, &nx2, challenge.as_ref(), &factory).unwrap();
+        let sum = &sig1 + &sig2;
+        assert!(sum.verify_message(&combined_commitment, b"Jingo", &factory));
     }
 }

@@ -61,6 +61,12 @@ pub enum CommitmentError {
     /// The blinding factor(s) and value do not open the commitment
     #[snafu(display("The blinding factor(s) and value do not open the commitment"))]
     InvalidOpening {},
+    /// The commitment generators are not usable
+    #[snafu(display("Invalid commitment generators: `{reason}'"))]
+    InvalidGenerators {
+        /// The reason for the error
+        reason: String,
+    },
 }
 
 /// Errors encountered when hashing

@@ -20,6 +20,7 @@ use bulletproofs_plus::{
 };
 use curve25519_dalek::{ristretto::RistrettoPoint, scalar::Scalar};
 use log::*;
+use zeroize::Zeroizing;
 
 use crate::{
     alloc::string::ToString,
@@ -70,13 +71,20 @@ impl TryFrom<&RistrettoExtendedMask> for Vec<Scalar> {
     }
 }
 
+/// The mask secrets as scalars, zeroized on drop
+fn mask_scalars(extended_mask: &RistrettoExtendedMask) -> Zeroizing<Vec<Scalar>> {
+    Zeroizing::new(extended_mask.secrets().iter().map(|k| k.0).collect())
+}
+
 impl TryFrom<&BulletproofsExtendedMask> for RistrettoExtendedMask {
     type Error = RangeProofError;
 
     fn try_from(extended_mask: &BulletproofsExtendedMask) -> Result<Self, Self::Error> {
-        let secrets = extended_mask
-            .blindings()
-            .map_err(|e| RangeProofError::RPExtensionDegree { reason: e.to_string() })?;
+        let secrets = Zeroizing::new(
+            extended_mask
+                .blindings()
+                .map_err(|e| RangeProofError::RPExtensionDegree { reason: e.to_string() })?,
+        );
         RistrettoExtendedMask::assign(
             CommitmentExtensionDegree::try_from_size(secrets.len())
                 .map_err(|e| RangeProofError::RPExtensionDegree { reason: e.to_string() })?,
@@ -91,6 +99,7 @@ impl TryFrom<&RistrettoExtendedMask> for BulletproofsExtendedMask {
     fn try_from(extended_mask: &RistrettoExtendedMask) -> Result<Self, Self::Error> {
         let extension_degree = BulletproofsExtensionDegree::try_from(extended_mask.secrets().len())
             .map_err(|e| RangeProofError::RPExtensionDegree { reason: e.to_string() })?;
+        // Upstream takes the Vec by value, so no copy is left behind here to zeroize
         BulletproofsExtendedMask::assign(extension_degree, Vec::try_from(extended_mask)?)
             .map_err(|e| RangeProofError::RPExtensionDegree { reason: e.to_string() })
     }
@@ -255,7 +264,7 @@ impl RangeProofService for BulletproofsPlusService {
                     Ok(_) => true,
                     Err(e) => {
                         if self.generators.extension_degree() != rp.extension_degree() {
-                            error!(
+                            debug!(
                                 target: LOG_TARGET,
                                 "Generators' extension degree ({:?}) and proof's extension degree ({:?}) do not \
                                  match; consider using a BulletproofsPlusService with a matching extension degree",
@@ -263,13 +272,13 @@ impl RangeProofService for BulletproofsPlusService {
                                 rp.extension_degree()
                             );
                         }
-                        error!(target: LOG_TARGET, "Internal range proof error ({e})");
+                        debug!(target: LOG_TARGET, "Internal range proof error ({e})");
                         false
                     },
                 }
             },
             Err(e) => {
-                error!(
+                debug!(
                     target: LOG_TARGET,
                     "Range proof could not be deserialized ({e})",
                 );
@@ -337,9 +346,10 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
             commitments.push(
                 self.generators
                     .pc_gens()
-                    .commit(&Scalar::from(witness.value), &Vec::try_from(&witness.mask)?)
+                    .commit(&Scalar::from(witness.value), &mask_scalars(&witness.mask))
                     .map_err(|e| RangeProofError::ProofConstructionError { reason: e.to_string() })?,
             );
+            // Upstream takes the Vec by value, so no copy is left behind here to zeroize
             openings.push(CommitmentOpening::new(witness.value, Vec::try_from(&witness.mask)?));
             min_value_promises.push(witness.minimum_value_promise);
         }
@@ -470,8 +480,10 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
                             })
                         } else if let Some(mask) = &recovered_mask[0] {
                             Ok(RistrettoSecretKey(
-                                mask.blindings()
-                                    .map_err(|e| RangeProofError::InvalidRewind { reason: e.to_string() })?[0],
+                                Zeroizing::new(
+                                    mask.blindings()
+                                        .map_err(|e| RangeProofError::InvalidRewind { reason: e.to_string() })?,
+                                )[0],
                             ))
                         } else {
                             Err(RangeProofError::InvalidRewind {
@@ -555,7 +567,7 @@ impl ExtendedRangeProofService for BulletproofsPlusService {
         match self
             .generators
             .pc_gens()
-            .commit(&Scalar::from(value), &Vec::try_from(extended_mask)?)
+            .commit(&Scalar::from(value), &mask_scalars(extended_mask))
             .map_err(|e| RangeProofError::RPExtensionDegree { reason: e.to_string() })
         {
             Ok(val) if val == commitment.0.point() => Ok(()),

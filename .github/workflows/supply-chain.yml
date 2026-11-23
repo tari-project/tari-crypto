@@ -1,0 +1,34 @@
+name: Supply chain
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  # Weekly, Mondays at 06:30
+  schedule:
+    - cron: '30 6 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  supply-chain:
+    name: supply-chain
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Toolchain
+        uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # master
+        with:
+          toolchain: stable
+      - name: Install cargo-deny and cargo-vet
+        run: |
+          cargo install --locked cargo-deny --version 0.20.2
+          cargo install --locked cargo-vet --version 0.10.0
+      - name: cargo deny
+        run: cargo deny check
+      - name: cargo vet
+        run: cargo vet --locked

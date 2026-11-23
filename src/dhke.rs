@@ -8,14 +8,29 @@
 //! is as a byte array; it's not possible to directly extract the underlying public key type, and you probably shouldn't
 //! clone the byte array without a very good reason. If you need the underlying public key itself, you probably should
 //! be using something else.
+//!
+//! The identity point is rejected as an input and as a result: it is the shared secret for every secret key, so an
+//! attacker who supplies it as their public key learns the "secret". The shared secret is a group element, not key
+//! material; pass it through a KDF such as [`DerivedKeyDomain`](crate::hashing::DerivedKeyDomain) before use.
 
 use core::ops::Mul;
 
+use snafu::prelude::*;
 use subtle::{Choice, ConstantTimeEq};
 use tari_utilities::ByteArrayError;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::keys::PublicKey;
+
+/// An error when computing or decoding a Diffie-Hellman shared secret
+#[derive(Debug, Snafu, PartialEq, Eq)]
+#[allow(missing_docs)]
+pub enum DiffieHellmanError {
+    #[snafu(display("The public key or shared secret is the identity point"))]
+    IdentityPoint,
+    #[snafu(display("Invalid shared secret encoding: {source}"))]
+    ByteArray { source: ByteArrayError },
+}
 
 /// The result of a Diffie-Hellman key exchange
 #[derive(Zeroize, ZeroizeOnDrop)]
@@ -27,15 +42,27 @@ where
     P: PublicKey,
     for<'a> &'a <P as PublicKey>::K: Mul<&'a P, Output = P>,
 {
-    /// Perform a Diffie-Hellman key exchange
-    pub fn new(sk: &P::K, pk: &P) -> Self {
-        Self(sk * pk)
+    /// Perform a Diffie-Hellman key exchange. Returns an error if `pk` or the shared secret (for example with a zero
+    /// secret key) is the identity point.
+    pub fn new(sk: &P::K, pk: &P) -> Result<Self, DiffieHellmanError> {
+        if pk == &P::default() {
+            return Err(DiffieHellmanError::IdentityPoint);
+        }
+        let shared = Self(sk * pk);
+        if shared.0 == P::default() {
+            return Err(DiffieHellmanError::IdentityPoint);
+        }
+        Ok(shared)
     }
 
-    /// Constructs a new Diffie-Hellman key exchange from an already created Diffie-Hellman key exchange
-    pub fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, ByteArrayError> {
-        let pk = P::from_canonical_bytes(bytes)?;
-        Ok(Self(pk))
+    /// Constructs a new Diffie-Hellman key exchange from an already created Diffie-Hellman key exchange. The identity
+    /// point is rejected.
+    pub fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, DiffieHellmanError> {
+        let shared = Self(P::from_canonical_bytes(bytes).context(ByteArraySnafu)?);
+        if shared.0 == P::default() {
+            return Err(DiffieHellmanError::IdentityPoint);
+        }
+        Ok(shared)
     }
 
     /// Get the shared secret as a byte array
@@ -66,7 +93,7 @@ where P: PublicKey
 mod test {
     use rand::rng;
 
-    use super::DiffieHellmanSharedSecret;
+    use super::{DiffieHellmanError, DiffieHellmanSharedSecret};
     use crate::{
         keys::{PublicKey, SecretKey},
         ristretto::{RistrettoPublicKey, RistrettoSecretKey},
@@ -84,13 +111,36 @@ mod test {
         let pk2 = RistrettoPublicKey::from_secret_key(&sk2);
 
         // Assert that both sides of a key exchange match
-        let left = DiffieHellmanSharedSecret::<RistrettoPublicKey>::new(&sk1, &pk2);
-        let right = DiffieHellmanSharedSecret::<RistrettoPublicKey>::new(&sk2, &pk1);
+        let left = DiffieHellmanSharedSecret::<RistrettoPublicKey>::new(&sk1, &pk2).unwrap();
+        let right = DiffieHellmanSharedSecret::<RistrettoPublicKey>::new(&sk2, &pk1).unwrap();
 
         assert_eq!(left.as_bytes(), right.as_bytes());
 
         let left_bytes = left.as_bytes();
         let new_left = DiffieHellmanSharedSecret::<RistrettoPublicKey>::from_canonical_bytes(left_bytes).unwrap();
         assert_eq!(left.as_bytes(), new_left.as_bytes());
+    }
+
+    #[test]
+    fn identity_is_rejected() {
+        let mut rng = rng();
+        let (sk, pk) = RistrettoPublicKey::random_keypair(&mut rng);
+
+        assert_eq!(
+            DiffieHellmanSharedSecret::<RistrettoPublicKey>::new(&sk, &RistrettoPublicKey::default()).err(),
+            Some(DiffieHellmanError::IdentityPoint)
+        );
+        assert_eq!(
+            DiffieHellmanSharedSecret::<RistrettoPublicKey>::new(&RistrettoSecretKey::default(), &pk).err(),
+            Some(DiffieHellmanError::IdentityPoint)
+        );
+        assert_eq!(
+            DiffieHellmanSharedSecret::<RistrettoPublicKey>::from_canonical_bytes(&[0u8; 32]).err(),
+            Some(DiffieHellmanError::IdentityPoint)
+        );
+        assert!(matches!(
+            DiffieHellmanSharedSecret::<RistrettoPublicKey>::from_canonical_bytes(&[0u8; 31]),
+            Err(DiffieHellmanError::ByteArray { .. })
+        ));
     }
 }

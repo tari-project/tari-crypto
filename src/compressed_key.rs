@@ -85,12 +85,16 @@ impl<T: PublicKey> CompressedKey<T> {
 }
 
 impl<T> CompressedKey<T> {
-    /// Create a new compressed key
-    pub fn new(key: &[u8]) -> CompressedKey<T> {
-        Self {
+    /// Create a new compressed key from exactly 32 bytes. The bytes are not checked to be a valid point; see
+    /// [`ByteArray::from_canonical_bytes`] for this type.
+    pub fn new(key: &[u8]) -> Result<CompressedKey<T>, ByteArrayError> {
+        if key.len() != 32 {
+            return Err(ByteArrayError::IncorrectLength {});
+        }
+        Ok(Self {
             key: key.to_vec(),
             public_key: OnceLock::new(),
-        }
+        })
     }
 
     // Formats a 64 char hex string to a given width.
@@ -217,16 +221,12 @@ impl<T> Ord for CompressedKey<T> {
 }
 
 impl<T> ByteArray for CompressedKey<T> {
-    /// Create a new `CompressedKey` from the given byte array. This only checks that the byte array is exactly 32
-    /// bytes; it does not check that the bytes represent a valid point. Use
-    /// [`CompressedKey::from_canonical_bytes_validated`] for that.
+    /// Create a new `CompressedKey` from the given byte array. Checks only that the slice is exactly 32 bytes. The
+    /// bytes are **not** verified to be a valid point until [`CompressedKey::to_public_key`] is called; `Eq`, `Ord`
+    /// and `Hash` operate on the raw bytes. Use [`CompressedKey::from_canonical_bytes_validated`] to validate eagerly.
     fn from_canonical_bytes(bytes: &[u8]) -> Result<CompressedKey<T>, ByteArrayError>
     where Self: Sized {
-        // Check the length here, because The Ristretto constructor panics rather than returning an error
-        if bytes.len() != 32 {
-            return Err(ByteArrayError::IncorrectLength {});
-        }
-        Ok(Self::new(bytes))
+        Self::new(bytes)
     }
 
     /// Return the little-endian byte array representation of the compressed public key
@@ -236,9 +236,10 @@ impl<T> ByteArray for CompressedKey<T> {
 }
 
 impl<T> Zeroize for CompressedKey<T> {
-    /// Zeroizes both the point and (if it exists) the compressed point
+    /// Zeroizes the compressed bytes and drops the cached decompressed point, if any
     fn zeroize(&mut self) {
         self.key.zeroize();
+        self.public_key.take();
     }
 }
 
@@ -308,32 +309,72 @@ mod test {
     }
 
     #[test]
+    fn new_requires_32_bytes() {
+        assert!(CompressedKey::<RistrettoPublicKey>::new(&[0u8; 31]).is_err());
+        assert!(CompressedKey::<RistrettoPublicKey>::new(&[0u8; 33]).is_err());
+        assert!(CompressedKey::<RistrettoPublicKey>::new(&[]).is_err());
+        assert!(CompressedKey::<RistrettoPublicKey>::new(&[0u8; 32]).is_ok());
+    }
+
+    /// Display output for 32-byte keys is pinned to v0.24.1
+    #[test]
     fn fmt_32_byte_key() {
         let bytes: Vec<u8> = (0u8..32).collect();
-        let key = CompressedKey::<RistrettoPublicKey>::new(&bytes);
+        let key = CompressedKey::<RistrettoPublicKey>::new(&bytes).unwrap();
         let hex = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
         assert_eq!(format!("{key}"), hex);
         assert_eq!(format!("{key:x}"), hex);
         assert_eq!(format!("{key:?}"), hex);
         assert_eq!(format!("{key:X}"), hex.to_uppercase());
+        assert_eq!(format!("{key:#}"), format!("0x{hex}"));
         assert_eq!(format!("{key:#x}"), format!("0x{hex}"));
+        assert_eq!(format!("{key:0}"), hex);
+        assert_eq!(format!("{key:1}"), "0");
         assert_eq!(format!("{key:5}"), "00010");
+        assert_eq!(format!("{key:6}"), "000102");
+        assert_eq!(format!("{key:#6x}"), "0x0001");
+        assert_eq!(format!("{key:7}"), "00...1f");
+        assert_eq!(format!("{key:#7}"), "0x...1f");
+        assert_eq!(format!("{key:8X}"), "00...E1F");
+        assert_eq!(format!("{key:#10x}"), "0x0...1e1f");
         assert_eq!(format!("{key:26}"), "00010203040...1a1b1c1d1e1f");
         assert_eq!(format!("{key:27x}"), "000102030405...1a1b1c1d1e1f");
-        assert_eq!(format!("{key:#10x}"), "0x0...1e1f");
+        assert_eq!(format!("{key:40}"), "000102030405060708...61718191a1b1c1d1e1f");
+        assert_eq!(format!("{key:#40}"), "0x0001020304050607...61718191a1b1c1d1e1f");
+        assert_eq!(
+            format!("{key:63}"),
+            "000102030405060708090a0b0c0d0e...1112131415161718191a1b1c1d1e1f"
+        );
+        assert_eq!(
+            format!("{key:#63}"),
+            "0x000102030405060708090a0b0c0d...1112131415161718191a1b1c1d1e1f"
+        );
+        assert_eq!(format!("{key:64}"), hex);
+        assert_eq!(format!("{key:66}"), format!("{hex}  "));
         assert_eq!(format!("{key:70}"), format!("{hex}      "));
+        assert_eq!(format!("{key:#70}"), format!("0x{hex}    "));
     }
 
     #[test]
     fn fmt_does_not_panic_for_any_key_length() {
+        use zeroize::Zeroize;
+
+        // `new` only accepts 32 bytes, so build other lengths directly
+        let raw = |bytes: Vec<u8>| CompressedKey::<RistrettoPublicKey> {
+            key: bytes,
+            public_key: Default::default(),
+        };
+        let mut zeroized = CompressedKey::<RistrettoPublicKey>::new(&[0xab; 32]).unwrap();
+        zeroized.zeroize();
         let keys = [
-            CompressedKey::<RistrettoPublicKey>::new(&[]),
-            CompressedKey::<RistrettoPublicKey>::new(&[0xab]),
-            CompressedKey::<RistrettoPublicKey>::new(&[0xab; 4]),
-            CompressedKey::<RistrettoPublicKey>::new(&vec![0xab; 256 * 1024 + 1]),
+            raw(vec![]),
+            raw(vec![0xab]),
+            raw(vec![0xab; 4]),
+            raw(vec![0xab; 256 * 1024 + 1]),
+            zeroized,
         ];
         for key in &keys {
-            for w in 1..80 {
+            for w in 0..80 {
                 drop(format!("{key:w$}"));
                 drop(format!("{key:w$x}"));
                 drop(format!("{key:#w$X}"));
@@ -345,5 +386,17 @@ mod test {
             drop(format!("{key}"));
             drop(format!("{key:?}"));
         }
+    }
+
+    #[test]
+    fn zeroize_drops_the_cached_point() {
+        use zeroize::Zeroize;
+
+        let (_, mut key) = CompressedKey::<RistrettoPublicKey>::random_keypair(&mut rand::rng());
+        let cached = key.to_public_key().unwrap();
+        assert_eq!(key.public_key.get(), Some(&cached));
+        key.zeroize();
+        assert!(key.public_key.get().is_none());
+        assert!(key.to_public_key().is_err());
     }
 }

@@ -2,6 +2,43 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## Unreleased
+
+### Breaking
+
+* `DomainSeparatedHasher` no longer implements `digest::FixedOutput`. Migration: replace `finalize_fixed` with `Digest::finalize` or the inherent `finalize()`, and `FixedOutput::finalize_into` with `Digest::finalize_into`; outputs are identical. The `Digest` impl requires the inner digest to be `Digest + FixedOutputReset` rather than just `FixedOutput`, so generic code bounded on `D: FixedOutput` must bound on `D: Digest + FixedOutputReset` instead (RustCrypto digests such as `Blake2b` satisfy it).
+* `DomainSeparatedHasher` no longer implements `digest::Update`, whose `update` fed raw bytes to the inner digest with no length prefix. Migration: there is no output-compatible replacement on the hasher. `Digest::update` and the inherent `update` length-prefix the data, so switching to them changes every resulting hash, which is a consensus change wherever those hashes are stored or verified. Callers that must reproduce the old outputs need to add the domain tag to the inner digest with `DomainSeparation::add_domain_separation_tag` and feed it the raw bytes themselves.
+* `DomainSeparatedHasher`'s `Default` impl now requires `D: Digest, M: DomainSeparation` instead of `D: Default, M: Default`, and is equal to `new()`: its output is now domain tagged. Likewise a hasher reused after `finalize_into_reset` now starts from the domain tag instead of an empty digest. Migration: hashes previously produced via `Default` or after `finalize_into_reset` were untagged; re-derive any stored ones, and use `new()` explicitly where you construct hashers.
+* The inherent `DomainSeparatedHasher::finalize_into_reset` now requires `D: Digest + FixedOutputReset`. Migration: none for digests from the RustCrypto crates, which all implement `Digest`.
+* `SchnorrSignature` `Add` impls now require the same domain type `H` on both operands and return `SchnorrSignature<P, K, H>`. Migration: add signatures of the same domain; annotate the result with that domain instead of the default one.
+* `SchnorrSignature::{verify_challenge_scalar, verify_raw_uniform, verify_raw_canonical, verify}` return `false`, and `SchnorrSignature::{sign_raw_uniform, sign_raw_canonical}` return `InvalidChallenge`, for a zero challenge. Migration: none for hashed challenges (probability 2^-252); callers passing raw challenges must not pass zero.
+* `CommitmentSignature::{sign, verify, verify_challenge}` reject a zero challenge (`InvalidChallenge` / `false`). Migration: as above.
+* `DiffieHellmanSharedSecret::new` returns `Result<_, DiffieHellmanError>` and rejects an identity public key or shared secret. Migration: handle the error, e.g. treat it as an invalid peer key.
+* `DiffieHellmanSharedSecret::from_canonical_bytes` returns `DiffieHellmanError` instead of `ByteArrayError` and rejects the identity encoding. Migration: match `DiffieHellmanError::ByteArray { source }` for the previous error.
+* `CompressedKey::new` returns `Result<_, ByteArrayError>` and requires exactly 32 bytes. Migration: handle the error, or use `CompressedKey::new_from_pk` when you hold a public key.
+* `PedersenCommitmentFactory::new` returns `Result<_, CommitmentError>` and rejects `G == H` or identity generators. Migration: handle the error; `PedersenCommitmentFactory::default()` is unchanged.
+* `CommitmentSignatureError` has a new `InvalidOpening` variant, returned by `CommitmentSignature::sign_message{,_with_nonces}` when the secrets do not open the given commitment. Migration: add a match arm where `CommitmentSignatureError` is matched exhaustively.
+* `CommitmentError` has a new `InvalidGenerators { reason }` variant. Migration: add a match arm where `CommitmentError` is matched exhaustively.
+* `DeterministicRandomizer::next_bounded_u64(0)` returns `Err` instead of panicking. Migration: none unless you relied on the panic.
+
+### Fixed / Added
+
+* The inherent `DomainSeparatedHasher::finalize_into_reset` re-adds the domain tag after reset (the `Digest` trait's `finalize_into_reset` is fixed the same way but cannot be called, as the hasher does not implement `FixedOutputReset`), and `Default` is implemented manually as `new()`, so both are domain tagged (see Breaking). Outputs of `new`, `new_with_label`, the inherent `update`/`chain`/`finalize`/`digest` and the `Digest` impl are unchanged.
+* Debug builds assert that a hash domain neither contains a `.v<digits>.` segment nor ends with `.v<digits>`, the patterns that make the tag encoding ambiguous. Labels are not restricted.
+* `CommitmentSignature::{sign_message, sign_message_with_nonces, verify_message, challenge_scalar, construct_domain_separated_challenge}` bind the public nonce, commitment and message under the new `com.tari.commitment_signature` domain (`CommitmentSigChallenge`). `sign_message{,_with_nonces}` check that the secrets open the commitment. The domain is fixed, so callers include their own context in the message or build a per-application challenge.
+* Batch Schnorr verification rejects a zero challenge, matching single verification.
+* `Mac` implements constant-time `ConstantTimeEq` and `PartialEq`, and gains `Mac::verify(&[u8])`.
+* `DomainSeparatedHash` implements `Zeroize`. Zeroized on drop: the output hash that `DerivedKeyDomain::generate` reduces into the key (not the digest's internal state), the byte buffer `RistrettoSecretKey::from_canonical_bytes` owns (best effort: curve25519-dalek's `Scalar::from_canonical_bytes` takes the array by value, so that argument copy is not wiped), and the scalar vectors in the Bulletproofs+ mask conversions that are not handed to upstream by value.
+* `CompressedKey::zeroize` also drops the cached decompressed point.
+* `CompressedKey` formatting can no longer panic; docs on `CompressedKey` and `CompressedCommitment` state that point validation is lazy.
+* `RangeProofService::verify` logs failures from untrusted proofs at debug level instead of error.
+* Documented the RNG requirement of `CommitmentAndPublicKeySignature::verify` and `verify_batch_with_rng`, and the empty-batch behaviour of batch verification.
+* `scripts/file_license_check.sh` uses `mktemp` instead of a fixed `/tmp` path.
+* CI hardening: read-only workflow tokens, `persist-credentials: false`, SHA-pinned actions, version-pinned tool installs, `rustsec/audit-check` on PRs, and a new `supply-chain` job running `cargo deny check` and `cargo vet --locked`.
+* `deny.toml` migrated to the cargo-deny 0.20 schema; cargo-vet exemptions regenerated, and `tari_crypto` itself is treated as first-party so release version bumps need no exemption.
+* `Cargo.lock` is committed and CI builds use `--locked`.
+* Dependabot updates GitHub Actions and Cargo dependencies weekly.
+
 ### [0.24.1](https://github.com/tari-project/tari-crypto/compare/v0.24.0...v0.24.1) (2026-10-21)
 
 ### Features

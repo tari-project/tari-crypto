@@ -34,7 +34,6 @@ use core::{marker::PhantomData, ops::Deref};
 use blake2::{Blake2b, Blake2bVar};
 use digest::{
     Digest,
-    FixedOutput,
     FixedOutputReset,
     Output,
     OutputSizeUser,
@@ -42,6 +41,8 @@ use digest::{
     consts::{U32, U64},
 };
 use sha3::Sha3_256;
+use subtle::{Choice, ConstantTimeEq};
+use zeroize::{Zeroize, Zeroizing};
 
 use crate::{
     alloc::string::ToString,
@@ -58,6 +59,16 @@ use crate::{
 /// For example, not all digest functions are suitable for use with the MAC generator provided in this crate. We can
 /// indicate this at _compile time_ by adding a trait bound that prevents a client using these functions. See
 /// [`MacDomain`] for details.
+///
+/// # Tag encoding
+///
+/// [`DomainSeparation::add_domain_separation_tag`] feeds the digest with
+/// `len_le_u64 || domain || ".v" || version || "." || label` (the final `"." || label` is omitted for an empty
+/// label), where `len` is the byte length of everything after it. Labels may contain `.`.
+///
+/// Domain strings must neither contain a `.v<digits>.` segment nor end with `.v<digits>`: domain `a.v1.b` with label
+/// `c` produces the same tag as domain `a` with label `b.c`, and domain `a.v1` at version 2 with label `x` the same as
+/// domain `a` at version 1 with label `v2.x`. Debug builds assert this when a [`DomainSeparatedHasher`] is created.
 pub trait DomainSeparation {
     /// Returns the version number for the metadata tag
     fn version() -> u8;
@@ -78,6 +89,9 @@ pub trait DomainSeparation {
     /// Adds the domain separation tag to the given digest. The domain separation tag is defined as
     /// `{domain}.v{version}.{label}`, where the version and tag are typically hard-coded into the implementing
     /// type, and the label is provided per specific application of the domain.
+    ///
+    /// The exact byte layout, and the rule that domains must not contain a `.v<digits>.` segment or end with
+    /// `.v<digits>`, are described on [`DomainSeparation`].
     fn add_domain_separation_tag<S: AsRef<[u8]>, D: Digest>(digest: &mut D, label: S) {
         let label = if label.as_ref().is_empty() { &[] } else { label.as_ref() };
         let domain = Self::domain();
@@ -123,6 +137,18 @@ fn byte_to_decimal_ascii_bytes(mut byte: u8) -> (usize, [u8; 3]) {
     (pos, bytes)
 }
 
+/// Returns true if `s` contains a `.v<one or more ASCII digits>.` segment or ends with `.v<one or more ASCII digits>`.
+fn contains_version_segment(s: &str) -> bool {
+    let b = s.as_bytes();
+    (0..b.len()).any(|i| {
+        if !b[i..].starts_with(b".v") {
+            return false;
+        }
+        let digits = b[i + 2..].iter().take_while(|c| c.is_ascii_digit()).count();
+        digits > 0 && matches!(b.get(i + 2 + digits), None | Some(&b'.'))
+    })
+}
+
 //--------------------------------------     Domain Separated Hash   ---------------------------------------------------
 
 /// A hash value, guaranteed, as far as possible, to have been created using a hash function that has been randomly and
@@ -134,8 +160,8 @@ fn byte_to_decimal_ascii_bytes(mut byte: u8) -> (usize, [u8; 3]) {
 ///
 /// `DomainSeparatedHash` implements `AsRef<u8>`, so it is easy to use this type as a slice.
 ///
-/// The domain separation information is retained with the hash, and can be queried using
-/// [`DomainSeparatedHash::domain_separation_tag("<tag>")`].
+/// The domain separation tag used for the hash can be queried using
+/// [`DomainSeparation::domain_separation_tag`].
 ///
 /// To preserve the guarantee that the hash is properly domain separated, you cannot create an instance of this struct
 /// directly. It is the result of using [`DomainSeparatedHasher`].
@@ -150,6 +176,12 @@ impl<D: Digest> DomainSeparatedHash<D> {
     // the guarantees that the data represents a hash containing the domain separation label provided in `M`
     fn new(output: Output<D>) -> Self {
         Self { output }
+    }
+}
+
+impl<D: Digest> Zeroize for DomainSeparatedHash<D> {
+    fn zeroize(&mut self) {
+        self.output.as_mut_slice().zeroize();
     }
 }
 
@@ -247,7 +279,10 @@ impl<D: Digest> AsRef<[u8]> for DomainSeparatedHash<D> {
 ///     "c84b95fd7134ef3e717fe9aece1de46fa88e13ee9f1eaa2e473263d27137bc87"
 /// );
 /// ```
-#[derive(Debug, Clone, Default)]
+///
+/// `Default` is the same as [`DomainSeparatedHasher::new`], and `finalize_into_reset` leaves the hasher re-tagged with
+/// its domain and label, so every construction and reset path produces domain-separated output.
+#[derive(Debug, Clone)]
 pub struct DomainSeparatedHasher<D, M> {
     inner: D,
     label: &'static str,
@@ -262,6 +297,12 @@ impl<D: Digest, M: DomainSeparation> DomainSeparatedHasher<D, M> {
 
     /// Create a new instance of [`DomainSeparatedHasher`] for the given label.
     pub fn new_with_label(label: &'static str) -> Self {
+        debug_assert!(
+            !contains_version_segment(M::domain()),
+            "hash domain {:?} contains a `.v<digits>.` or trailing `.v<digits>` version segment, which makes the tag \
+             encoding ambiguous",
+            M::domain()
+        );
         let mut inner = D::new();
         M::add_domain_separation_tag(&mut inner, label);
         Self {
@@ -299,6 +340,12 @@ impl<D: Digest, M: DomainSeparation> DomainSeparatedHasher<D, M> {
     }
 }
 
+impl<D: Digest, M: DomainSeparation> Default for DomainSeparatedHasher<D, M> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<D: Digest, M: DomainSeparation> PartialEq for DomainSeparatedHasher<D, M> {
     fn eq(&self, other: &Self) -> bool {
         self.label == other.label
@@ -331,26 +378,13 @@ impl<TInnerDigest: OutputSizeUser, TDomain: DomainSeparation> OutputSizeUser
     type OutputSize = TInnerDigest::OutputSize;
 }
 
-impl<TInnerDigest: Update, TDomain: DomainSeparation> Update for DomainSeparatedHasher<TInnerDigest, TDomain> {
-    fn update(&mut self, data: &[u8]) {
-        self.inner.update(data);
-    }
-}
-
 impl<const I: usize, D: Digest> AsFixedBytes<I> for DomainSeparatedHash<D> {}
 
-impl<TInnerDigest: FixedOutput, TDomain: DomainSeparation> FixedOutput
-    for DomainSeparatedHasher<TInnerDigest, TDomain>
-{
-    fn finalize_into(self, out: &mut Output<Self>) {
-        self.inner.finalize_into(out);
-    }
-}
-
-impl<D: FixedOutputReset, M: DomainSeparation> DomainSeparatedHasher<D, M> {
-    /// Finalize and reset the hasher and return the hash result.
+impl<D: Digest + FixedOutputReset, M: DomainSeparation> DomainSeparatedHasher<D, M> {
+    /// Finalize and reset the hasher and return the hash result. The reset hasher keeps its domain and label.
     pub fn finalize_into_reset(&mut self, out: &mut Output<Self>) {
-        self.inner.finalize_into_reset(out);
+        Digest::finalize_into_reset(&mut self.inner, out);
+        M::add_domain_separation_tag(&mut self.inner, self.label);
     }
 }
 
@@ -389,6 +423,7 @@ impl<TInnerDigest: Digest + FixedOutputReset, TDomain: DomainSeparation> Digest
 
     fn finalize_into_reset(&mut self, out: &mut Output<Self>) {
         Digest::finalize_into_reset(&mut self.inner, out);
+        TDomain::add_domain_separation_tag(&mut self.inner, self.label);
     }
 
     // Write result into provided array and consume the hasher instance.
@@ -476,6 +511,8 @@ impl DomainSeparation for MacDomain {
 ///     "796eb496b6672b1b7c4021e603d6b833121d35cd282a1555e3f9dd2eda5658b8"
 /// );
 /// ```
+///
+/// Always compare MACs with [`Mac::verify`] or [`ConstantTimeEq::ct_eq`]; never with `==` on slices.
 pub struct Mac<D: Digest> {
     hmac: DomainSeparatedHash<D>,
 }
@@ -495,6 +532,25 @@ where D: Digest + Update + LengthExtensionAttackResistant
             .chain(msg.as_ref())
             .finalize();
         Self { hmac }
+    }
+
+    /// Compares this MAC with `expected` in constant time. Returns `false` if the lengths differ.
+    #[must_use = "a `false` result means verification FAILED; it must be checked"]
+    pub fn verify(&self, expected: &[u8]) -> bool {
+        // subtle's slice comparison returns false for different lengths
+        self.as_ref().ct_eq(expected).into()
+    }
+}
+
+impl<D: Digest> ConstantTimeEq for Mac<D> {
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.as_ref().ct_eq(other.as_ref())
+    }
+}
+
+impl<D: Digest> PartialEq for Mac<D> {
+    fn eq(&self, other: &Self) -> bool {
+        self.ct_eq(other).into()
     }
 }
 
@@ -584,10 +640,12 @@ pub trait DerivedKeyDomain: DomainSeparation {
             return Err(HashingError::InputTooShort {});
         }
 
-        let hash = DomainSeparatedHasher::<D, Self>::new_with_label(label)
-            .chain(primary_key)
-            .chain(data)
-            .finalize();
+        let hash = Zeroizing::new(
+            DomainSeparatedHasher::<D, Self>::new_with_label(label)
+                .chain(primary_key)
+                .chain(data)
+                .finalize(),
+        );
         let derived_key = Self::DerivedKeyType::from_uniform_bytes(hash.as_ref())
             .map_err(|e| HashingError::ConversionFromBytes { reason: e.to_string() })?;
         Ok(derived_key)
@@ -662,6 +720,7 @@ mod test {
         Mac,
         MacDomain,
         byte_to_decimal_ascii_bytes,
+        contains_version_segment,
     };
 
     mod util {
@@ -928,6 +987,164 @@ mod test {
             to_hex(mac.as_ref()).unwrap(),
             "9bcfbe2bad73b14ac42f673ddca34e82ce03cbbac69d34526004f5d108dff061"
         )
+    }
+
+    /// Known-answer vectors captured from v0.24.1; these hash outputs are consensus-frozen.
+    #[test]
+    fn known_answer_vectors_are_unchanged() {
+        hash_domain!(KatDomain, "com.tari.kat");
+        type H = DomainSeparatedHasher<Blake2b<U64>, KatDomain>;
+        const ABC: &str = "9aa00777893e9e62216b9a4c13a64b876adf2070c9e4fd19b20d7640241ae8b827f860803f3b199fe1538225f5e257ee1d7d947328e689264653926b03eed72a";
+
+        let mut hasher = H::new_with_label("label.with.dots");
+        hasher.update(b"abc");
+        let inherent = hasher.chain(b"").chain([7u8; 100]).finalize();
+        assert_eq!(
+            to_hex(inherent.as_ref()).unwrap(),
+            "43d205f0f9ea76730c7650b9b7bf397d18347c7428acccf372d5706779bf2c27003834f54474aaec054c5d336c7b883123d9345908ab55f7ad69445864c00ec6"
+        );
+
+        assert_eq!(to_hex(H::new().digest(b"abc").as_ref()).unwrap(), ABC);
+
+        let mut hasher = <H as Digest>::new();
+        Digest::update(&mut hasher, b"abc");
+        assert_eq!(to_hex(&Digest::finalize(hasher)).unwrap(), ABC);
+
+        assert_eq!(to_hex(&<H as Digest>::digest(b"abc")).unwrap(), ABC);
+        assert_eq!(
+            to_hex(&Digest::finalize(<H as Digest>::new_with_prefix(b"abc"))).unwrap(),
+            ABC
+        );
+
+        let mut out = GenericArray::<u8, U64>::default();
+        Digest::finalize_into(H::new().chain(b"abc"), &mut out);
+        assert_eq!(to_hex(&out).unwrap(), ABC);
+
+        let mut hasher = H::new();
+        hasher.update(b"abc");
+        let mut out = GenericArray::<u8, U64>::default();
+        hasher.finalize_into_reset(&mut out);
+        assert_eq!(to_hex(&out).unwrap(), ABC);
+    }
+
+    #[test]
+    fn finalize_into_reset_keeps_domain() {
+        hash_domain!(TestDomain, "com.example.test");
+        type H = DomainSeparatedHasher<Blake2b<U64>, TestDomain>;
+        let expected = H::new_with_label("lbl").digest(b"abc");
+
+        let mut hasher = H::new_with_label("lbl");
+        hasher.update(b"discarded");
+        let mut out = GenericArray::<u8, U64>::default();
+        hasher.finalize_into_reset(&mut out);
+        hasher.update(b"abc");
+        hasher.finalize_into_reset(&mut out);
+        assert_eq!(out.as_slice(), expected.as_ref());
+    }
+
+    #[test]
+    fn default_equals_new() {
+        #[derive(Default)]
+        struct DomainA;
+        impl DomainSeparation for DomainA {
+            fn version() -> u8 {
+                1
+            }
+
+            fn domain() -> &'static str {
+                "com.example.a"
+            }
+        }
+        #[derive(Default)]
+        struct DomainB;
+        impl DomainSeparation for DomainB {
+            fn version() -> u8 {
+                1
+            }
+
+            fn domain() -> &'static str {
+                "com.example.b"
+            }
+        }
+        let a = DomainSeparatedHasher::<Blake2b<U64>, DomainA>::default().digest(b"abc");
+        let b = DomainSeparatedHasher::<Blake2b<U64>, DomainB>::default().digest(b"abc");
+        assert_eq!(
+            a.as_ref(),
+            DomainSeparatedHasher::<Blake2b<U64>, DomainA>::new()
+                .digest(b"abc")
+                .as_ref()
+        );
+        assert_ne!(a.as_ref(), b.as_ref());
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "version segment")]
+    fn domain_with_version_segment_panics_in_debug() {
+        hash_domain!(BadDomain, "com.example.v1.x");
+        let _hasher = DomainSeparatedHasher::<Blake2b<U64>, BadDomain>::new();
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "version segment")]
+    fn domain_ending_in_version_segment_panics_in_debug() {
+        hash_domain!(BadDomain, "com.example.v1");
+        let _hasher = DomainSeparatedHasher::<Blake2b<U64>, BadDomain>::new();
+    }
+
+    #[test]
+    fn version_segment_detection() {
+        assert!(contains_version_segment("a.v1.b"));
+        assert!(contains_version_segment("com.example.v12.x"));
+        assert!(contains_version_segment(".v0."));
+        assert!(!contains_version_segment("a.v.b"));
+        assert!(contains_version_segment("a.v1"));
+        assert!(contains_version_segment("com.example.v12"));
+        assert!(!contains_version_segment("a.v1x"));
+        assert!(!contains_version_segment("a.v"));
+        assert!(!contains_version_segment("a.vx1.b"));
+        assert!(!contains_version_segment("com.tari.v"));
+    }
+
+    #[test]
+    fn crate_domains_pass_the_guard() {
+        use crate::{
+            ristretto::ristretto_keys::{RistrettoGeneratorPoint, RistrettoKdf},
+            signatures::{CommitmentSigChallenge, SchnorrSigChallenge},
+        };
+        for domain in [
+            MacDomain::domain(),
+            RistrettoKdf::domain(),
+            RistrettoGeneratorPoint::domain(),
+            SchnorrSigChallenge::domain(),
+            CommitmentSigChallenge::domain(),
+        ] {
+            assert!(!contains_version_segment(domain), "{domain}");
+        }
+    }
+
+    #[test]
+    fn mac_verify_is_exact() {
+        let mac = Mac::<Blake2b<U32>>::generate(b"key", "message", "test");
+        let mut expected = mac.as_ref().to_vec();
+        assert!(mac.verify(&expected));
+        assert!(mac == Mac::<Blake2b<U32>>::generate(b"key", "message", "test"));
+        assert!(!mac.verify(&expected[..31]));
+        expected[5] ^= 1;
+        assert!(!mac.verify(&expected));
+        assert!(mac != Mac::<Blake2b<U32>>::generate(b"key", "other message", "test"));
+    }
+
+    #[test]
+    fn domain_separated_hash_zeroizes() {
+        use zeroize::Zeroize;
+
+        hash_domain!(TestDomain, "com.example.test");
+        let mut hash = DomainSeparatedHasher::<Blake2b<U32>, TestDomain>::new().digest(b"abc");
+        assert!(hash.as_ref().iter().any(|b| *b != 0));
+        hash.zeroize();
+        assert!(hash.as_ref().iter().all(|b| *b == 0));
     }
 
     #[test]

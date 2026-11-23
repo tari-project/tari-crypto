@@ -84,6 +84,8 @@ where
     /// different message.
     ///
     /// If you aren't sure that you can meet these requirements, and want a simple and safe API, use [`sign`].
+    ///
+    /// A zero challenge is rejected because it makes the equation independent of the key.
     pub fn sign_raw_uniform<'a>(secret: &'a K, nonce: K, challenge: &[u8]) -> Result<Self, SchnorrSignatureError>
     where K: Add<Output = K> + Mul<&'a K, Output = K> {
         // s = r + e.k
@@ -91,6 +93,9 @@ where
             Ok(e) => e,
             Err(_) => return Err(SchnorrSignatureError::InvalidChallenge),
         };
+        if e == K::default() {
+            return Err(SchnorrSignatureError::InvalidChallenge);
+        }
         let public_nonce = P::from_secret_key(&nonce);
         let ek = e * secret;
         let s = ek + nonce;
@@ -107,6 +112,8 @@ where
     /// different message.
     ///
     /// If you aren't sure that you can meet these requirements, and want a simple and safe API, use [`sign`].
+    ///
+    /// A zero challenge is rejected because it makes the equation independent of the key.
     pub fn sign_raw_canonical<'a>(secret: &'a K, nonce: K, challenge: &[u8]) -> Result<Self, SchnorrSignatureError>
     where K: Add<Output = K> + Mul<&'a K, Output = K> {
         // s = r + e.k
@@ -114,6 +121,9 @@ where
             Ok(e) => e,
             Err(_) => return Err(SchnorrSignatureError::InvalidChallenge),
         };
+        if e == K::default() {
+            return Err(SchnorrSignatureError::InvalidChallenge);
+        }
         let public_nonce = P::from_secret_key(&nonce);
         let ek = e * secret;
         let s = ek + nonce;
@@ -231,6 +241,8 @@ where
     }
 
     /// Returns true if this signature is valid for a public key and challenge scalar, otherwise false.
+    ///
+    /// A zero challenge is rejected because it makes the equation independent of the key.
     #[must_use = "a `false` result means verification FAILED; it must be checked"]
     pub fn verify_challenge_scalar<'a>(&self, public_key: &'a P, challenge: &K) -> bool
     where
@@ -239,6 +251,9 @@ where
     {
         // Reject a zero key
         if public_key == &P::default() {
+            return false;
+        }
+        if challenge == &K::default() {
             return false;
         }
 
@@ -273,7 +288,7 @@ where
     }
 }
 
-impl<'a, 'b, P, K, H> Add<&'b SchnorrSignature<P, K>> for &'a SchnorrSignature<P, K, H>
+impl<'a, 'b, P, K, H> Add<&'b SchnorrSignature<P, K, H>> for &'a SchnorrSignature<P, K, H>
 where
     P: PublicKey<K = K>,
     &'a P: Add<&'b P, Output = P>,
@@ -281,16 +296,16 @@ where
     &'a K: Add<&'b K, Output = K>,
     H: DomainSeparation,
 {
-    type Output = SchnorrSignature<P, K>;
+    type Output = SchnorrSignature<P, K, H>;
 
-    fn add(self, rhs: &'b SchnorrSignature<P, K>) -> SchnorrSignature<P, K> {
+    fn add(self, rhs: &'b SchnorrSignature<P, K, H>) -> SchnorrSignature<P, K, H> {
         let r_sum = self.get_public_nonce() + rhs.get_public_nonce();
         let s_sum = self.get_signature() + rhs.get_signature();
         SchnorrSignature::new(r_sum, s_sum)
     }
 }
 
-impl<'a, P, K, H> Add<SchnorrSignature<P, K>> for &'a SchnorrSignature<P, K, H>
+impl<'a, P, K, H> Add<SchnorrSignature<P, K, H>> for &'a SchnorrSignature<P, K, H>
 where
     P: PublicKey<K = K>,
     for<'b> &'a P: Add<&'b P, Output = P>,
@@ -298,9 +313,9 @@ where
     for<'b> &'a K: Add<&'b K, Output = K>,
     H: DomainSeparation,
 {
-    type Output = SchnorrSignature<P, K>;
+    type Output = SchnorrSignature<P, K, H>;
 
-    fn add(self, rhs: SchnorrSignature<P, K>) -> SchnorrSignature<P, K> {
+    fn add(self, rhs: SchnorrSignature<P, K, H>) -> SchnorrSignature<P, K, H> {
         let r_sum = self.get_public_nonce() + rhs.get_public_nonce();
         let s_sum = self.get_signature() + rhs.get_signature();
         SchnorrSignature::new(r_sum, s_sum)

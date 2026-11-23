@@ -155,9 +155,11 @@ impl<H: DomainSeparation> SchnorrSignature<RistrettoPublicKey, RistrettoSecretKe
     /// Each item is a `(signature, public key, message)` triple, and the result is `true` if and only if every
     /// signature in the batch would individually verify under [`SchnorrSignature::verify`].
     ///
-    /// An empty batch returns `true`, following the same convention as [`Iterator::all`]. Note that this fails
-    /// open: if reaching this function with nothing to verify would be a bug in the caller, the non-empty check
-    /// belongs at that call site, because there is nothing here to distinguish "all valid" from "none supplied".
+    /// # Empty batches
+    ///
+    /// An empty slice returns `true` (vacuous truth, the same convention as [`Iterator::all`]). This fails open:
+    /// callers that require at least one signature must check `items.is_empty()` themselves.
+    ///
     ///
     /// Given `eᵢ = H(Rᵢ, Pᵢ, mᵢ)` and weights `zᵢ`, this checks the single equation
     ///
@@ -207,6 +209,18 @@ impl<H: DomainSeparation> SchnorrSignature<RistrettoPublicKey, RistrettoSecretKe
     /// where several parties have to agree on it; use [`SchnorrSignature::verify_batch`] for that.
     ///
     /// The same variable-time caveat as [`SchnorrSignature::verify_batch`] applies.
+    ///
+    /// # RNG requirement
+    ///
+    /// `rng` must be unpredictable to whoever produced the signatures: never seed it from block, transaction or
+    /// other public data, or a set of invalid signatures can be built to cancel out under the known weights. Use
+    /// `OsRng` or `rand::rng()`. [`SchnorrSignature::verify_batch`], with deterministic transcript weights, is the
+    /// recommended default.
+    ///
+    /// # Empty batches
+    ///
+    /// An empty slice returns `true` (vacuous truth). Callers that require at least one signature must check
+    /// `items.is_empty()` themselves.
     #[must_use = "a `false` result means verification FAILED; it must be checked"]
     pub fn verify_batch_with_rng<B: AsRef<[u8]>, R: Rng + CryptoRng>(
         items: &[(&Self, &RistrettoPublicKey, B)],
@@ -255,6 +269,10 @@ impl<H: DomainSeparation> SchnorrSignature<RistrettoPublicKey, RistrettoSecretKe
             let Ok(e) = signature.challenge_scalar(public_key, message) else {
                 return false;
             };
+            // Match `verify_challenge_scalar`, which rejects a zero challenge.
+            if e.0 == Scalar::ZERO {
+                return false;
+            }
 
             signature_sum += weight * signature.signature.0;
             scalars.push(*weight);
@@ -881,5 +899,47 @@ mod test {
 
         // The signature should fail to verify
         assert!(!sig.verify(&public_key, message,));
+    }
+
+    #[test]
+    fn zero_challenge_is_rejected() {
+        let mut rng = rand::rng();
+        let (k, public_key) = RistrettoPublicKey::random_keypair(&mut rng);
+        let zero = [0u8; 32];
+
+        // With e = 0 the equation is s·G == R, which holds for R = s·G regardless of the key
+        let s = RistrettoSecretKey::random(&mut rng);
+        let sig = RistrettoSchnorr::new(RistrettoPublicKey::from_secret_key(&s), s);
+        assert!(!sig.verify_raw_canonical(&public_key, &zero));
+        assert!(!sig.verify_raw_uniform(&public_key, &[0u8; 64]));
+        assert!(!sig.verify_challenge_scalar(&public_key, &RistrettoSecretKey::default()));
+
+        let nonce = RistrettoSecretKey::random(&mut rng);
+        assert!(RistrettoSchnorr::sign_raw_canonical(&k, nonce.clone(), &zero).is_err());
+        assert!(RistrettoSchnorr::sign_raw_uniform(&k, nonce, &[0u8; 64]).is_err());
+    }
+
+    #[test]
+    fn addition_keeps_the_domain() {
+        hash_domain!(AddDomain, "com.tari.test.add", 1);
+        type Sig = RistrettoSchnorrWithDomain<AddDomain>;
+
+        let mut rng = rand::rng();
+        let (k1, p1) = RistrettoPublicKey::random_keypair(&mut rng);
+        let (k2, p2) = RistrettoPublicKey::random_keypair(&mut rng);
+        let (r1, n1) = RistrettoPublicKey::random_keypair(&mut rng);
+        let (r2, n2) = RistrettoPublicKey::random_keypair(&mut rng);
+        let message = b"Thud!";
+
+        // Both parties sign the challenge over the aggregate nonce and key
+        let challenge =
+            Sig::construct_domain_separated_challenge::<_, Blake2b<U64>>(&(&n1 + &n2), &(&p1 + &p2), message);
+        let sig1 = Sig::sign_raw_uniform(&k1, r1, challenge.as_ref()).unwrap();
+        let sig2 = Sig::sign_raw_uniform(&k2, r2, challenge.as_ref()).unwrap();
+
+        let by_ref: Sig = &sig1 + &sig2;
+        let by_value: Sig = &sig1 + sig2;
+        assert!(by_ref.verify(&(&p1 + &p2), message));
+        assert!(by_value.verify(&(&p1 + &p2), message));
     }
 }

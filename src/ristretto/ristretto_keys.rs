@@ -113,14 +113,13 @@ impl ByteArray for RistrettoSecretKey {
             return Err(ByteArrayError::IncorrectLength {});
         }
 
-        let mut bytes_copied = [0u8; 32];
+        let mut bytes_copied = Zeroizing::new([0u8; 32]);
         bytes_copied.copy_from_slice(bytes);
-        let scalar = Option::<Scalar>::from(Scalar::from_canonical_bytes(bytes_copied)).ok_or(
+        let scalar = Option::<Scalar>::from(Scalar::from_canonical_bytes(*bytes_copied)).ok_or(
             ByteArrayError::ConversionError {
                 reason: ("Invalid canonical scalar byte array".to_string()),
             },
         )?;
-        bytes_copied.zeroize();
 
         Ok(RistrettoSecretKey(scalar))
     }

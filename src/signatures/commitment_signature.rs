@@ -8,13 +8,21 @@ use core::{
     ops::{Add, Mul},
 };
 
+use blake2::Blake2b;
+use digest::{Digest, consts::U64};
+use rand_core::{CryptoRng, Rng};
 use snafu::prelude::*;
 use tari_utilities::{ByteArray, ByteArrayError};
 
 use crate::{
     commitment::{HomomorphicCommitment, HomomorphicCommitmentFactory},
+    hash_domain,
+    hashing::{DomainSeparatedHash, DomainSeparatedHasher, DomainSeparation},
     keys::{PublicKey, SecretKey},
 };
+
+// Default hashing domain for the challenge of `CommitmentSignature::sign_message`
+hash_domain!(CommitmentSigChallenge, "com.tari.commitment_signature", 1);
 
 /// An error when creating a commitment signature
 #[derive(Clone, Debug, Snafu, PartialEq, Eq)]
@@ -23,6 +31,8 @@ use crate::{
 pub enum CommitmentSignatureError {
     #[snafu(display("An invalid challenge was provided"))]
     InvalidChallenge,
+    #[snafu(display("The secrets do not open the commitment"))]
+    InvalidOpening,
 }
 
 /// # Commitment Signatures
@@ -76,7 +86,10 @@ where
     /// completely random and never reused - that responsibility lies with the calling function.
     ///
     /// WARNING: The provided secret keys and nonces are NOT bound to the challenge. This method assumes that the
-    /// challenge has been constructed such that all commitments are already included in the challenge.
+    /// challenge has been constructed such that all commitments are already included in the challenge. Use
+    /// [`CommitmentSignature::sign_message`] unless you need a custom challenge.
+    ///
+    /// A zero challenge is rejected because it makes the equation independent of the key.
     pub fn sign<C>(
         secret_a: &K,
         secret_x: &K,
@@ -95,6 +108,9 @@ where
             Ok(e) => e,
             Err(_) => return Err(CommitmentSignatureError::InvalidChallenge),
         };
+        if e == K::default() {
+            return Err(CommitmentSignatureError::InvalidChallenge);
+        }
         let ea = &e * secret_a;
         let ex = &e * secret_x;
 
@@ -108,6 +124,8 @@ where
 
     /// Verify if the commitment signature signed the commitment using the specified challenge (as bytes). If the
     /// provided challenge n bytes cannot be converted to a secret key, this function also returns false.
+    ///
+    /// A zero challenge is rejected because it makes the equation independent of the key.
     #[must_use = "a `false` result means verification FAILED; it must be checked"]
     pub fn verify_challenge<'a, C>(
         &self,
@@ -130,6 +148,8 @@ where
 
     /// Verify if the commitment signature signed the commitment using the specified challenge (as secret key).
     ///  v*H + u*G = R + e.C
+    ///
+    /// A zero challenge is rejected because it makes the equation independent of the key.
     #[must_use = "a `false` result means verification FAILED; it must be checked"]
     pub fn verify<'a, C>(&self, public_commitment: &'a HomomorphicCommitment<P>, challenge: &K, factory: &C) -> bool
     where
@@ -141,6 +161,9 @@ where
         if public_commitment.as_public_key() == &P::default() {
             return false;
         }
+        if challenge == &K::default() {
+            return false;
+        }
 
         // v*H + u*G
         let lhs = self.calc_signature_verifier(factory);
@@ -148,6 +171,166 @@ where
         let rhs = &self.public_nonce + &(public_commitment * challenge);
         // Implementors should make this a constant time comparison
         lhs == rhs
+    }
+
+    /// Signs `message` with the value `secret_a` and blinding factor `secret_x` of `public_commitment`, using fresh
+    /// random nonces.
+    ///
+    /// The challenge binds the public nonce, the commitment and the message; see
+    /// [`CommitmentSignature::construct_domain_separated_challenge`]. Verify with
+    /// [`CommitmentSignature::verify_message`]. Returns [`CommitmentSignatureError::InvalidOpening`] if
+    /// `public_commitment` is not `commit(secret_x, secret_a)`.
+    ///
+    /// The challenge domain is fixed to [`CommitmentSigChallenge`], so a signature made here for a commitment verifies
+    /// in every application that uses this API for the same commitment and message. Include your own context in
+    /// `message`, or build a per-application challenge with
+    /// [`CommitmentSignature::construct_domain_separated_challenge`] and use [`CommitmentSignature::sign`] /
+    /// [`CommitmentSignature::verify_challenge`].
+    ///
+    /// ```
+    /// # use tari_crypto::{commitment::HomomorphicCommitmentFactory, keys::SecretKey};
+    /// # use tari_crypto::ristretto::{RistrettoComSig, RistrettoSecretKey, pedersen::commitment_factory::PedersenCommitmentFactory};
+    /// let mut rng = rand::rng();
+    /// let factory = PedersenCommitmentFactory::default();
+    /// let a = RistrettoSecretKey::random(&mut rng);
+    /// let x = RistrettoSecretKey::random(&mut rng);
+    /// let commitment = factory.commit(&x, &a);
+    /// let sig = RistrettoComSig::sign_message(&a, &x, &commitment, b"msg", &factory, &mut rng).unwrap();
+    /// assert!(sig.verify_message(&commitment, b"msg", &factory));
+    /// ```
+    pub fn sign_message<C, B, R: Rng + CryptoRng>(
+        secret_a: &K,
+        secret_x: &K,
+        public_commitment: &HomomorphicCommitment<P>,
+        message: B,
+        factory: &C,
+        rng: &mut R,
+    ) -> Result<Self, CommitmentSignatureError>
+    where
+        K: Mul<P, Output = P>,
+        for<'a> &'a K: Add<&'a K, Output = K>,
+        for<'a> &'a K: Mul<&'a K, Output = K>,
+        C: HomomorphicCommitmentFactory<P = P>,
+        B: AsRef<[u8]>,
+    {
+        let nonce_a = K::random(rng);
+        let nonce_x = K::random(rng);
+        Self::sign_message_with_nonces(
+            secret_a,
+            secret_x,
+            &nonce_a,
+            &nonce_x,
+            public_commitment,
+            message,
+            factory,
+        )
+    }
+
+    /// As [`CommitmentSignature::sign_message`], but with caller-supplied nonces.
+    ///
+    /// WARNING: The nonces _must_ be sampled uniformly at random and never reused at all; two signatures with the same
+    /// nonces and different challenges reveal the secrets. Any deterministic nonce derivation must bind the secrets,
+    /// the commitment and the message.
+    pub fn sign_message_with_nonces<C, B>(
+        secret_a: &K,
+        secret_x: &K,
+        nonce_a: &K,
+        nonce_x: &K,
+        public_commitment: &HomomorphicCommitment<P>,
+        message: B,
+        factory: &C,
+    ) -> Result<Self, CommitmentSignatureError>
+    where
+        K: Mul<P, Output = P>,
+        for<'a> &'a K: Add<&'a K, Output = K>,
+        for<'a> &'a K: Mul<&'a K, Output = K>,
+        C: HomomorphicCommitmentFactory<P = P>,
+        B: AsRef<[u8]>,
+    {
+        // Otherwise a caller-chosen commitment varies the challenge under the same nonces, revealing the secrets
+        if &factory.commit(secret_x, secret_a) != public_commitment {
+            return Err(CommitmentSignatureError::InvalidOpening);
+        }
+        let public_nonce = factory.commit(nonce_x, nonce_a);
+        let challenge = Self::construct_domain_separated_challenge::<_, Blake2b<U64>, CommitmentSigChallenge>(
+            &public_nonce,
+            public_commitment,
+            message,
+        );
+        Self::sign(secret_a, secret_x, nonce_a, nonce_x, challenge.as_ref(), factory)
+    }
+
+    /// Constructs the challenge `H(R, C, m)` for the public nonce `R`, the commitment `C` and `message`, as a domain
+    /// separated hash with label `challenge` in domain `H`.
+    ///
+    /// [`CommitmentSignature::sign_message`] and [`CommitmentSignature::verify_message`] use this with `Blake2b<U64>`
+    /// and [`CommitmentSigChallenge`].
+    pub fn construct_domain_separated_challenge<B, D, H>(
+        public_nonce: &HomomorphicCommitment<P>,
+        public_commitment: &HomomorphicCommitment<P>,
+        message: B,
+    ) -> DomainSeparatedHash<D>
+    where
+        B: AsRef<[u8]>,
+        D: Digest,
+        H: DomainSeparation,
+    {
+        DomainSeparatedHasher::<D, H>::new_with_label("challenge")
+            .chain(public_nonce.as_bytes())
+            .chain(public_commitment.as_bytes())
+            .chain(message.as_ref())
+            .finalize()
+    }
+
+    /// Verifies a signature created by [`CommitmentSignature::sign_message`] for `public_commitment` and `message`.
+    ///
+    /// The challenge domain is fixed to [`CommitmentSigChallenge`], so a signature made here for a commitment verifies
+    /// in every application that uses this API for the same commitment and message. Include your own context in
+    /// `message`, or build a per-application challenge with
+    /// [`CommitmentSignature::construct_domain_separated_challenge`] and use [`CommitmentSignature::sign`] /
+    /// [`CommitmentSignature::verify_challenge`].
+    #[must_use = "a `false` result means verification FAILED; it must be checked"]
+    pub fn verify_message<'a, C, B>(
+        &self,
+        public_commitment: &'a HomomorphicCommitment<P>,
+        message: B,
+        factory: &C,
+    ) -> bool
+    where
+        for<'b> &'a HomomorphicCommitment<P>: Mul<&'b K, Output = HomomorphicCommitment<P>>,
+        for<'b> &'b HomomorphicCommitment<P>: Add<&'b HomomorphicCommitment<P>, Output = HomomorphicCommitment<P>>,
+        C: HomomorphicCommitmentFactory<P = P>,
+        B: AsRef<[u8]>,
+    {
+        let Ok(e) = self.challenge_scalar(public_commitment, message) else {
+            return false;
+        };
+        self.verify(public_commitment, &e, factory)
+    }
+
+    /// Returns the challenge scalar that [`CommitmentSignature::verify_message`] checks this signature against: the
+    /// wide reduction of [`CommitmentSignature::construct_domain_separated_challenge`] with `Blake2b<U64>` and
+    /// [`CommitmentSigChallenge`].
+    ///
+    /// The challenge domain is fixed to [`CommitmentSigChallenge`], so a signature made here for a commitment verifies
+    /// in every application that uses this API for the same commitment and message. Include your own context in
+    /// `message`, or build a per-application challenge with
+    /// [`CommitmentSignature::construct_domain_separated_challenge`] and use [`CommitmentSignature::sign`] /
+    /// [`CommitmentSignature::verify_challenge`].
+    pub fn challenge_scalar<B>(
+        &self,
+        public_commitment: &HomomorphicCommitment<P>,
+        message: B,
+    ) -> Result<K, CommitmentSignatureError>
+    where
+        B: AsRef<[u8]>,
+    {
+        let challenge = Self::construct_domain_separated_challenge::<_, Blake2b<U64>, CommitmentSigChallenge>(
+            &self.public_nonce,
+            public_commitment,
+            message,
+        );
+        K::from_uniform_bytes(challenge.as_ref()).map_err(|_| CommitmentSignatureError::InvalidChallenge)
     }
 
     /// This function returns the complete signature tuple (R, u, v)
