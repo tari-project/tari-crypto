@@ -51,12 +51,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bincode"
-version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd6a120d2e16b3e1b4a24bd70f23b12d3e16b81f113364a26935f8db7245452d"
-
-[[package]]
 name = "blake2"
 version = "0.10.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -822,7 +816,6 @@ dependencies = [
 name = "tari_crypto"
 version = "0.24.1"
 dependencies = [
- "bincode 3.0.0",
  "blake2",
  "borsh",
  "criterion",
@@ -862,7 +855,7 @@ checksum = "598c14c0aea03d57f26fb1557c88de103154cb07658f8a09acc6a10ed02af780"
 dependencies = [
  "base58-monero",
  "base64",
- "bincode 1.3.3",
+ "bincode",
  "generic-array",
  "log",
  "newtype-ops",
