@@ -6,7 +6,9 @@ All notable changes to this project will be documented in this file. See [standa
 
 ### Breaking
 
-* `DomainSeparatedHasher` no longer implements `digest::Update` or `digest::FixedOutput`, which fed untagged raw bytes. Migration: use the `Digest` impl or the inherent `update`/`chain`/`finalize` API.
+* `DomainSeparatedHasher` no longer implements `digest::FixedOutput`. Migration: use `Digest::finalize_into` instead of `FixedOutput::finalize_into`; the output is identical.
+* `DomainSeparatedHasher` no longer implements `digest::Update`, whose `update` fed raw bytes to the inner digest with no length prefix. Migration: there is no output-compatible replacement on the hasher. `Digest::update` and the inherent `update` length-prefix the data, so switching to them changes every resulting hash, which is a consensus change wherever those hashes are stored or verified. Callers that must reproduce the old outputs need to add the domain tag to the inner digest with `DomainSeparation::add_domain_separation_tag` and feed it the raw bytes themselves.
+* `DomainSeparatedHasher`'s `Default` impl now requires `D: Digest, M: DomainSeparation` instead of `D: Default, M: Default`, and is equal to `new()`: its output is now domain tagged. Likewise a hasher reused after `finalize_into_reset` now starts from the domain tag instead of an empty digest. Migration: hashes previously produced via `Default` or after `finalize_into_reset` were untagged; re-derive any stored ones, and use `new()` explicitly where you construct hashers.
 * The inherent `DomainSeparatedHasher::finalize_into_reset` now requires `D: Digest + FixedOutputReset`. Migration: none for digests from the RustCrypto crates, which all implement `Digest`.
 * `SchnorrSignature` `Add` impls now require the same domain type `H` on both operands and return `SchnorrSignature<P, K, H>`. Migration: add signatures of the same domain; annotate the result with that domain instead of the default one.
 * `SchnorrSignature::{verify_challenge_scalar, verify_raw_uniform, verify_raw_canonical, verify}` return `false`, and `SchnorrSignature::{sign_raw_uniform, sign_raw_canonical}` return `InvalidChallenge`, for a zero challenge. Migration: none for hashed challenges (probability 2^-252); callers passing raw challenges must not pass zero.
@@ -20,13 +22,12 @@ All notable changes to this project will be documented in this file. See [standa
 
 ### Fixed / Added
 
-* `DomainSeparatedHasher::finalize_into_reset` (inherent and `Digest`) re-adds the domain tag after reset; outputs of every previously consistent hashing path are unchanged.
-* `DomainSeparatedHasher` implements `Default` manually as `new()`, so it is domain tagged.
+* `DomainSeparatedHasher::finalize_into_reset` (inherent and `Digest`) re-adds the domain tag after reset, and `Default` is implemented manually as `new()`, so both are domain tagged (see Breaking). Outputs of `new`, `new_with_label`, the inherent `update`/`chain`/`finalize`/`digest` and the `Digest` impl are unchanged.
 * Debug builds assert that a hash domain neither contains a `.v<digits>.` segment nor ends with `.v<digits>`, the patterns that make the tag encoding ambiguous. Labels are not restricted.
 * `CommitmentSignature::{sign_message, sign_message_with_nonces, verify_message, challenge_scalar, construct_domain_separated_challenge}` bind the public nonce, commitment and message under the new `com.tari.commitment_signature` domain (`CommitmentSigChallenge`).
 * Batch Schnorr verification rejects a zero challenge, matching single verification.
 * `Mac` implements constant-time `ConstantTimeEq` and `PartialEq`, and gains `Mac::verify(&[u8])`.
-* `DomainSeparatedHash` implements `Zeroize`; secret intermediates in `DerivedKeyDomain::generate`, `RistrettoSecretKey::from_canonical_bytes` and the Bulletproofs+ mask conversions are zeroized.
+* `DomainSeparatedHash` implements `Zeroize`. Zeroized on drop: the output hash that `DerivedKeyDomain::generate` reduces into the key (not the digest's internal state), the byte copy in `RistrettoSecretKey::from_canonical_bytes`, and the scalar vectors in the Bulletproofs+ mask conversions that are not handed to upstream by value.
 * `CompressedKey::zeroize` also drops the cached decompressed point.
 * `CompressedKey` formatting can no longer panic; docs on `CompressedKey` and `CompressedCommitment` state that point validation is lazy.
 * `RangeProofService::verify` logs failures from untrusted proofs at debug level instead of error.

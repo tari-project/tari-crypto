@@ -353,8 +353,9 @@ mod test {
 
         let (_, mut key) = CompressedKey::<RistrettoPublicKey>::random_keypair(&mut rand::rng());
         let cached = key.to_public_key().unwrap();
+        assert_eq!(key.public_key.get(), Some(&cached));
         key.zeroize();
-        assert!(key.as_bytes().iter().all(|b| *b == 0));
-        assert_ne!(key.to_public_key().ok(), Some(cached));
+        assert!(key.public_key.get().is_none());
+        assert!(key.to_public_key().is_err());
     }
 }
