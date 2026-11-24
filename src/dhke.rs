@@ -28,8 +28,13 @@ use crate::keys::PublicKey;
 pub enum DiffieHellmanError {
     #[snafu(display("The public key or shared secret is the identity point"))]
     IdentityPoint,
+    // `ByteArrayError` comes from `tari_utilities`, which builds on snafu 0.7 and does not implement
+    // `core::error::Error`, so it cannot be chained as an error source here.
     #[snafu(display("Invalid shared secret encoding: {source}"))]
-    ByteArray { source: ByteArrayError },
+    ByteArray {
+        #[snafu(source(false))]
+        source: ByteArrayError,
+    },
 }
 
 /// The result of a Diffie-Hellman key exchange
@@ -58,7 +63,7 @@ where
     /// Constructs a new Diffie-Hellman key exchange from an already created Diffie-Hellman key exchange. The identity
     /// point is rejected.
     pub fn from_canonical_bytes(bytes: &[u8]) -> Result<Self, DiffieHellmanError> {
-        let shared = Self(P::from_canonical_bytes(bytes).context(ByteArraySnafu)?);
+        let shared = Self(P::from_canonical_bytes(bytes).map_err(|source| DiffieHellmanError::ByteArray { source })?);
         if shared.0 == P::default() {
             return Err(DiffieHellmanError::IdentityPoint);
         }
