@@ -13,7 +13,9 @@ use core::{
     ops::{Add, Mul, Sub},
 };
 
+use subtle::{Choice, ConstantTimeEq};
 use tari_utilities::{ByteArray, ByteArrayError};
+use zeroize::Zeroize;
 
 use crate::{
     alloc::string::ToString,
@@ -161,6 +163,18 @@ impl<P: PublicKey> PartialEq for HomomorphicCommitment<P> {
 }
 
 impl<P: PublicKey> Eq for HomomorphicCommitment<P> {}
+
+impl<P: PublicKey> ConstantTimeEq for HomomorphicCommitment<P> {
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.0.ct_eq(&other.0)
+    }
+}
+
+impl<P: Zeroize> Zeroize for HomomorphicCommitment<P> {
+    fn zeroize(&mut self) {
+        self.0.zeroize();
+    }
+}
 
 /// A trait for creating commitments
 pub trait HomomorphicCommitmentFactory {

@@ -5,6 +5,7 @@
 
 use std::{string::ToString, vec::Vec};
 
+use subtle::{Choice, ConstantTimeEq};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::{
@@ -103,11 +104,38 @@ pub trait ExtendedRangeProofService {
 
 /// Extended blinding factor vector used as part of the witness to construct an extended proof, or rewind data
 /// extracted from a range proof containing the mask (e.g. blinding factor vector).
-#[derive(Debug, Clone, PartialEq, Eq, Zeroize, ZeroizeOnDrop)]
+#[derive(Clone, Eq, Zeroize, ZeroizeOnDrop)]
 pub struct ExtendedMask<K>
 where K: SecretKey
 {
     secrets: Vec<K>,
+}
+
+impl<K> core::fmt::Debug for ExtendedMask<K>
+where K: SecretKey
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("ExtendedMask")
+            .field("len", &self.secrets.len())
+            .field("secrets", &"[REDACTED]")
+            .finish()
+    }
+}
+
+impl<K> ConstantTimeEq for ExtendedMask<K>
+where K: SecretKey
+{
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.secrets.as_slice().ct_eq(other.secrets.as_slice())
+    }
+}
+
+impl<K> PartialEq for ExtendedMask<K>
+where K: SecretKey
+{
+    fn eq(&self, other: &Self) -> bool {
+        bool::from(self.ct_eq(other))
+    }
 }
 
 impl<K> ExtendedMask<K>
@@ -131,7 +159,7 @@ where K: SecretKey
 }
 
 /// The (public) statement contains the commitment and a minimum promised value
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Zeroize)]
 pub struct Statement<PK>
 where PK: PublicKey
 {
@@ -143,7 +171,7 @@ where PK: PublicKey
 
 /// The aggregated public range proof statement contains the vector of commitments and a vector of minimum
 /// promised values
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AggregatedPublicStatement<PK>
 where PK: PublicKey
 {
@@ -168,7 +196,7 @@ where PK: PublicKey
 
 /// The aggregated private range proof statement contains the (public) range proof statement and an optional seed nonce
 /// for mask recovery
-#[derive(Clone)]
+#[derive(Clone, Zeroize)]
 pub struct AggregatedPrivateStatement<PK>
 where PK: PublicKey
 {
@@ -176,6 +204,20 @@ where PK: PublicKey
     pub statements: Vec<Statement<PK>>,
     /// Optional private seed nonce for mask recovery
     pub recovery_seed_nonce: Option<PK::K>,
+}
+
+impl<PK> core::fmt::Debug for AggregatedPrivateStatement<PK>
+where PK: PublicKey + core::fmt::Debug
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("AggregatedPrivateStatement")
+            .field("statements", &self.statements)
+            .field(
+                "recovery_seed_nonce",
+                &self.recovery_seed_nonce.as_ref().map(|_| "[REDACTED]"),
+            )
+            .finish()
+    }
 }
 
 impl<PK> AggregatedPrivateStatement<PK>
@@ -216,6 +258,18 @@ where K: SecretKey
     pub minimum_value_promise: u64,
 }
 
+impl<K> core::fmt::Debug for ExtendedWitness<K>
+where K: SecretKey
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("ExtendedWitness")
+            .field("mask", &"[REDACTED]")
+            .field("value", &"[REDACTED]")
+            .field("minimum_value_promise", &"[REDACTED]")
+            .finish()
+    }
+}
+
 impl<K> ExtendedWitness<K>
 where K: SecretKey
 {
@@ -226,5 +280,72 @@ where K: SecretKey
             value,
             minimum_value_promise,
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use subtle::ConstantTimeEq;
+    use zeroize::Zeroize;
+
+    use super::*;
+    use crate::{
+        commitment::{ExtensionDegree, HomomorphicCommitmentFactory},
+        ristretto::{RistrettoPublicKey, RistrettoSecretKey, pedersen::commitment_factory::PedersenCommitmentFactory},
+    };
+
+    #[test]
+    fn extended_mask_constant_time_eq_and_redacted_debug() {
+        let k1 = RistrettoSecretKey::from(42u64);
+        let k2 = RistrettoSecretKey::from(43u64);
+        assert!(ExtendedMask::<RistrettoSecretKey>::assign(ExtensionDegree::DefaultPedersen, vec![]).is_err());
+        assert!(
+            ExtendedMask::<RistrettoSecretKey>::assign(ExtensionDegree::AddOneBasePoint, vec![k1.clone()]).is_err()
+        );
+
+        let mask1 = ExtendedMask::assign(ExtensionDegree::DefaultPedersen, vec![k1.clone()]).unwrap();
+        let mask1_copy = ExtendedMask::assign(ExtensionDegree::DefaultPedersen, vec![k1]).unwrap();
+        let mask2 = ExtendedMask::assign(ExtensionDegree::DefaultPedersen, vec![k2]).unwrap();
+        assert!(bool::from(mask1.ct_eq(&mask1_copy)));
+        assert_eq!(mask1, mask1_copy);
+        assert!(!bool::from(mask1.ct_eq(&mask2)));
+        assert_ne!(mask1, mask2);
+
+        let mask_debug = format!("{mask1:?}");
+        assert!(mask_debug.contains("[REDACTED]"));
+
+        let witness = ExtendedWitness::new(mask1, 100, 50);
+        let witness_debug = format!("{witness:?}");
+        assert!(witness_debug.contains("[REDACTED]"));
+        assert!(!witness_debug.contains("100"));
+        assert!(!witness_debug.contains("50"));
+    }
+
+    #[test]
+    fn aggregated_statements_validation_and_zeroize() {
+        assert!(AggregatedPublicStatement::<RistrettoPublicKey>::init(vec![]).is_err());
+        assert!(AggregatedPrivateStatement::<RistrettoPublicKey>::init(vec![], None).is_err());
+
+        let factory = PedersenCommitmentFactory::default();
+        let mask = RistrettoSecretKey::from(7u64);
+        let commitment = factory.commit_value(&mask, 500);
+        let stmt = Statement {
+            commitment,
+            minimum_value_promise: 100,
+        };
+
+        let pub_stmt = AggregatedPublicStatement::init(vec![stmt.clone()]).unwrap();
+        assert_eq!(pub_stmt.statements.len(), 1);
+        assert!(AggregatedPublicStatement::init(vec![stmt.clone(), stmt.clone(), stmt.clone()]).is_err());
+
+        let nonce = RistrettoSecretKey::from(99u64);
+        assert!(AggregatedPrivateStatement::init(vec![stmt.clone(), stmt.clone()], Some(nonce.clone())).is_err());
+
+        let mut priv_stmt = AggregatedPrivateStatement::init(vec![stmt], Some(nonce)).unwrap();
+        let priv_debug = format!("{priv_stmt:?}");
+        assert!(priv_debug.contains("[REDACTED]"));
+        priv_stmt.zeroize();
+        assert!(priv_stmt.statements.is_empty());
+        assert!(priv_stmt.recovery_seed_nonce.is_none());
     }
 }

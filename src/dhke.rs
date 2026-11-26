@@ -13,7 +13,7 @@
 //! attacker who supplies it as their public key learns the "secret". The shared secret is a group element, not key
 //! material; pass it through a KDF such as [`DerivedKeyDomain`](crate::hashing::DerivedKeyDomain) before use.
 
-use core::ops::Mul;
+use core::{fmt, ops::Mul};
 
 use snafu::prelude::*;
 use subtle::{Choice, ConstantTimeEq};
@@ -41,6 +41,14 @@ pub enum DiffieHellmanError {
 #[derive(Zeroize, ZeroizeOnDrop)]
 pub struct DiffieHellmanSharedSecret<P>(P)
 where P: PublicKey;
+
+impl<P> fmt::Debug for DiffieHellmanSharedSecret<P>
+where P: PublicKey
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "DiffieHellmanSharedSecret(***)")
+    }
+}
 
 impl<P> DiffieHellmanSharedSecret<P>
 where
@@ -122,8 +130,12 @@ mod test {
         assert_eq!(left.as_bytes(), right.as_bytes());
 
         let left_bytes = left.as_bytes();
-        let new_left = DiffieHellmanSharedSecret::<RistrettoPublicKey>::from_canonical_bytes(left_bytes).unwrap();
-        assert_eq!(left.as_bytes(), new_left.as_bytes());
+        let mut new_left = DiffieHellmanSharedSecret::<RistrettoPublicKey>::from_canonical_bytes(left_bytes).unwrap();
+        assert_eq!(left, new_left);
+        assert_eq!(format!("{left:?}"), "DiffieHellmanSharedSecret(***)");
+
+        zeroize::Zeroize::zeroize(&mut new_left);
+        assert_eq!(new_left.as_bytes(), &[0u8; 32]);
     }
 
     #[test]
