@@ -5,6 +5,7 @@
 //! This module defines generic traits for handling the digital signature operations, agnostic
 //! of the underlying elliptic curve implementation
 
+use alloc::vec::Vec;
 use core::{
     cmp::Ordering,
     hash::{Hash, Hasher},
@@ -101,6 +102,26 @@ where
     /// Returns a reference to the public nonce component.
     pub fn get_compressed_public_nonce(&self) -> &CompressedKey<P> {
         &self.public_nonce
+    }
+
+    /// Returns a canonical byte representation of the compressed Schnorr signature.
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf = Vec::with_capacity(P::key_length() + K::key_length());
+        buf.extend_from_slice(self.public_nonce.as_bytes());
+        buf.extend_from_slice(self.signature.as_bytes());
+        buf
+    }
+
+    /// From a canonical byte representation, retrieves a compressed Schnorr signature.
+    pub fn from_bytes(buf: &[u8]) -> Result<Self, ByteArrayError> {
+        let p_len = P::KEY_LEN;
+        let k_len = K::key_length();
+        if buf.len() != p_len + k_len {
+            return Err(ByteArrayError::IncorrectLength {});
+        }
+        let public_nonce = CompressedKey::from_canonical_bytes(&buf[0..p_len])?;
+        let signature = K::from_canonical_bytes(&buf[p_len..p_len + k_len])?;
+        Ok(Self::new(public_nonce, signature))
     }
 }
 
