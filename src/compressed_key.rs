@@ -251,7 +251,7 @@ impl<'de, T> Deserialize<'de> for CompressedKey<T> {
             phantom: PhantomData<T>,
         }
 
-        impl<T> Visitor<'_> for CompressedKeyVisitor<T> {
+        impl<'de, T> Visitor<'de> for CompressedKeyVisitor<T> {
             type Value = CompressedKey<T>;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -261,6 +261,18 @@ impl<'de, T> Deserialize<'de> for CompressedKey<T> {
             fn visit_bytes<E>(self, v: &[u8]) -> Result<CompressedKey<T>, E>
             where E: de::Error {
                 CompressedKey::from_canonical_bytes(v).map_err(E::custom)
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<CompressedKey<T>, A::Error>
+            where A: de::SeqAccess<'de> {
+                let mut bytes = Vec::with_capacity(32);
+                while let Some(b) = seq.next_element::<u8>()? {
+                    if bytes.len() == 32 {
+                        return Err(de::Error::invalid_length(bytes.len().saturating_add(1), &self));
+                    }
+                    bytes.push(b);
+                }
+                CompressedKey::from_canonical_bytes(&bytes).map_err(de::Error::custom)
             }
         }
 
